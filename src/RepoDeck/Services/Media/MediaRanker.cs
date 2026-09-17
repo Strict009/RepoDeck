@@ -23,6 +23,27 @@ public static class MediaRanker
         "isitmaintained.com", "deepsource.io", "codefactor.io", "app.fossa.com"
     ];
 
+    /// <summary>
+    /// App-store and package-index buttons. A "Get it on F-Droid" banner is a picture of
+    /// somebody else's logo, and it was being adopted as a project's screenshot because
+    /// nothing about its address says badge.
+    /// </summary>
+    private static readonly string[] StoreHosts =
+    [
+        "f-droid.org", "fdroid.gitlab.io", "play.google.com", "apps.apple.com",
+        "developer.apple.com", "microsoft.com/store", "snapcraft.io", "flathub.org",
+        "get.microsoft.com", "aur.archlinux.org", "repology.org", "packagecloud.io"
+    ];
+
+    /// <summary>Filename fragments that mark a store button wherever it is hosted.</summary>
+    private static readonly string[] StoreWords =
+    [
+        "f-droid", "fdroid", "get-it-on", "get_it_on", "getiton", "available-on",
+        "available_on", "google-play", "googleplay", "play-store", "playstore",
+        "app-store", "appstore", "download-on-the", "snap-store", "flathub",
+        "microsoft-store", "ms-store"
+    ];
+
     /// <summary>Funding and sponsorship buttons.</summary>
     private static readonly string[] SponsorHosts =
     [
@@ -58,17 +79,26 @@ public static class MediaRanker
     /// <summary>Below this an image is decoration, not content.</summary>
     private const long MinimumUsefulBytes = 8 * 1024;
 
+    /// <summary>
+    /// What GitHub's generated preview card is worth: enough to beat nothing, not enough
+    /// to beat anything. A plain unclassified README image starts at 200.
+    /// </summary>
+    private const int SocialPreviewScore = 50;
+
     public static MediaCandidate Classify(MediaCandidate candidate)
     {
         var url = candidate.Url.ToLowerInvariant();
         var description = (candidate.Description ?? "").ToLowerInvariant();
 
-        // Ranked below a logo on purpose: GitHub generates this card automatically when the
-        // maintainer has not uploaded one, so it is frequently text on a gradient. Its job
-        // is to be the fallback that is never worse than an empty tile.
+        // Ranked below every genuine image on purpose. GitHub generates this card
+        // automatically when the maintainer has not uploaded one, and what it contains is
+        // the repository name and description set in small type on a flat background. It
+        // is a last resort, never a preferred picture: any real screenshot, logo or
+        // documentation image tells someone more about a program than a rendering of
+        // words they have already read on the card itself.
         if (candidate.Source == MediaSource.SocialPreview)
         {
-            return candidate with { Kind = MediaKind.SocialPreview, Score = 250 };
+            return candidate with { Kind = MediaKind.SocialPreview, Score = SocialPreviewScore };
         }
 
         if (LooksLikeBadge(url, description))
@@ -146,6 +176,13 @@ public static class MediaRanker
     {
         if (BadgeHosts.Any(h => url.Contains(h, StringComparison.OrdinalIgnoreCase))) return true;
         if (SponsorHosts.Any(h => url.Contains(h, StringComparison.OrdinalIgnoreCase))) return true;
+        if (StoreHosts.Any(h => url.Contains(h, StringComparison.OrdinalIgnoreCase))) return true;
+        if (StoreWords.Any(w => url.Contains(w, StringComparison.Ordinal))) return true;
+
+        if (StoreWords.Any(w => description.Contains(w, StringComparison.Ordinal))) return true;
+        if (description.Contains("get it on", StringComparison.Ordinal)) return true;
+        if (description.Contains("available on", StringComparison.Ordinal)) return true;
+        if (description.Contains("download on the", StringComparison.Ordinal)) return true;
         if (BadgeWords.Any(w => url.Contains(w, StringComparison.Ordinal))) return true;
 
         // GitHub's own workflow status images.

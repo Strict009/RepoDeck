@@ -7,6 +7,7 @@ using RepoDeck.Services.Analysis;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.GitHub;
 using RepoDeck.Services.Media;
+using RepoDeck.Services.Preferences;
 
 namespace RepoDeck.ViewModels;
 
@@ -28,28 +29,61 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     private int _loadedPages;
     private int _searchGeneration;
     private int _totalCount;
+    private readonly IUserPreferences? _preferences;
 
     public DiscoverViewModel(
         IGitHubClient github,
         IRepositoryExplanationService explanations,
         IRepositoryMediaService media,
         IAppLog log,
-        ImageLoader? images = null)
+        ImageLoader? images = null,
+        IUserPreferences? preferences = null,
+        QuickLookViewModel? quickLook = null)
     {
         _github = github;
         _explanations = explanations;
         _media = media;
         _images = images;
         _log = log;
+        _preferences = preferences;
+
+        QuickLook = quickLook;
+
+        if (quickLook is not null)
+        {
+            quickLook.ArtworkFound += OnArtworkFound;
+
+            // The panel can be closed from inside itself or by dismissing it, so the
+            // page mirrors its state rather than assuming it owns it.
+            quickLook.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is not nameof(QuickLookViewModel.IsOpen)) return;
+
+                OnPropertyChanged(nameof(IsQuickLookOpen));
+
+                // Closing from inside the panel clears the selection too. Otherwise the
+                // grid goes on highlighting a card nothing is describing, and clicking
+                // that same card again would change nothing and reopen nothing.
+                if (!quickLook.IsOpen) SelectedResult = null;
+            };
+        }
 
         SelectedSort = SortOption.All[0];
         SelectedStars = StarsOption.All[0];
         SelectedUpdated = UpdatedOption.All[0];
         SelectedLanguage = LanguageOption.All[0];
+
+        _viewMode = preferences?.Current.ResultsView ?? ResultsViewMode.Card;
     }
 
     /// <summary>Raised when the user asks to see a repository in detail.</summary>
     public event Action<GitHubRepository>? RepositoryOpenRequested;
+
+    /// <summary>
+    /// Raised when the user asks to install from a card. The shell opens the details page
+    /// with the plan and its confirmation step showing; nothing is downloaded by this.
+    /// </summary>
+    public event Action<GitHubRepository>? RepositoryInstallRequested;
 
     public ObservableCollection<RepositoryCardViewModel> Results { get; } = [];
 
@@ -122,8 +156,10 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         ErrorMessage = null;
         HasSearched = true;
 
-        // The previous results are gone, so their pictures are no longer wanted.
+        // The previous results are gone, so their pictures and the panel describing one
+        // of them are no longer wanted.
         CancelImageLoading();
+        SelectedResult = null;
         Results.Clear();
         RaiseResultStates();
 
@@ -254,6 +290,105 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     /// <summary>The category currently being browsed, when the search came from a tile.</summary>
     [ObservableProperty] private string? _activeCategory;
 
+
+    // ---- View mode --------------------------------------------------------
+
+    /// <summary>
+    /// Card or Compact, remembered between runs.
+    /// </summary>
+    /// <remarks>
+    /// Card is the default and always will be: someone who does not know what they want
+    /// is helped far more by a picture and a sentence than by a dense list. Compact
+    /// exists for the opposite person, who already knows the landscape and wants forty
+    /// results on screen rather than nine.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCardView))]
+    [NotifyPropertyChangedFor(nameof(IsCompactView))]
+    private ResultsViewMode _viewMode;
+
+    public bool IsCardView => ViewMode == ResultsViewMode.Card;
+    public bool IsCompactView => ViewMode == ResultsViewMode.Compact;
+
+    partial void OnViewModeChanged(ResultsViewMode value) =>
+        _preferences?.Update(p => p with { ResultsView = value });
+
+    [RelayCommand]
+    private void UseCardView() => ViewMode = ResultsViewMode.Card;
+
+    [RelayCommand]
+    private void UseCompactView() => ViewMode = ResultsViewMode.Compact;
+
+    // ---- Quick Look -------------------------------------------------------
+
+    /// <summary>The side panel, or null when the page was built without one.</summary>
+    public QuickLookViewModel? QuickLook { get; }
+
+    public bool HasQuickLook => QuickLook is not null;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelection))]
+    private RepositoryCardViewModel? _selectedResult;
+
+    public bool HasSelection => SelectedResult is not null;
+
+    /// <summary>
+    /// Selecting a result opens the panel. Selection is the trigger rather than a
+    /// separate button, because a panel that needs to be summoned is a panel nobody uses.
+    /// </summary>
+    partial void OnSelectedResultChanged(RepositoryCardViewModel? value)
+    {
+        if (QuickLook is null) return;
+
+        if (value is null)
+        {
+            QuickLook.CloseCommand.Execute(null);
+            return;
+        }
+
+        // Fire and forget: ShowAsync fills the panel from what the card already knows
+        // before the deeper look starts, and it guards its own staleness.
+        _ = QuickLook.ShowAsync(value);
+    }
+
+    /// <summary>Whether the panel is showing.</summary>
+    public bool IsQuickLookOpen => QuickLook?.IsOpen ?? false;
+
+    /// <summary>Opens Quick Look for a card that was activated rather than selected.</summary>
+    private void OpenQuickLook(RepositoryCardViewModel card)
+    {
+        // Activating the card that is already selected has to reopen the panel rather
+        // than do nothing, which is what assigning an unchanged selection would do.
+        if (ReferenceEquals(SelectedResult, card))
+        {
+            if (QuickLook is not null) _ = QuickLook.ShowAsync(card);
+            return;
+        }
+
+        SelectedResult = card;
+    }
+
+    /// <summary>
+    /// The card asked to install. The page does not install: it asks the shell for the
+    /// details page, which shows the plan and requires confirmation before anything is
+    /// downloaded. That gate has one implementation and this is not a second one.
+    /// </summary>
+    private void OnInstallRequested(RepositoryCardViewModel card)
+    {
+        _log.Info("Discover", "Install requested for " + card.Repository.FullName);
+        RepositoryInstallRequested?.Invoke(card.Repository);
+    }
+
+    /// <summary>
+    /// A deeper look found a real screenshot for a card that only had its designed tile.
+    /// Putting it back means the grid improves as someone explores it.
+    /// </summary>
+    private void OnArtworkFound(RepositoryCardViewModel card, string url)
+    {
+        var token = _imageCancellation?.Token ?? CancellationToken.None;
+        _ = card.AdoptArtworkAsync(url, _images, token);
+    }
+
     // ---- Internals --------------------------------------------------------
 
     private RepositorySearchQuery BuildQuery(int page) => new()
@@ -291,9 +426,15 @@ public sealed partial class DiscoverViewModel : ViewModelBase
             // Metadata only: one predictable address, no API call, no rate limit spent.
             var media = _media.DiscoverFromMetadata(repository);
 
+            // A search result yields nothing but GitHub's generated preview card, which is
+            // the repository name and description set in small type. At card size that is
+            // unreadable text pretending to be a picture, so the card uses its own designed
+            // tile instead and asks for artwork only. Quick Look reads the README and hands
+            // back a real screenshot when it finds one.
             var card = new RepositoryCardViewModel(
                 repository, explanation, likelihood, setup,
-                media.Primary?.Url, OnRepositoryOpenRequested, _log);
+                media.PrimaryArtwork?.Url, OnRepositoryOpenRequested, _log,
+                OpenQuickLook, OnInstallRequested);
 
             Results.Add(card);
             added.Add(card);
@@ -357,8 +498,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
         ResultSummary = _totalCount switch
         {
-            0 => "No repositories matched.",
-            _ => $"Showing {shown} of {Humanize.Count(_totalCount)} matching repositories"
+            0 => "Nothing found.",
+            _ => $"Showing {shown} of {Humanize.Count(_totalCount)} projects found"
         };
 
         if (result.IncompleteResults)

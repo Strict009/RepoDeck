@@ -6,6 +6,7 @@ using RepoDeck.Services.Media;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.GitHub;
 using RepoDeck.Services.Install;
+using RepoDeck.Services.Preferences;
 
 namespace RepoDeck.Infrastructure;
 
@@ -48,6 +49,7 @@ public sealed class AppServices : IDisposable
         Launcher = new LaunchService(Paths, InstalledApps, Log);
         Media = new RepositoryMediaService(Log);
         Images = new ImageLoader(Log);
+        Preferences = new UserPreferences(Paths, Log);
 
         // An installation that never promoted out of staging is not an installation;
         // its remains should not accumulate across runs.
@@ -78,6 +80,9 @@ public sealed class AppServices : IDisposable
     public LaunchService Launcher { get; }
     public IRepositoryMediaService Media { get; }
     public ImageLoader Images { get; }
+
+    /// <summary>Interface preferences only. Nothing here affects what RepoDeck installs.</summary>
+    public IUserPreferences Preferences { get; }
 
     private static HttpClient CreateHttpClient()
     {

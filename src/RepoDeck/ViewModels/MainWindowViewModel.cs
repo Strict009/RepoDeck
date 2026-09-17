@@ -13,6 +13,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly AppServices _services;
     private readonly DiscoverViewModel _discover;
+    private readonly QuickLookViewModel _quickLook;
     private readonly InstalledViewModel _installed;
     private readonly DownloadsViewModel _downloads;
     private readonly IUiDispatcher _dispatcher;
@@ -23,9 +24,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _services = services;
         _dispatcher = dispatcher ?? new AvaloniaUiDispatcher();
 
+        _quickLook = new QuickLookViewModel(
+            services.GitHub, services.Explanations, services.Analyzer, services.InstallPlanner,
+            services.Media, services.InstalledApps, services.Launcher, services.Machine,
+            services.Log, services.Images);
+
+        _quickLook.DetailsRequested += ShowRepositoryDetails;
+
+        // Installing happens on the details page and nowhere else, so Quick Look asks the
+        // shell to go there with the plan on screen rather than starting anything itself.
+        _quickLook.InstallRequested += repository => ShowRepositoryDetails(repository, offerInstall: true);
+
         _discover = new DiscoverViewModel(
-            services.GitHub, services.Explanations, services.Media, services.Log, services.Images);
+            services.GitHub, services.Explanations, services.Media, services.Log, services.Images,
+            services.Preferences, _quickLook);
+
         _discover.RepositoryOpenRequested += ShowRepositoryDetails;
+        _discover.RepositoryInstallRequested += repository => ShowRepositoryDetails(repository, offerInstall: true);
 
         _installed = new InstalledViewModel(
             services.InstalledApps, services.Installer, services.Launcher, services.Log);
@@ -93,7 +108,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         StatusText = SelectedNavigationItem.Title;
     }
 
-    private void ShowRepositoryDetails(GitHubRepository repository)
+    private void ShowRepositoryDetails(GitHubRepository repository) =>
+        ShowRepositoryDetails(repository, offerInstall: false);
+
+    /// <summary>
+    /// Opens the details page. With <paramref name="offerInstall"/> the page shows the
+    /// installation plan and its confirmation step as soon as the analysis produces one -
+    /// the same gate as always, reached in one step instead of three.
+    /// </summary>
+    private void ShowRepositoryDetails(GitHubRepository repository, bool offerInstall)
     {
         // Abandoning a half-loaded details page must stop its work, not leave four
         // GitHub requests running against a page nobody is looking at.
@@ -112,6 +135,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             _services.Machine,
             _services.Log,
             _services.Images);
+
+        details.OfferInstallWhenReady = offerInstall;
 
         _activeDetails = details;
         CurrentPage = details;

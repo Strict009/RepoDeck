@@ -188,6 +188,10 @@
         <Setter Property="Fill" Value="{DynamicResource RdDisabledTextBrush}" />
     </Style>
 
+    <Style Selector="Ellipse.ledBad">
+        <Setter Property="Fill" Value="{DynamicResource RdDangerBrush}" />
+    </Style>
+
     <!-- ==================== Buttons ==================== -->
     <!--
         Three levels and no more. Primary is lime with dark ink and is the one thing on a
@@ -430,7 +434,7 @@
 
     <Style Selector="ListBox.cards ListBoxItem">
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0,0,16,16" />
+        <Setter Property="Margin" Value="0" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusMedium}" />
         <Setter Property="VerticalAlignment" Value="Stretch" />
@@ -485,6 +489,134 @@
     <Style Selector="ScrollViewer">
         <Setter Property="Background" Value="Transparent" />
     </Style>
+
+    <!-- ==================== Quiet action ==================== -->
+    <!--
+        A fourth level, below secondary: present, reachable, and not competing. SOURCE
+        leads away from RepoDeck to GitHub, which is exactly what most people using this
+        application do not want to do, so it reads as small print until it is hovered.
+    -->
+    <Style Selector="Button.quiet">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.8" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.quiet /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Button.quiet:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdChipBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+    </Style>
+
+    <Style Selector="Button.quiet:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+    </Style>
+
+    <!-- ==================== Segmented switch ==================== -->
+    <!--
+        Two buttons welded into one control, in the manner of a hardware mode switch. The
+        active half is inset and lit; the inactive half is raised and waiting. The label
+        is always a word, so the state does not depend on noticing which half is brighter.
+    -->
+    <Style Selector="Button.segment">
+        <Setter Property="Background" Value="{DynamicResource RdPanelRaisedBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSharp}" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.8" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.segment /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdPanelRaisedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Button.segment:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+    </Style>
+
+    <Style Selector="Button.segment:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+    </Style>
+
+    <Style Selector="Button.segmentActive /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.segmentActive:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <!-- ==================== Selected result ==================== -->
+    <!--
+        Selection now means "this is what the side panel is describing", so it has to be
+        obvious which card that is. A lit border does it without moving anything.
+    -->
+    <Style Selector="ListBox.cards ListBoxItem:selected Border.card">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
+    </Style>
+
+    <!-- ==================== Compact rows ==================== -->
+    <Style Selector="ListBox.rows">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.rows ListBoxItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="ListBox.rows ListBoxItem /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+    </Style>
+
+    <Style Selector="ListBox.rows ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.rows ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.rows ListBoxItem:focus-visible /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
 
     <!-- ==================== Selectable text ==================== -->
     <Style Selector="SelectableTextBlock">

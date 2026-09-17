@@ -42,6 +42,46 @@ public class MediaRankerTests
         Assert.True(MediaRanker.Classify(Readme(url)).IsExcluded);
     }
 
+    [Theory]
+    [InlineData("https://fdroid.gitlab.io/artwork/badge/get-it-on.png")]
+    [InlineData("https://f-droid.org/badge/get-it-on.png")]
+    [InlineData("https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png")]
+    [InlineData("https://example.invalid/assets/google-play-badge.png")]
+    [InlineData("https://example.invalid/images/available-on-f-droid.png")]
+    [InlineData("https://example.invalid/docs/download-on-the-app-store.png")]
+    [InlineData("https://snapcraft.io/static/images/badges/en/snap-store-black.png")]
+    public void App_store_buttons_are_never_shown(string url)
+    {
+        // "Get it on F-Droid" is a picture of somebody else's logo. It was being adopted
+        // as a project's screenshot and filling the card with a store banner.
+        Assert.True(MediaRanker.Classify(Readme(url)).IsExcluded, url);
+    }
+
+    [Theory]
+    [InlineData("Get it on F-Droid")]
+    [InlineData("Available on the App Store")]
+    [InlineData("Download on the Mac App Store")]
+    public void A_store_button_is_recognised_from_its_alt_text_alone(string alt)
+    {
+        var classified = MediaRanker.Classify(Readme("https://example.invalid/media/1.png", alt));
+
+        Assert.True(classified.IsExcluded, alt);
+    }
+
+    [Fact]
+    public void A_store_badge_never_becomes_a_cards_artwork()
+    {
+        // The whole failure, end to end: a README whose only image is a store banner must
+        // leave the card showing its own designed tile.
+        var media = MediaRanker.Rank([
+            Readme("https://fdroid.gitlab.io/artwork/badge/get-it-on.png", "Get it on F-Droid"),
+            new MediaCandidate { Url = "https://example.invalid/social", Source = MediaSource.SocialPreview }
+        ]);
+
+        Assert.Null(media.PrimaryArtwork);
+        Assert.False(media.HasArtwork);
+    }
+
     [Fact]
     public void An_SVG_is_set_aside_rather_than_shown_broken()
     {
@@ -128,8 +168,10 @@ public class MediaRankerTests
     }
 
     [Fact]
-    public void The_gallery_holds_screenshots_and_previews_but_not_logos()
+    public void The_gallery_holds_the_projects_own_pictures_with_the_generated_card_last()
     {
+        // A logo is the project's own artwork and belongs in the strip. GitHub's generated
+        // card is not the project's artwork at all, so it brings up the rear.
         var media = MediaRanker.Rank([
             Readme("https://example.invalid/screenshot-1.png"),
             Readme("https://example.invalid/screenshot-2.png"),
@@ -137,8 +179,81 @@ public class MediaRankerTests
             new MediaCandidate { Url = "https://example.invalid/social", Source = MediaSource.SocialPreview }
         ]);
 
-        Assert.Equal(3, media.Gallery.Count);
-        Assert.DoesNotContain(media.Gallery, c => c.Kind == MediaKind.Logo);
+        Assert.Equal(4, media.Gallery.Count);
+        Assert.Equal(MediaKind.SocialPreview, media.Gallery[^1].Kind);
+        Assert.Contains(media.Gallery, c => c.Kind == MediaKind.Logo);
+    }
+
+    [Fact]
+    public void A_generated_preview_card_loses_to_any_picture_the_project_supplied()
+    {
+        // GitHub's card is a rendering of the name and description the user has already
+        // read. Anything the project chose to publish tells them more.
+        string[] ordinary =
+        [
+            "https://example.invalid/images/window.png",
+            "https://example.invalid/logo.png",
+            "https://example.invalid/docs/figure-3.png",
+            "https://example.invalid/anything-at-all.jpg"
+        ];
+
+        foreach (var url in ordinary)
+        {
+            var media = MediaRanker.Rank([
+                new MediaCandidate { Url = "https://example.invalid/social", Source = MediaSource.SocialPreview },
+                Readme(url)
+            ]);
+
+            Assert.NotEqual(MediaKind.SocialPreview, media.Primary!.Kind);
+            Assert.Equal(url, media.Primary.Url);
+        }
+    }
+
+    [Fact]
+    public void The_generated_card_is_still_used_when_there_is_nothing_else()
+    {
+        // Fallback media, not preferred media. It still beats an empty tile on a surface
+        // big enough to read it.
+        var media = MediaRanker.Rank([
+            new MediaCandidate { Url = "https://example.invalid/social", Source = MediaSource.SocialPreview }
+        ]);
+
+        Assert.Equal(MediaKind.SocialPreview, media.Primary!.Kind);
+        Assert.True(media.HasMedia);
+    }
+
+    [Fact]
+    public void Artwork_means_the_projects_own_pictures_and_never_the_generated_card()
+    {
+        // The card grid asks for artwork, because at 300px wide the generated card is
+        // unreadable text pretending to be a screenshot.
+        var onlySocial = MediaRanker.Rank([
+            new MediaCandidate { Url = "https://example.invalid/social", Source = MediaSource.SocialPreview }
+        ]);
+
+        Assert.Null(onlySocial.PrimaryArtwork);
+        Assert.False(onlySocial.HasArtwork);
+        Assert.NotNull(onlySocial.Primary);
+
+        var withScreenshot = MediaRanker.Rank([
+            new MediaCandidate { Url = "https://example.invalid/social", Source = MediaSource.SocialPreview },
+            Readme("https://example.invalid/screenshot.png")
+        ]);
+
+        Assert.True(withScreenshot.HasArtwork);
+        Assert.Contains("screenshot.png", withScreenshot.PrimaryArtwork!.Url);
+    }
+
+    [Fact]
+    public void A_tiny_image_still_loses_to_the_generated_card()
+    {
+        // Demoting the card must not promote a 900-byte spacer above it.
+        var media = MediaRanker.Rank([
+            new MediaCandidate { Url = "https://example.invalid/social", Source = MediaSource.SocialPreview },
+            File("https://example.invalid/images/spacer.png", 900)
+        ]);
+
+        Assert.Equal(MediaKind.SocialPreview, media.Primary!.Kind);
     }
 
     [Fact]

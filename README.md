@@ -19,6 +19,11 @@ squared-off panels, small capitalised labels, segmented meters and one acid-lime
 that is used sparingly enough to still mean something. Every status light sits beside a
 word, so no state is carried by colour alone.
 
+Results are cards about programs rather than rows about repositories: a picture, a name,
+what it is for, whether it runs on your computer, and what RepoDeck can do about it.
+Selecting one opens a side panel with the full answer without losing your place in the
+search. A denser Compact view is a click away for anyone who prefers a list.
+
 ## Requirements
 
 - .NET 10 SDK

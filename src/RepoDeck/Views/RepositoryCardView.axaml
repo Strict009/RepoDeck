@@ -3,26 +3,60 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:RepoDeck.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="360"
+             mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="400"
              x:Class="RepoDeck.Views.RepositoryCardView"
-             x:DataType="vm:RepositoryCardViewModel"
-             Width="320">
+             x:DataType="vm:RepositoryCardViewModel">
 
+    <!--
+        Read in the order someone deciding what to install actually reads: the name, a
+        picture of it, what it is for, where it runs, how much work it is, what RepoDeck
+        can do about it, the action. The owner slug and the language are last and small.
+    -->
     <Border Classes="card" Padding="0" ClipToBounds="True">
-        <Grid RowDefinitions="Auto,*,Auto">
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
 
-            <!-- ==================== Media ==================== -->
-            <Panel Grid.Row="0" Height="150" ClipToBounds="True">
+            <!-- ============ 1. The name, in a title bar ============ -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource RdSurfaceAltBrush}"
+                    BorderBrush="{DynamicResource RdBorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="14,10">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0"
+                            Width="3" Height="16"
+                            Background="{DynamicResource RdAccentBrush}"
+                            Margin="0,0,10,0"
+                            VerticalAlignment="Center" />
+
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding FriendlyName}"
+                               Classes="h1"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" MaxLines="1" />
+
+                    <Border Grid.Column="2"
+                            Classes="chip chipCaution"
+                            IsVisible="{Binding IsArchived}"
+                            VerticalAlignment="Center"
+                            ToolTip.Tip="The authors have stopped maintaining this project.">
+                        <TextBlock Text="ABANDONED" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ============ 2. The picture ============ -->
+            <Panel Grid.Row="1" Height="164" ClipToBounds="True">
 
                 <!--
-                    The designed fallback. Never a broken-image icon: a coloured field
-                    derived from the project name, a faint grid, and the initial. A page
-                    of results with no screenshots still looks deliberate.
+                    The designed fallback. Never a broken-image icon, and never GitHub's
+                    generated preview card either: that card is the project name and
+                    description set in small type, which at this size is unreadable text
+                    masquerading as a screenshot. A stable colour, a faint grid and the
+                    initial say the same amount and are honest about it.
                 -->
                 <Panel IsVisible="{Binding ShowFallback}">
                     <Border Background="{Binding FallbackBrush}" />
 
-                    <!-- A faint grid, in the manner of a utility's backdrop -->
                     <Border Opacity="0.14">
                         <Border.Background>
                             <VisualBrush TileMode="Tile"
@@ -39,7 +73,7 @@
                     </Border>
 
                     <TextBlock Text="{Binding FallbackInitial}"
-                               FontSize="54" FontWeight="Bold"
+                               FontSize="58" FontWeight="Bold"
                                Foreground="{DynamicResource RdOnAccentBrush}"
                                Opacity="0.82"
                                HorizontalAlignment="Center"
@@ -50,68 +84,81 @@
                        IsVisible="{Binding ShowImage}"
                        Stretch="UniformToFill"
                        StretchDirection="Both" />
-
-                <!-- Setup level sits on the image, where the eye already is -->
-                <Border Classes="chip chipAccent"
-                        IsVisible="{Binding ShowSetupLabel}"
-                        HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                        Margin="10"
-                        ToolTip.Tip="{Binding VerdictExplanation}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Ellipse Classes="led ledOn" Width="6" Height="6" />
-                        <TextBlock Text="{Binding SetupLabel}" />
-                    </StackPanel>
-                </Border>
-
-                <Border Classes="chip chipCaution"
-                        IsVisible="{Binding IsArchived}"
-                        HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Margin="10">
-                    <TextBlock Text="ABANDONED" />
-                </Border>
             </Panel>
 
-            <!-- ==================== Body ==================== -->
-            <StackPanel Grid.Row="1" Margin="16,14,16,10" Spacing="8">
-                <TextBlock Text="{Binding FriendlyName}" Classes="h1"
-                           TextTrimming="CharacterEllipsis" MaxLines="1" />
-
+            <!-- ============ 3. What it is for ============ -->
+            <StackPanel Grid.Row="2" Margin="16,14,16,8" Spacing="10">
                 <TextBlock Text="{Binding Purpose}"
                            Classes="secondary"
+                           TextWrapping="Wrap"
                            MaxLines="3"
                            TextTrimming="CharacterEllipsis"
-                           Height="57" />
+                           MinHeight="58"
+                           VerticalAlignment="Top" />
 
-                <StackPanel Orientation="Horizontal" Spacing="8"
+                <!-- ============ 4. Where it runs ============ -->
+                <StackPanel Orientation="Horizontal" Spacing="7"
                             IsVisible="{Binding HasPlatformText}">
+                    <Ellipse Classes="led ledOff" Width="6" Height="6" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding PlatformText}" Classes="microLabel"
-                               Foreground="{DynamicResource RdTextSecondaryBrush}" />
+                               Foreground="{DynamicResource RdTextSecondaryBrush}"
+                               VerticalAlignment="Center" />
                 </StackPanel>
             </StackPanel>
 
-            <!-- ==================== Actions and small print ==================== -->
-            <StackPanel Grid.Row="2">
-                <Border BorderBrush="{DynamicResource RdBorderBrush}" BorderThickness="0,1,0,0"
-                        Background="{DynamicResource RdSurfaceAltBrush}"
-                        Padding="16,10">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <WrapPanel Grid.Column="0" ItemSpacing="10" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Owner}" Classes="muted"
-                                       TextTrimming="CharacterEllipsis" MaxWidth="110" />
-                            <TextBlock Text="{Binding LanguageText}" Classes="muted"
-                                       IsVisible="{Binding HasLanguage}" />
-                        </WrapPanel>
+            <!-- ============ 5 and 6. Effort, and what RepoDeck can do ============ -->
+            <Border Grid.Row="3" Classes="inset" Margin="16,0,16,12" Padding="12,9">
+                <StackPanel Spacing="8">
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button Classes="link" Content="GITHUB"
-                                    Command="{Binding OpenOnGitHubCommand}"
-                                    ToolTip.Tip="Open this project's page on GitHub" />
-                            <Button Classes="primary" Content="DETAILS"
-                                    Command="{Binding OpenDetailsCommand}" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                IsVisible="{Binding ShowSetupLabel}"
+                                ToolTip.Tip="{Binding SetupExplanation}">
+                        <TextBlock Text="SETUP" Classes="microLabel" Width="74"
+                                   TextWrapping="NoWrap" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding SetupLabel}" Classes="secondary"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                ToolTip.Tip="{Binding InstallabilityExplanation}">
+                        <TextBlock Text="REPODECK" Classes="microLabel" Width="74"
+                                   TextWrapping="NoWrap" VerticalAlignment="Center" />
+                        <Ellipse Classes="led"
+                                 Classes.ledOn="{Binding IsReadyToInstall}"
+                                 Classes.ledWarn="{Binding IsDeveloperFocused}"
+                                 Classes.ledBad="{Binding IsNotCompatible}"
+                                 VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding InstallabilityLabel}" Classes="secondary"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 7 and 8. The action, then the small print ============ -->
+            <Border Grid.Row="4"
+                    BorderBrush="{DynamicResource RdBorderBrush}" BorderThickness="0,1,0,0"
+                    Background="{DynamicResource RdSurfaceAltBrush}"
+                    Padding="14,10">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding MetadataLine}"
+                               Classes="muted"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="Who publishes this, and what it is written in" />
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Classes="quiet" Content="SOURCE"
+                                Command="{Binding OpenOnGitHubCommand}"
+                                ToolTip.Tip="Open this project's source code on GitHub" />
+
+                        <Button Classes="primary"
+                                Content="{Binding PrimaryActionLabel}"
+                                Command="{Binding ActivateCommand}"
+                                ToolTip.Tip="{Binding PrimaryActionTooltip}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
         </Grid>
     </Border>
 </UserControl>

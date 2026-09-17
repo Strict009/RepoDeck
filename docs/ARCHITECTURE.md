@@ -341,6 +341,108 @@ that removes files, which is the only styling cue the uninstall and forget flows
 addition to their explicit confirmation step. Link styling for navigation away from the
 application.
 
+## Discover as an application browser
+
+RepoDeck's search results describe programs, not repositories. The distinction drives the
+whole page: what leads a card, what a card offers to do, and what vocabulary is allowed
+outside the technical sections.
+
+### The order a card is read in
+
+Name, picture, purpose, platform, setup effort, what RepoDeck can do about it, the action.
+Owner slug, language and star count come last and small. They are facts about a
+repository, and a card is about a program; nothing is removed, it moves to the details
+page.
+
+### Three columns, then two, then one
+
+`ResponsiveCardsPanel` picks its column count from the width it is given and caps it at
+three. A `WrapPanel` full of fixed-width cards packed four across on a wide monitor, and
+four narrow cards have room for a thumbnail and half a sentence each. The rule is a pure
+static, tested at every width, and the panel only does arithmetic on the result.
+
+### Card and Compact
+
+Card is the default and will stay the default: someone who does not know what they want is
+helped far more by a picture and a sentence than by a dense list. Compact is one row per
+project for the opposite person, who already knows the landscape and wants forty results
+on screen rather than nine. The same facts in the same order, with the picture reduced to
+a tile. The choice is remembered in `preferences.json` under the Data folder; nothing in
+that file affects what RepoDeck installs, so an unreadable one silently falls back to the
+defaults.
+
+### Installability
+
+`InstallabilityState` is one of five answers - Ready to install, Needs setup, Developer
+focused, Not compatible, Unknown - and it is a **capability statement, never a safety
+statement**. It says what RepoDeck can do with a project. It says nothing whatever about
+whether the software is trustworthy, no part of the interface may present it as though it
+did, and every surface that shows a state also carries the sentence saying so.
+
+`InstallabilityEvaluator` has two entry points because the grid and Quick Look know
+different amounts. `FromMetadata` answers from a search result and is capped at
+`Possible`; it can call a library developer-focused, and otherwise answers Unknown,
+because claiming "Ready to install" without having looked at a single release would be
+guessing about the one thing a user most wants to rely on. `FromPlan` answers once a plan
+exists and is the only one that may permit a direct install action.
+
+A system installer is `NeedsSetup` rather than `ReadyToInstall`. RepoDeck fetches those
+and hands them over; that is not installing, by RepoDeck's own definition, and a button
+implying otherwise would be a lie.
+
+Every state other than Unknown carries its evidence. A verdict nobody can interrogate is
+worth less than no verdict.
+
+### INSTALL on a card does not install
+
+A card offers INSTALL only when a plan exists and can proceed, and pressing it opens the
+details page with that plan on screen and its confirmation step ready. Nothing is
+downloaded until the user confirms what the plan says. Milestone 3's gate has exactly one
+implementation and this is not a second one - the label names where the button takes you.
+
+### Quick Look
+
+Selecting a result fills a side panel with the same analysis the details page runs:
+best media, the plain-English explanation, setup effort, whether it runs on this machine,
+whether RepoDeck can install it and why, download size, a screenshot strip, and the
+technical facts folded away. Comparing six candidates becomes six clicks instead of six
+round trips through a full page.
+
+It is guarded by a generation counter **as well as** a cancellation token. The token stops
+work that stops to look at it; analysis already handed off finishes regardless, and its
+continuation then runs against a panel describing something else entirely. The counter is
+what stops those answers landing. There is a test that fails without it.
+
+Where the window is wide enough the panel docks beside the results; below
+`PanelDisplayConverter.MinimumDockedContentWidth` it covers them instead. Docking it on a
+narrow window left the results about 270px wide, which is not a result. This drives a
+two-column grid directly rather than using a `SplitView`, whose overlay mode closes its own
+pane on any click in the content area - which fought row selection, so clicking a result
+to open the panel closed it in the same gesture.
+
+### Media: the project's own pictures first
+
+GitHub generates a preview card for every repository, and what it contains is the name and
+description set in small type on a flat background. It ranks below every genuine image,
+and the card grid asks for `PrimaryArtwork` - a screenshot, a logo, a documentation image -
+falling back to its own designed tile rather than showing unreadable text as though the
+user were expected to read it. Quick Look, which is wide enough to show it legibly, asks
+for `Primary` and will use the generated card when there is nothing else.
+
+Store buttons are rejected alongside build badges. "Get it on F-Droid" is a picture of
+somebody else's logo, and it was being adopted as a project's screenshot.
+
+A search result carries no README and no file listing, so cards start with their designed
+tile. When Quick Look reads the README it often finds a real screenshot, and hands it back
+to the card - so the grid improves as someone explores it rather than staying generic.
+
+### Vocabulary
+
+"projects found", not "matching repositories". "Programs only", not "probably
+applications". GitHub's own words - repository, release asset, tag, fork - live under
+Technical Details, where anyone who wants them can find them and nobody else has to read
+them.
+
 ## Caching and rate limits
 
 `ResponseCache` is an in-memory TTL cache keyed by request URI: 5 minutes for searches,

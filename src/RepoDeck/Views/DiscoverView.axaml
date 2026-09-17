@@ -3,11 +3,15 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:RepoDeck.ViewModels"
+             xmlns:controls="using:RepoDeck.Controls"
+             xmlns:infra="using:RepoDeck.Infrastructure"
              mc:Ignorable="d" d:DesignWidth="1040" d:DesignHeight="720"
              x:Class="RepoDeck.Views.DiscoverView"
              x:DataType="vm:DiscoverViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,*" Margin="28,22,28,0">
+    <Grid Name="DiscoverRoot" ColumnDefinitions="*,Auto">
+
+    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="28,22,28,0">
 
         <!-- ==================== Search ==================== -->
         <StackPanel Grid.Row="0" Spacing="14">
@@ -87,11 +91,30 @@
                             Command="{Binding ClearFiltersCommand}" />
                 </WrapPanel>
 
-                <StackPanel Orientation="Horizontal" Spacing="14" IsVisible="{Binding ShowResults}">
-                    <TextBlock Text="{Binding ResultSummary}" Classes="muted" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding HiddenByFilterNotice}" Classes="muted" VerticalAlignment="Center"
-                               IsVisible="{Binding HiddenByFilterNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowResults}">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14">
+                        <TextBlock Text="{Binding ResultSummary}" Classes="muted" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding HiddenByFilterNotice}" Classes="muted" VerticalAlignment="Center"
+                                   IsVisible="{Binding HiddenByFilterNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </StackPanel>
+
+                    <!-- Card or Compact. The choice is remembered between runs. -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="VIEW" Classes="microLabel" VerticalAlignment="Center"
+                                   Margin="0,0,10,0" />
+                        <Button Classes="segment"
+                                Classes.segmentActive="{Binding IsCardView}"
+                                Content="CARD"
+                                Command="{Binding UseCardViewCommand}"
+                                ToolTip.Tip="Picture-led cards" />
+                        <Button Classes="segment"
+                                Classes.segmentActive="{Binding IsCompactView}"
+                                Content="COMPACT"
+                                Command="{Binding UseCompactViewCommand}"
+                                ToolTip.Tip="One dense row per project" />
+                    </StackPanel>
+                </Grid>
             </StackPanel>
         </Border>
 
@@ -207,12 +230,23 @@
             <!-- Results -->
             <ScrollViewer IsVisible="{Binding ShowResults}">
                 <StackPanel Spacing="0" Margin="0,0,14,24">
+
+                    <!--
+                        Card by default. Three columns where there is room for three, then
+                        two, then one - the panel decides from its own width, so the layout
+                        follows the window rather than a breakpoint guessed in advance.
+                    -->
                     <ListBox Classes="cards"
+                             IsVisible="{Binding IsCardView}"
                              ItemsSource="{Binding Results}"
+                             SelectedItem="{Binding SelectedResult}"
                              SelectionMode="Single">
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <WrapPanel />
+                                <controls:ResponsiveCardsPanel
+                                    MinItemWidth="{DynamicResource RdCardMinWidth}"
+                                    MaxColumns="3"
+                                    Spacing="{DynamicResource RdCardSpacing}" />
                             </ItemsPanelTemplate>
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
@@ -222,10 +256,72 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
+                    <!--
+                        Compact: one row per project for somebody who already knows the
+                        landscape and wants forty results on screen rather than nine. The
+                        same facts in the same order, with the picture reduced to a tile.
+                    -->
+                    <ListBox Classes="rows"
+                             IsVisible="{Binding IsCompactView}"
+                             ItemsSource="{Binding Results}"
+                             SelectedItem="{Binding SelectedResult}"
+                             SelectionMode="Single">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RepositoryCardViewModel">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="10,8">
+
+                                    <Border Grid.Column="0" Width="40" Height="40"
+                                            ClipToBounds="True"
+                                            CornerRadius="{DynamicResource RdRadiusSmall}"
+                                            Margin="0,0,12,0">
+                                        <Panel>
+                                            <Border Background="{Binding FallbackBrush}"
+                                                    IsVisible="{Binding ShowFallback}" />
+                                            <TextBlock Text="{Binding FallbackInitial}"
+                                                       IsVisible="{Binding ShowFallback}"
+                                                       FontSize="18" FontWeight="Bold"
+                                                       Foreground="{DynamicResource RdOnAccentBrush}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                            <Image Source="{Binding Image}"
+                                                   IsVisible="{Binding ShowImage}"
+                                                   Stretch="UniformToFill" />
+                                        </Panel>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding FriendlyName}" Classes="body"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                        <TextBlock Text="{Binding Purpose}" Classes="muted"
+                                                   TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7"
+                                                VerticalAlignment="Center" Margin="14,0"
+                                                ToolTip.Tip="{Binding InstallabilityExplanation}">
+                                        <Ellipse Classes="led"
+                                                 Classes.ledOn="{Binding IsReadyToInstall}"
+                                                 Classes.ledWarn="{Binding IsDeveloperFocused}"
+                                                 Classes.ledBad="{Binding IsNotCompatible}" />
+                                        <TextBlock Text="{Binding InstallabilityLabel}" Classes="muted"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+
+                                    <Button Grid.Column="3" Classes="primary"
+                                            Content="{Binding PrimaryActionLabel}"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding ActivateCommand}"
+                                            ToolTip.Tip="{Binding PrimaryActionTooltip}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
                     <Button Classes="secondary"
                             Content="SHOW MORE RESULTS"
                             HorizontalAlignment="Center"
-                            Margin="0,10,0,0"
+                            Margin="0,16,0,0"
                             IsVisible="{Binding CanLoadMore}"
                             IsEnabled="{Binding !IsLoadingMore}"
                             Command="{Binding LoadMoreCommand}" />
@@ -235,5 +331,21 @@
                 </StackPanel>
             </ScrollViewer>
         </Panel>
+    </Grid>
+
+    <!--
+        Quick Look. Beside the results where there is room for both, and over them where
+        there is not - it is the last child, so it draws on top. It never navigates away
+        from the search, so comparing candidates does not mean losing your place.
+    -->
+    <ContentControl Width="380"
+                    HorizontalAlignment="Right"
+                    Content="{Binding QuickLook}"
+                    IsVisible="{Binding QuickLook.ShowPanel, FallbackValue=False}"
+                    Grid.Column="{Binding #DiscoverRoot.Bounds.Width,
+                                          Converter={x:Static infra:PanelDisplayConverter.Instance}}"
+                    Grid.ColumnSpan="{Binding #DiscoverRoot.Bounds.Width,
+                                              Converter={x:Static infra:PanelDisplayConverter.Instance},
+                                              ConverterParameter=span}" />
     </Grid>
 </UserControl>

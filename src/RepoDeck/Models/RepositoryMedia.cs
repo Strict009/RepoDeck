@@ -65,12 +65,30 @@ public sealed record RepositoryMedia
     /// <summary>Best first, badges already removed.</summary>
     public IReadOnlyList<MediaCandidate> Candidates { get; init; } = [];
 
-    /// <summary>The image to show on a card, or null when there is nothing worth showing.</summary>
+    /// <summary>The best image of any kind, or null when there is nothing worth showing.</summary>
     public MediaCandidate? Primary => Candidates.Count > 0 ? Candidates[0] : null;
+
+    /// <summary>
+    /// The best image the project actually supplied: a screenshot, a logo or a picture
+    /// from its documentation. Null when the only thing available is GitHub's generated
+    /// preview card.
+    /// </summary>
+    /// <remarks>
+    /// Surfaces exist where the generated card is the wrong thing to show. It is a
+    /// rendering of the repository name and description in small type, so at the size of
+    /// a result card it reads as unreadable text rather than as a picture of a program,
+    /// and presenting it as artwork implies the user is expected to squint at it. Those
+    /// surfaces ask for artwork and fall back to their own designed tile; surfaces with
+    /// room to show it legibly ask for <see cref="Primary"/>.
+    /// </remarks>
+    public MediaCandidate? PrimaryArtwork =>
+        Candidates.FirstOrDefault(c => c.Kind != MediaKind.SocialPreview);
+
+    public bool HasArtwork => PrimaryArtwork is not null;
 
     /// <summary>Images for the details page gallery, best first.</summary>
     public IReadOnlyList<MediaCandidate> Gallery =>
-        Candidates.Where(c => c.Kind is MediaKind.Screenshot or MediaKind.SocialPreview)
+        Candidates.Where(c => c.Kind is MediaKind.Screenshot or MediaKind.Logo or MediaKind.SocialPreview)
             .Take(6)
             .ToList();
 

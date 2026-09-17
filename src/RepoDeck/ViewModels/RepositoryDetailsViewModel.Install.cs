@@ -110,7 +110,22 @@ public sealed partial class RepositoryDetailsViewModel
         InstalledVersionText = "";
         InstallMessage = null;
         InstallState = plan.CanProceed ? InstallState.NotInstalled : InstallState.Unavailable;
+
+        // Arriving here from Quick Look's INSTALL means the user has already said what
+        // they want, so the plan is put in front of them rather than a button that shows
+        // it. The confirmation step itself is not skipped: nothing is downloaded until
+        // they confirm what the plan says.
+        if (OfferInstallWhenReady && InstallState == InstallState.NotInstalled)
+        {
+            BeginInstall();
+        }
     }
+
+    /// <summary>
+    /// Set by the shell when the page was opened by someone who had already asked to
+    /// install. It advances to the confirmation step; it never bypasses it.
+    /// </summary>
+    public bool OfferInstallWhenReady { get; set; }
 
     /// <summary>Shows the plan and waits. Nothing is downloaded by this.</summary>
     [RelayCommand]

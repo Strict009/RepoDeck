@@ -1,0 +1,244 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:RepoDeck.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="720"
+             x:Class="RepoDeck.Views.QuickLookView"
+             x:DataType="vm:QuickLookViewModel">
+
+    <!--
+        The side panel. Answers the four questions the details page answers, beside the
+        results rather than instead of them, so comparing six candidates is six clicks
+        instead of six round trips.
+    -->
+    <Border Background="{DynamicResource RdSidebarBrush}"
+            BorderBrush="{DynamicResource RdBorderBrush}"
+            BorderThickness="1,0,0,0">
+
+        <Grid RowDefinitions="Auto,*">
+
+            <!-- ==================== Header ==================== -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource RdSurfaceAltBrush}"
+                    BorderBrush="{DynamicResource RdBorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="QUICK LOOK" Classes="microLabel"
+                                   Foreground="{DynamicResource RdAccentBrush}" />
+                        <TextBlock Text="{Binding Title}" Classes="h1"
+                                   TextTrimming="CharacterEllipsis" MaxLines="1" />
+                        <TextBlock Text="{Binding Subtitle}" Classes="muted"
+                                   TextTrimming="CharacterEllipsis" MaxLines="1" />
+                    </StackPanel>
+
+                    <Button Grid.Column="1" Classes="quiet" Content="CLOSE"
+                            VerticalAlignment="Top"
+                            Command="{Binding CloseCommand}"
+                            ToolTip.Tip="Close this panel" />
+                </Grid>
+            </Border>
+
+            <!-- ==================== Working ==================== -->
+            <StackPanel Grid.Row="1" Spacing="12" Margin="16,24,16,0"
+                        VerticalAlignment="Top"
+                        IsVisible="{Binding IsLoading}">
+                <TextBlock Text="{Binding ActivityText}" Classes="microLabel"
+                           Foreground="{DynamicResource RdAccentBrush}" />
+                <ProgressBar IsIndeterminate="True" Height="6" />
+                <TextBlock Classes="muted"
+                           Text="Reading the project's own files. Nothing is downloaded or run." />
+            </StackPanel>
+
+            <!-- ==================== Trouble ==================== -->
+            <Border Grid.Row="1" Margin="16,20,16,0" VerticalAlignment="Top"
+                    Background="{DynamicResource RdDangerSoftBrush}"
+                    BorderBrush="{DynamicResource RdDangerBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{DynamicResource RdRadiusMedium}"
+                    Padding="14"
+                    IsVisible="{Binding HasError}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="THAT DID NOT WORK" Classes="microLabel"
+                               Foreground="{DynamicResource RdDangerBrush}" />
+                    <TextBlock Text="{Binding ErrorMessage}" Classes="body" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- ==================== The answers ==================== -->
+            <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowBody}"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16" Margin="16,16,16,24">
+
+                    <!-- Best media, at a size where it can actually be read -->
+                    <Border CornerRadius="{DynamicResource RdRadiusSmall}"
+                            ClipToBounds="True"
+                            BorderBrush="{DynamicResource RdBorderBrush}"
+                            BorderThickness="1">
+                        <Panel Height="180">
+                            <Panel IsVisible="{Binding ShowHeroFallback}">
+                                <Border Background="{Binding FallbackBrush}" />
+                                <TextBlock Text="{Binding FallbackInitial}"
+                                           FontSize="64" FontWeight="Bold"
+                                           Foreground="{DynamicResource RdOnAccentBrush}"
+                                           Opacity="0.82"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Panel>
+
+                            <Image Source="{Binding Hero.Image}"
+                                   IsVisible="{Binding ShowHero}"
+                                   Stretch="UniformToFill"
+                                   StretchDirection="Both" />
+                        </Panel>
+                    </Border>
+
+                    <!-- The rest of the pictures, small -->
+                    <ItemsControl ItemsSource="{Binding Screenshots}"
+                                  IsVisible="{Binding ShowScreenshotStrip}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MediaTileViewModel">
+                                <Border Width="76" Height="50"
+                                        ClipToBounds="True"
+                                        Background="{DynamicResource RdPanelInsetBrush}"
+                                        BorderBrush="{DynamicResource RdBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="{DynamicResource RdRadiusSmall}"
+                                        ToolTip.Tip="{Binding Description}">
+                                    <Image Source="{Binding Image}" Stretch="UniformToFill" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- What it is, in plain English -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="WHAT IS THIS?" Classes="microLabel" />
+                        <TextBlock Text="{Binding WhatItIs}" Classes="body" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6"
+                                IsVisible="{Binding WhatYouCanDoWithIt, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="WHAT CAN I DO WITH IT?" Classes="microLabel" />
+                        <TextBlock Text="{Binding WhatYouCanDoWithIt}" Classes="secondary" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- Will it work here, how much work is it, what can RepoDeck do -->
+                    <Border Classes="inset">
+                        <StackPanel Spacing="12">
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="WILL IT WORK ON THIS PC?" Classes="microLabel" />
+                                <!-- A Grid, not a horizontal StackPanel: a stack hands its
+                                     children infinite width, so the sentence never wrapped
+                                     and ran off the edge of the panel instead. -->
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <Ellipse Grid.Column="0" Classes="led"
+                                             Classes.ledOn="{Binding IsCompatible}"
+                                             Classes.ledWarn="{Binding !CompatibilityIsKnown}"
+                                             VerticalAlignment="Top" Margin="0,5,8,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CompatibilityText}"
+                                               Classes="secondary" TextWrapping="Wrap" />
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="HOW MUCH SETUP?" Classes="microLabel" />
+                                <TextBlock Text="{Binding SetupLabel}" Classes="body" />
+                                <TextBlock Text="{Binding SetupSummary}" Classes="muted" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="CAN REPODECK INSTALL IT?" Classes="microLabel" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Ellipse Classes="led"
+                                             Classes.ledOn="{Binding IsReadyToInstall}"
+                                             Classes.ledBad="{Binding IsNotCompatible}"
+                                             VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding InstallabilityLabel}" Classes="body"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding InstallabilitySummary}" Classes="muted"
+                                           TextWrapping="Wrap" />
+
+                                <!-- The evidence, always available, never a bare verdict -->
+                                <ItemsControl ItemsSource="{Binding InstallabilityEvidence}"
+                                              IsVisible="{Binding HasInstallabilityEvidence}"
+                                              Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,3">
+                                                <TextBlock Grid.Column="0" Text="-" Classes="muted"
+                                                           VerticalAlignment="Top" Margin="0,0,7,0" />
+                                                <TextBlock Grid.Column="1" Text="{Binding}" Classes="muted"
+                                                           TextWrapping="Wrap" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock Text="{Binding SafetyDisclaimer}" Classes="muted"
+                                           TextWrapping="Wrap" Margin="0,6,0,0"
+                                           Foreground="{DynamicResource RdCautionBrush}" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="4" IsVisible="{Binding HasDownloadSize}">
+                                <TextBlock Text="DOWNLOAD SIZE" Classes="microLabel" />
+                                <TextBlock Text="{Binding DownloadSizeText}" Classes="body" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- One action, and one way back to the full page -->
+                    <StackPanel Spacing="8">
+                        <Button Classes="primary" Content="INSTALL"
+                                HorizontalAlignment="Stretch"
+                                MinHeight="40"
+                                IsVisible="{Binding ShowInstallAction}"
+                                Command="{Binding InstallCommand}"
+                                ToolTip.Tip="Opens the installation plan for you to confirm. Nothing is downloaded until you do." />
+
+                        <Button Classes="primary" Content="RUN"
+                                HorizontalAlignment="Stretch"
+                                MinHeight="40"
+                                IsVisible="{Binding ShowRunAction}"
+                                Command="{Binding RunCommand}"
+                                ToolTip.Tip="Start the copy RepoDeck installed" />
+
+                        <Button Classes="secondary" Content="FULL DETAILS"
+                                HorizontalAlignment="Stretch"
+                                Command="{Binding OpenDetailsCommand}" />
+
+                        <Button Classes="quiet" Content="SOURCE"
+                                HorizontalAlignment="Center"
+                                Command="{Binding OpenOnGitHubCommand}"
+                                ToolTip.Tip="Open this project's source code on GitHub" />
+                    </StackPanel>
+
+                    <!-- GitHub's own vocabulary lives here and nowhere else on this panel -->
+                    <Expander Header="TECHNICAL DETAILS"
+                              IsExpanded="{Binding TechnicalDetailsExpanded}">
+                        <ItemsControl ItemsSource="{Binding TechnicalDetails}" Margin="0,6,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TechnicalFact">
+                                    <Grid ColumnDefinitions="120,*" Margin="0,0,0,6">
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}" Classes="muted" />
+                                        <SelectableTextBlock Grid.Column="1" Text="{Binding Value}"
+                                                             FontSize="12" TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Expander>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>

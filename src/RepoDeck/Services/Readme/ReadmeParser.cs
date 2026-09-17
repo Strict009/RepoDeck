@@ -88,6 +88,15 @@ public static partial class ReadmeParser
                 continue;
             }
 
+            // The dashes-and-pipes line under a table header is pure markup. Left in, it
+            // was joined onto the surrounding prose and shown as a row of punctuation in
+            // the middle of a plain-English description.
+            if (TableRulePattern().IsMatch(line))
+            {
+                FlushParagraph(blocks, paragraph);
+                continue;
+            }
+
             var listMatch = ListItemPattern().Match(line);
             if (listMatch.Success)
             {
@@ -226,6 +235,10 @@ public static partial class ReadmeParser
     {
         if (text.Length < 25) return true;
 
+        // A table row is data in a grid, not a sentence introducing the project. The one
+        // that prompted this was a donation table: "Sponsors | WeChat | Alipay |".
+        if (text.Count(c => c == '|') >= 2) return true;
+
         var lower = text.ToLowerInvariant();
         string[] markers =
         [
@@ -251,7 +264,19 @@ public static partial class ReadmeParser
     [GeneratedRegex(@"\[([^\]]*)\]\([^)]*\)", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex LinkPattern();
 
-    [GeneratedRegex(@"<[^>]{1,200}>", RegexOptions.None, matchTimeoutMilliseconds: 250)]
+    /// <summary>
+    /// The dashes-and-pipes rule under a markdown table header. It has to contain at
+    /// least one pipe and one dash and nothing else but spacing and colons, so an em
+    /// dash on its own line or a row of real text is left alone.
+    /// </summary>
+    [GeneratedRegex(@"^[ \t]*\|?[ \t:|-]*-[ \t:|-]*\|[ \t:|-]*$", RegexOptions.None, matchTimeoutMilliseconds: 250)]
+    private static partial Regex TableRulePattern();
+
+    // The bound was 200 and real tags are longer than that: a single HelloGitHub badge
+    // tag with a signed URL, alt text and inline styles runs past 230 characters, so it
+    // survived the strip and was shown to the user as raw markup. The class is a simple
+    // negation with no backtracking to speak of, and the match timeout still applies.
+    [GeneratedRegex(@"<[^>]{1,4000}>", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex HtmlTagPattern();
 
     [GeneratedRegex(@"`([^`]*)`", RegexOptions.None, matchTimeoutMilliseconds: 250)]

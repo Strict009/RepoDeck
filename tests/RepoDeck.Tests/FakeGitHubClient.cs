@@ -25,10 +25,19 @@ internal sealed class FakeGitHubClient : IGitHubClient
     /// <summary>When set, a search waits on this before returning.</summary>
     public TaskCompletionSource? SearchGate { get; set; }
 
+    /// <summary>Holds README requests open until released.</summary>
+    public TaskCompletionSource? ReadmeGate { get; set; }
+
+    /// <summary>Holds file-listing requests open, ignoring cancellation.</summary>
+    public TaskCompletionSource? TreeGate { get; set; }
+
     /// <summary>Results returned for any search, keyed by the query text.</summary>
     public Dictionary<string, List<GitHubRepository>> ResultsByText { get; } = new();
 
     public List<GitHubRepository> DefaultResults { get; set; } = [];
+
+    /// <summary>Overrides the reported total, for testing how counts are worded.</summary>
+    public int? TotalCount { get; set; }
     public GitHubRepository? Repository { get; set; }
     public string? Readme { get; set; }
     public Dictionary<string, long> Languages { get; set; } = new();
@@ -63,7 +72,7 @@ internal sealed class FakeGitHubClient : IGitHubClient
         return new RepositorySearchResult
         {
             Items = items,
-            TotalCount = items.Count,
+            TotalCount = TotalCount ?? items.Count,
             Page = query.Page,
             PerPage = query.PerPage
         };
@@ -77,13 +86,21 @@ internal sealed class FakeGitHubClient : IGitHubClient
         return Task.FromResult(Repository ?? TestRepositories.Create(name, owner));
     }
 
-    public Task<string?> GetReadmeAsync(
+    public async Task<string?> GetReadmeAsync(
         string owner, string name, CancellationToken cancellationToken = default)
     {
         ReadmeCallCount++;
+
+        // Lets a test hold one request open while it starts another, which is the only
+        // way to reproduce a stale result arriving after a newer one.
+        if (ReadmeGate is not null)
+        {
+            await ReadmeGate.Task.WaitAsync(cancellationToken);
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
         if (ReadmeThrows is not null) throw ReadmeThrows;
-        return Task.FromResult(Readme);
+        return Readme;
     }
 
     public Task<IReadOnlyDictionary<string, long>> GetLanguagesAsync(
@@ -102,13 +119,19 @@ internal sealed class FakeGitHubClient : IGitHubClient
         return Task.FromResult<IReadOnlyList<GitHubRelease>>(Releases);
     }
 
-    public Task<RepositoryTree> GetTreeAsync(
+    public async Task<RepositoryTree> GetTreeAsync(
         string owner, string name, string? reference = null, CancellationToken cancellationToken = default)
     {
         TreeCallCount++;
         cancellationToken.ThrowIfCancellationRequested();
+
+        // Deliberately does NOT observe the token, modelling work already handed off that
+        // finishes after the caller has given up on it. That is the case a cancellation
+        // token cannot cover and a generation guard has to.
+        if (TreeGate is not null) await TreeGate.Task;
+
         if (TreeThrows is not null) throw TreeThrows;
-        return Task.FromResult(Tree);
+        return Tree;
     }
 
     public Task<string?> GetTextFileAsync(
