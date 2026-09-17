@@ -7,9 +7,9 @@ this kind of application impossible to extend later:
 
 | Concern | Where it lives | Milestone |
 |---|---|---|
-| **Discover** a repository | `Services/GitHub` | 1 |
-| **Understand** a repository | `Services/Explanation`, `Services/Readme` | 1 |
-| **Inspect** and plan an install | `Services/Analysis` | 2-3 |
+| **Discover** a repository | `Services/GitHub` | 1 (done) |
+| **Understand** a repository | `Services/Explanation`, `Services/Readme` | 1 (done) |
+| **Inspect** and plan an install | `Services/Analysis`, `Services/Install` | 2 (done) |
 | **Execute** a plan | not yet written | 3-4 |
 
 Analysis never downloads. Planning never executes. Execution never decides. Each stage
@@ -64,6 +64,71 @@ not safety, and RepoDeck says so in the panel itself.
 are always populated alongside a verdict, so RepoDeck can answer "why did you conclude
 that?" for anything it shows.
 
+## The analysis pipeline (Milestone 2)
+
+```
+GitHub
+  -> RepositoryAnalyzerService      one tree request + <=3 manifest reads
+       ProjectStructureDetector     pure: file listing -> ecosystems, build system
+       RefineWithManifests          pure: manifest contents -> frameworks, hints
+       ApplicationClassifier        pure: weighted votes -> ApplicationType
+       PlatformSupportAnalyzer      pure: -> platform support with confidence
+  -> ReleaseAnalyzer                pure: -> ranked assets, one recommendation
+       AssetNameParser              pure: file name -> platform, arch, package type
+       CompatibilityAnalyzer        pure: asset + MachineProfile -> compatibility
+  -> InstallPlanner                 -> InstallPlan
+  -> [ the user reads the plan ]
+  -> Milestone 3 installer          consumes the plan; does not re-decide anything
+```
+
+Only `RepositoryAnalyzerService` touches the network. Everything below it is a pure
+function over explicit inputs, which is why the compatibility rules can be tested for a
+Linux ARM64 machine from a Windows x64 development box.
+
+### The InstallPlan boundary
+
+`InstallPlan` is the seam between deciding and doing. It is typed, serialisable and
+contains no secrets, so it can be logged, stored and shown to the user in full. The
+installer that arrives in Milestone 3 consumes a finished plan and re-analyses nothing.
+`CanProceed` is false whenever `BlockingIssues` is non-empty, and an analysis that did
+not finish - a rate limit, an unreadable file listing - can never become a plan at all.
+
+### Request budget
+
+Opening a repository costs: repository, README, languages, releases, file listing, and
+at most three manifest files. The file listing is a single git-tree request covering the
+entire repository, so structural classification does not scale with repository size and
+nothing is cloned. Manifests are read only when the structure pass said their contents
+would change a conclusion. Search results are never deeply analysed - the Discover page
+still uses metadata-only heuristics, because thirty cards cannot afford a request each.
+
+### Rules that exist because they were got wrong
+
+- **"darwin" contains "win", and "x86_64" contains "x86".** Compound spellings are
+  normalised to canonical tokens before matching, and matching is on whole tokens, never
+  loose substrings. macOS is checked before Windows.
+- **The marker nearest the root identifies the project.** A `package.json` in a docs
+  folder does not make a C++ project a Node project. Types carry the depth of the marker
+  that proved them.
+- **An unlabelled archive is not evidence of an application.** A header-only library
+  shipping its headers in a ZIP is not a desktop program.
+- **A source archive can never be recommended** while any compatible binary exists, and
+  when only source exists RepoDeck says so rather than offering a download it cannot use.
+
+### Confidence
+
+`Confidence` runs Confirmed, Likely, Possible, Unknown, RequiresInspection, Unsupported.
+Only a published build for a platform is ever Confirmed. Application type is capped
+below Confirmed on purpose: what a project is *for* is always inferred from how it is
+built, never stated by GitHub. `Unsupported` is a positive finding - a Windows-only
+toolkit rules other platforms out - and is deliberately distinct from `Unknown`.
+
+### Threading
+
+The service layer uses `ConfigureAwait(false)` throughout, as library code should.
+ViewModels marshal onto the UI thread through `IUiDispatcher`, so correctness does not
+depend on the service layer happening to capture the UI synchronisation context.
+
 ## Caching and rate limits
 
 `ResponseCache` is an in-memory TTL cache keyed by request URI: 5 minutes for searches,
@@ -84,9 +149,10 @@ Every network call is `async` and takes a `CancellationToken`. The Discover sear
 `[RelayCommand(IncludeCancelCommand = true)]`, which is what backs the Cancel button.
 The UI thread is never blocked.
 
-## What Milestone 1 deliberately does not do
+## What Milestone 2 deliberately does not do
 
-No downloading, no extraction, no installation, no launching, no source builds. The
-details page states `Requires inspection` for compatibility rather than guessing, and
-says in as many words that RepoDeck does not yet examine release files. The only process
-RepoDeck starts is the system browser, and only for an `http`/`https` URL.
+No downloading, no extraction, no installation, no launching, no source builds. RepoDeck
+analyses and plans; Milestone 3 executes verified plans. The only process RepoDeck
+starts is the system browser for an `http`/`https` URL, and the system file manager for
+RepoDeck's own folder. Nothing from a repository is ever executed, and no command found
+in a README is ever run.
