@@ -322,8 +322,27 @@
                                 <Button Classes="secondary" Content="Open folder"
                                         Command="{Binding OpenInstallFolderCommand}" />
                                 <Button Classes="secondary" Content="Uninstall"
-                                        Command="{Binding UninstallCommand}" />
+                                        IsVisible="{Binding ShowUninstallButton}"
+                                        Command="{Binding BeginUninstallCommand}" />
                             </StackPanel>
+
+                            <!-- Removing an application is never one click -->
+                            <Border Background="{DynamicResource RdDangerSoftBrush}"
+                                    CornerRadius="10" Padding="14"
+                                    IsVisible="{Binding IsConfirmingUninstall}">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Classes="body"
+                                               Text="Remove this and everything RepoDeck installed for it?" />
+                                    <TextBlock Classes="muted"
+                                               Text="Only RepoDeck's own folder for this application is deleted." />
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button Classes="primary" Content="Remove it"
+                                                Command="{Binding UninstallCommand}" />
+                                        <Button Classes="secondary" Content="Keep it"
+                                                Command="{Binding CancelUninstallCommand}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
 
                             <TextBlock Text="{Binding InstallMessage}" Classes="secondary"
                                        IsVisible="{Binding HasInstallMessage}" />

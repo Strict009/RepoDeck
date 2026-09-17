@@ -14,6 +14,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly AppServices _services;
     private readonly DiscoverViewModel _discover;
     private readonly InstalledViewModel _installed;
+    private readonly DownloadsViewModel _downloads;
     private readonly IUiDispatcher _dispatcher;
     private RepositoryDetailsViewModel? _activeDetails;
 
@@ -28,15 +29,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _installed = new InstalledViewModel(
             services.InstalledApps, services.Installer, services.Launcher, services.Log);
 
+        _downloads = new DownloadsViewModel(
+            services.InstalledApps, services.Installer, services.Log);
+
         NavigationItems =
         [
             new NavigationItem("Discover", NavigationIcons.Discover, _discover),
             new NavigationItem("Installed", NavigationIcons.Installed, _installed),
-            new NavigationItem("Downloads", NavigationIcons.Downloads, new PlaceholderViewModel(
-                "Downloads",
-                "Downloads in progress will appear here, with progress, cancellation and a record of "
-                + "what has been fetched.",
-                "Planned for Milestone 3")),
+            new NavigationItem("Downloads", NavigationIcons.Downloads, _downloads),
             new NavigationItem("Favorites", NavigationIcons.Favorites, new PlaceholderViewModel(
                 "Favorites",
                 "Repositories you save for later will appear here, whether or not you install them.",
@@ -72,6 +72,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         // The library may have changed while the user was elsewhere in the application.
         if (ReferenceEquals(value.Page, _installed)) _installed.Refresh();
+        if (ReferenceEquals(value.Page, _downloads)) _downloads.Refresh();
 
         CurrentPage = value.Page;
         CanGoBack = false;

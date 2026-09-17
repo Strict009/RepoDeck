@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using RepoDeck.Infrastructure;
 using RepoDeck.Models;
 using RepoDeck.Services.Install;
@@ -8,11 +7,12 @@ using RepoDeck.Services.Install;
 namespace RepoDeck.ViewModels;
 
 /// <summary>
-/// The library of everything RepoDeck has installed.
+/// The library of applications RepoDeck has established as runnable.
 /// </summary>
 /// <remarks>
-/// Reads only from the local manifest store, so it opens instantly, works offline and
-/// costs nothing against the GitHub rate limit.
+/// Only installations appear here. Assets RepoDeck fetched but could not turn into a
+/// runnable application live on the Downloads page instead, because a library that mixes
+/// the two stops meaning anything.
 /// </remarks>
 public sealed partial class InstalledViewModel : ViewModelBase
 {
@@ -56,13 +56,15 @@ public sealed partial class InstalledViewModel : ViewModelBase
         Applications.Clear();
 
         var installed = _store.GetAll()
+            .Where(m => m.State != InstallationState.Downloaded)
             .OrderByDescending(m => m.LastRunAt ?? m.InstalledAt)
             .ToList();
 
         foreach (var manifest in installed)
         {
             Applications.Add(new InstalledAppViewModel(
-                manifest, _launcher.IsIntact(manifest), Run, OpenFolder, ViewRepository, UninstallAsync));
+                manifest, _launcher.IsIntact(manifest),
+                Run, OpenFolder, ViewRepository, UninstallAsync, ChooseExecutableAsync));
         }
 
         HasApplications = Applications.Count > 0;
@@ -79,19 +81,11 @@ public sealed partial class InstalledViewModel : ViewModelBase
         }
 
         Message = result.ErrorMessage;
-        app.MarkBroken();
+        if (!_launcher.IsIntact(app.Manifest)) app.MarkBroken();
     }
 
-    private void OpenFolder(InstalledAppViewModel app)
-    {
-        var manifest = app.Manifest;
-
-        var folder = manifest.IsDownloadOnly && manifest.DownloadedFilePath is { Length: > 0 } file
-            ? Path.GetDirectoryName(file)
-            : manifest.InstalledPath;
-
-        if (folder is { Length: > 0 }) SystemBrowser.OpenFolder(folder, _log);
-    }
+    private void OpenFolder(InstalledAppViewModel app) =>
+        SystemBrowser.OpenFolder(app.Manifest.InstalledPath, _log);
 
     private void ViewRepository(InstalledAppViewModel app) =>
         SystemBrowser.OpenUrl(app.Manifest.RepositoryUrl, _log);
@@ -105,5 +99,17 @@ public sealed partial class InstalledViewModel : ViewModelBase
             : $"RepoDeck could not remove {app.Name}. The log file has the details.";
 
         Refresh();
+    }
+
+    private Task ChooseExecutableAsync(InstalledAppViewModel app, string candidate)
+    {
+        var result = _installer.ChooseExecutable(app.Manifest, candidate);
+
+        Message = result.Succeeded
+            ? $"{app.Name} will run {Path.GetFileName(candidate)}."
+            : result.ErrorMessage;
+
+        Refresh();
+        return Task.CompletedTask;
     }
 }

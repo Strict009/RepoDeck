@@ -44,6 +44,16 @@ public sealed record InstallationResult
 /// user where the file is - RepoDeck does not run installers on anyone's behalf, and
 /// never requests elevation.
 /// </remarks>
+public sealed record ExecutableChoiceResult
+{
+    public required bool Succeeded { get; init; }
+    public ApplicationManifest? Manifest { get; init; }
+    public string? ErrorMessage { get; init; }
+
+    public static ExecutableChoiceResult Failed(string message) =>
+        new() { Succeeded = false, ErrorMessage = message };
+}
+
 public interface IInstallationService
 {
     Task<InstallationResult> InstallAsync(
@@ -55,4 +65,14 @@ public interface IInstallationService
     /// Removes an installation. Only ever deletes inside RepoDeck's own Apps folder.
     /// </summary>
     Task<bool> UninstallAsync(ApplicationManifest manifest, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Settles which of an ambiguous installation's candidates is the application.
+    /// </summary>
+    /// <remarks>
+    /// The choice is restricted to candidates already recorded in the manifest, and the
+    /// resolved path is re-checked to be inside the installation directory. This is not a
+    /// general "pick any file on the machine" facility and must never become one.
+    /// </remarks>
+    ExecutableChoiceResult ChooseExecutable(ApplicationManifest manifest, string relativePath);
 }

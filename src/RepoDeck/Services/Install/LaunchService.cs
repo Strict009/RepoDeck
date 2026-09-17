@@ -45,19 +45,38 @@ public sealed class LaunchService
         if (manifest.IsDownloadOnly)
         {
             return LaunchResult.Failed(
-                "RepoDeck downloaded this but did not install it, because it is a system installer. "
+                "RepoDeck downloaded this but did not install it. "
                 + "Open the containing folder and run it yourself if you want to.");
         }
 
-        var executable = manifest.ExecutablePath;
+        if (manifest.NeedsExecutableChoice)
+        {
+            return LaunchResult.Failed(
+                "RepoDeck found multiple possible application executables. "
+                + "Choose which one to run before starting it.");
+        }
 
-        if (string.IsNullOrWhiteSpace(executable))
+        var relative = manifest.ExecutableRelativePath;
+
+        if (string.IsNullOrWhiteSpace(relative))
         {
             return LaunchResult.Failed(
                 "RepoDeck did not identify a program to run inside this download.");
         }
 
-        var full = Path.GetFullPath(executable);
+        // The stored path is relative, so it is resolved through the same guard that
+        // protects extraction. A manifest edited to contain "..\..\something.exe" is
+        // refused here rather than climbing out of the application's folder.
+        var full = ArchivePathGuard.ResolveSafePath(manifest.InstalledPath, relative);
+
+        if (full is null)
+        {
+            _log.Error("Launch",
+                $"Refused to run {relative} for {manifest.Id}: it does not resolve inside the installation.");
+
+            return LaunchResult.Failed(
+                "RepoDeck will only run a program from inside the application's own folder.");
+        }
 
         // Re-checked at launch, not just at install: the manifest is a file on disk and
         // could have been edited between the two.
@@ -82,11 +101,19 @@ public sealed class LaunchService
             Process.Start(new ProcessStartInfo
             {
                 FileName = full,
+
+                // The application's own folder, so it finds the files sitting beside it.
                 WorkingDirectory = Path.GetDirectoryName(full)!,
 
-                // The shell handles file associations and per-application manifests.
-                // It does not elevate: RepoDeck never sets Verb to "runas".
-                UseShellExecute = true
+                // Launched directly, never through the shell. ShellExecute would apply file
+                // associations and verbs, which turns "run this file" into "do whatever the
+                // system thinks this extension means" - and it is the route through which a
+                // non-executable could end up being interpreted. Elevation is never
+                // requested either: Verb is left unset.
+                UseShellExecute = false
+
+                // Arguments are deliberately never set. Nothing from a repository, a README
+                // or a release description is ever passed to a process RepoDeck starts.
             });
 
             RecordRun(manifest);
@@ -101,7 +128,7 @@ public sealed class LaunchService
         }
     }
 
-    /// <summary>True when the recorded executable is still where the manifest says.</summary>
+    /// <summary>True when what the manifest describes is still on disk.</summary>
     public bool IsIntact(ApplicationManifest manifest)
     {
         if (manifest.IsDownloadOnly)
@@ -109,7 +136,16 @@ public sealed class LaunchService
             return manifest.DownloadedFilePath is { Length: > 0 } path && File.Exists(path);
         }
 
-        return manifest.ExecutablePath is { Length: > 0 } executable && File.Exists(executable);
+        // An unresolved installation is intact when its files are there, even though
+        // there is no executable chosen yet.
+        if (manifest.NeedsExecutableChoice)
+        {
+            return Directory.Exists(manifest.InstalledPath);
+        }
+
+        return manifest.ExecutableRelativePath is { Length: > 0 } relative
+               && ArchivePathGuard.ResolveSafePath(manifest.InstalledPath, relative) is { } full
+               && File.Exists(full);
     }
 
     private void RecordRun(ApplicationManifest manifest)

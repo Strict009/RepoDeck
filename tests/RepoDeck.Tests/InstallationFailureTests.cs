@@ -189,23 +189,41 @@ public sealed class InstallationFailureTests : IDisposable
     }
 
     [Fact]
-    public async Task An_archive_with_no_executable_still_installs_but_says_so()
+    public async Task An_archive_with_no_executable_is_downloaded_not_installed()
     {
-        // The files are real and worth keeping; there is simply nothing to run.
+        // The download succeeded and is worth keeping, but RepoDeck established nothing
+        // runnable - so it must not appear in the Installed library as an application.
         var zip = MakeZip("tool.zip", ("readme.txt", "words"), ("data/config.json", "{}"));
 
         var plan = Plan();
         var result = await ServiceFor(zip).InstallAsync(plan);
 
         Assert.True(result.Succeeded);
-        Assert.NotNull(result.Manifest);
-        Assert.Null(result.Manifest!.ExecutablePath);
-        Assert.False(result.Manifest.HasExecutable);
-        Assert.True(Directory.Exists(plan.ProposedInstallDirectory));
+        Assert.True(result.DownloadedOnly);
+
+        var manifest = result.Manifest!;
+        Assert.Equal(InstallationState.Downloaded, manifest.State);
+        Assert.False(manifest.IsRunnableInstallation);
+        Assert.Null(manifest.ExecutableRelativePath);
+
+        Assert.Equal(
+            "Download completed, but RepoDeck could not identify a runnable application in this release.",
+            manifest.NotInstalledReason);
+
+        // No application directory was created, and the asset itself is preserved.
+        Assert.False(Directory.Exists(plan.ProposedInstallDirectory));
+        Assert.NotNull(manifest.DownloadedFilePath);
+        Assert.True(File.Exists(manifest.DownloadedFilePath));
+
+        // Enough provenance survives for a later version to retry.
+        Assert.Equal(42, manifest.RepositoryId);
+        Assert.Equal("v1.0.0", manifest.ReleaseTag);
+        Assert.NotNull(manifest.AssetDownloadUrl);
+        AssertStagingIsClean();
     }
 
     [Fact]
-    public async Task Several_plausible_executables_are_reported_as_ambiguous()
+    public async Task Several_plausible_executables_await_a_choice_rather_than_a_guess()
     {
         // The release every installer author dreads.
         var zip = MakeZip("tool.zip",
@@ -220,17 +238,107 @@ public sealed class InstallationFailureTests : IDisposable
         var result = await ServiceFor(zip).InstallAsync(plan);
 
         Assert.True(result.Succeeded);
+        Assert.True(result.ExecutableIsAmbiguous);
+        Assert.Equal("RepoDeck found multiple possible application executables.", result.ExecutableNote);
 
-        // Whatever it picked, it must not be one of the obvious helpers.
-        var chosen = Path.GetFileName(result.Manifest!.ExecutablePath);
-        Assert.NotNull(chosen);
-        Assert.DoesNotContain("unins", chosen!, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("setup", chosen!, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("crash", chosen!, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("helper", chosen!, StringComparison.OrdinalIgnoreCase);
+        var manifest = result.Manifest!;
 
-        // And the alternatives are kept so the user can correct it.
-        Assert.NotEmpty(result.Manifest.AlternativeExecutables);
+        // The files are installed, but nothing is nominated as the program to run.
+        Assert.Equal(InstallationState.AwaitingExecutableChoice, manifest.State);
+        Assert.Null(manifest.ExecutableRelativePath);
+        Assert.False(manifest.IsRunnableInstallation);
+        Assert.True(manifest.NeedsExecutableChoice);
+
+        // The candidates are preserved so the user can settle it.
+        Assert.Contains("CoolApp.exe", manifest.AlternativeExecutables);
+        Assert.True(manifest.AlternativeExecutables.Count > 1);
+
+        // And the extracted files really are there.
+        Assert.True(Directory.Exists(plan.ProposedInstallDirectory));
+        AssertStagingIsClean();
+    }
+
+    [Fact]
+    public async Task An_unresolved_installation_cannot_be_run_until_a_choice_is_made()
+    {
+        var zip = MakeZip("tool.zip",
+            ("CoolApp.exe", "app"), ("CoolAppUpdater.exe", "updater"), ("helper.exe", "helper"));
+
+        var service = ServiceFor(zip);
+        var result = await service.InstallAsync(Plan() with { ExecutableCandidates = [] });
+
+        var launcher = new LaunchService(_paths, _store, NullAppLog.Instance);
+        var refused = launcher.Launch(result.Manifest!);
+
+        Assert.False(refused.Succeeded);
+        Assert.Contains("multiple possible application executables", refused.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Choosing_a_candidate_makes_the_installation_runnable()
+    {
+        var zip = MakeZip("tool.zip",
+            ("CoolApp.exe", "app"), ("CoolAppUpdater.exe", "updater"), ("helper.exe", "helper"));
+
+        var service = ServiceFor(zip);
+        var installed = await service.InstallAsync(Plan() with { ExecutableCandidates = [] });
+        var manifest = installed.Manifest!;
+
+        var chosen = manifest.AlternativeExecutables.First(c => c.Contains("CoolApp.exe"));
+        var result = service.ChooseExecutable(manifest, chosen);
+
+        Assert.True(result.Succeeded);
+
+        var updated = result.Manifest!;
+        Assert.Equal(InstallationState.Installed, updated.State);
+        Assert.Equal(chosen, updated.ExecutableRelativePath);
+        Assert.False(updated.ExecutableIsAmbiguous);
+        Assert.True(updated.IsRunnableInstallation);
+        Assert.Null(updated.NotInstalledReason);
+
+        // The alternatives stay, as provenance and in case the choice was wrong.
+        Assert.NotEmpty(updated.AlternativeExecutables);
+
+        // And the change was persisted.
+        Assert.Equal(chosen, _store.Find("someone", "tool")!.ExecutableRelativePath);
+    }
+
+    [Theory]
+    [InlineData("../../../evil.exe")]
+    [InlineData(@"..\evil.exe")]
+    [InlineData(@"C:\Windows\System32\cmd.exe")]
+    [InlineData("/bin/sh")]
+    [InlineData("not-a-candidate.exe")]
+    public async Task Choosing_something_that_was_not_offered_is_refused(string attempt)
+    {
+        // The chooser must never become a way to point RepoDeck at an arbitrary file.
+        var zip = MakeZip("tool.zip",
+            ("CoolApp.exe", "app"), ("CoolAppUpdater.exe", "updater"), ("helper.exe", "helper"));
+
+        var service = ServiceFor(zip);
+        var installed = await service.InstallAsync(Plan() with { ExecutableCandidates = [] });
+
+        var result = service.ChooseExecutable(installed.Manifest!, attempt);
+
+        Assert.False(result.Succeeded);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Equal(InstallationState.AwaitingExecutableChoice,
+            _store.Find("someone", "tool")!.State);
+    }
+
+    [Fact]
+    public async Task Choosing_on_an_installation_that_is_not_waiting_is_refused()
+    {
+        var zip = MakeZip("tool.zip", ("tool.exe", "program"));
+        var service = ServiceFor(zip);
+        var installed = await service.InstallAsync(Plan());
+
+        Assert.Equal(InstallationState.Installed, installed.Manifest!.State);
+
+        var result = service.ChooseExecutable(installed.Manifest, "tool.exe");
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("not waiting", result.ErrorMessage);
     }
 
     [Fact]

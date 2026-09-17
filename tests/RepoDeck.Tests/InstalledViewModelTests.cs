@@ -38,15 +38,20 @@ public sealed class InstalledViewModelTests : IDisposable
             new LaunchService(_paths, _store, NullAppLog.Instance),
             NullAppLog.Instance);
 
-    /// <summary>Registers an application, optionally creating the executable on disk.</summary>
+    private InstallationService RealInstaller() =>
+        new(new FakeDownloadService(Path.Combine(_root, "unused"), _paths.Downloads),
+            new ExtractionService(NullAppLog.Instance), _store, _paths, NullAppLog.Instance);
+
     private ApplicationManifest Install(
-        string name, bool createExecutable = true, bool downloadOnly = false)
+        string name,
+        bool createExecutable = true,
+        InstallationState state = InstallationState.Installed,
+        IReadOnlyList<string>? candidates = null)
     {
         var directory = Path.Combine(_paths.Apps, "someone__" + name);
         Directory.CreateDirectory(directory);
 
-        var executable = Path.Combine(directory, name + ".exe");
-        if (createExecutable) File.WriteAllText(executable, "program");
+        if (createExecutable) File.WriteAllText(Path.Combine(directory, name + ".exe"), "program");
 
         var manifest = new ApplicationManifest
         {
@@ -54,11 +59,14 @@ public sealed class InstalledViewModelTests : IDisposable
             Name = name,
             RepositoryUrl = $"https://github.com/someone/{name}",
             InstalledPath = directory,
-            ExecutableRelativePath = downloadOnly ? null : Path.GetFileName(executable),
-            State = downloadOnly ? InstallationState.Downloaded : InstallationState.Installed,
-            DownloadedFilePath = downloadOnly ? Path.Combine(_paths.Downloads, name + "-setup.exe") : null,
+            ExecutableRelativePath = state == InstallationState.Installed ? name + ".exe" : null,
+            AlternativeExecutables = candidates ?? [],
+            ExecutableIsAmbiguous = state == InstallationState.AwaitingExecutableChoice,
+            State = state,
             ReleaseTag = "v1.0.0",
             AssetSize = 1024,
+            Platform = OsPlatform.Windows,
+            Architecture = CpuArchitecture.X64,
             InstalledAt = DateTimeOffset.UtcNow
         };
 
@@ -89,6 +97,22 @@ public sealed class InstalledViewModelTests : IDisposable
     }
 
     [Fact]
+    public void A_card_shows_the_facts_a_person_needs()
+    {
+        Install("tool");
+
+        var app = Assert.Single(NewViewModel().Applications);
+
+        Assert.Equal("tool", app.Name);
+        Assert.Equal("someone", app.Owner);
+        Assert.Equal("v1.0.0", app.VersionText);
+        Assert.Contains("Installed", app.InstalledText);
+        Assert.Equal("Windows x64", app.PlatformText);
+        Assert.True(app.HasPlatformText);
+        Assert.Equal("Never run", app.LastRunText);
+    }
+
+    [Fact]
     public void An_intact_application_can_be_run()
     {
         Install("tool");
@@ -98,7 +122,7 @@ public sealed class InstalledViewModelTests : IDisposable
         Assert.True(app.IsIntact);
         Assert.True(app.CanRun);
         Assert.Equal("Ready", app.StatusText);
-        Assert.Equal("Run", app.RunButtonText);
+        Assert.False(app.NeedsAttention);
     }
 
     [Fact]
@@ -115,35 +139,98 @@ public sealed class InstalledViewModelTests : IDisposable
     }
 
     [Fact]
-    public void A_download_only_record_is_not_offered_as_runnable()
+    public void A_downloaded_only_record_does_not_appear_in_the_library()
     {
-        Install("installer-app", createExecutable: false, downloadOnly: true);
+        // The Installed library means "RepoDeck established a runnable application".
+        Install("installer-app", createExecutable: false, state: InstallationState.Downloaded);
 
-        var app = Assert.Single(NewViewModel().Applications);
+        var vm = NewViewModel();
 
-        Assert.False(app.CanRun);
-        Assert.Equal("Downloaded, not installed", app.StatusText);
-        Assert.Equal("Open installer", app.RunButtonText);
+        Assert.Empty(vm.Applications);
+        Assert.True(vm.ShowEmptyState);
     }
 
     [Fact]
-    public async Task Uninstalling_removes_the_row()
+    public void An_unresolved_installation_is_listed_but_cannot_be_run()
+    {
+        Install("tool", createExecutable: true,
+            state: InstallationState.AwaitingExecutableChoice,
+            candidates: ["tool.exe", "tool-updater.exe"]);
+
+        var app = Assert.Single(NewViewModel().Applications);
+
+        Assert.True(app.NeedsExecutableChoice);
+        Assert.False(app.CanRun);
+        Assert.Equal("Choose which program to run", app.StatusText);
+        Assert.Equal(2, app.ExecutableCandidates.Count);
+        Assert.Contains("multiple possible application executables", app.AmbiguityMessage);
+    }
+
+    [Fact]
+    public async Task Choosing_a_candidate_makes_the_row_runnable()
+    {
+        Install("tool", createExecutable: true,
+            state: InstallationState.AwaitingExecutableChoice,
+            candidates: ["tool.exe"]);
+
+        var vm = NewViewModel(RealInstaller());
+        var app = Assert.Single(vm.Applications);
+
+        app.SelectedCandidate = "tool.exe";
+        await app.ChooseExecutableCommand.ExecuteAsync(null);
+
+        var updated = Assert.Single(vm.Applications);
+        Assert.True(updated.CanRun);
+        Assert.False(updated.NeedsExecutableChoice);
+        Assert.Equal("Ready", updated.StatusText);
+    }
+
+    [Fact]
+    public void Uninstall_asks_before_it_removes_anything()
     {
         Install("tool");
 
-        var installer = new InstallationService(
-            new FakeDownloadService(Path.Combine(_root, "unused"), _paths.Downloads),
-            new ExtractionService(NullAppLog.Instance),
-            _store, _paths, NullAppLog.Instance);
+        var app = Assert.Single(NewViewModel().Applications);
 
-        var vm = NewViewModel(installer);
+        Assert.True(app.ShowUninstallButton);
+        Assert.False(app.IsConfirmingUninstall);
+
+        app.BeginUninstallCommand.Execute(null);
+
+        // Asking is all that has happened: the application is still there.
+        Assert.True(app.IsConfirmingUninstall);
+        Assert.False(app.ShowUninstallButton);
+        Assert.True(_store.IsInstalled("someone", "tool"));
+    }
+
+    [Fact]
+    public void Declining_the_confirmation_keeps_the_application()
+    {
+        Install("tool");
+
+        var app = Assert.Single(NewViewModel().Applications);
+        app.BeginUninstallCommand.Execute(null);
+        app.CancelUninstallCommand.Execute(null);
+
+        Assert.False(app.IsConfirmingUninstall);
+        Assert.True(_store.IsInstalled("someone", "tool"));
+    }
+
+    [Fact]
+    public async Task Confirming_the_uninstall_removes_the_row()
+    {
+        Install("tool");
+
+        var vm = NewViewModel(RealInstaller());
         var app = Assert.Single(vm.Applications);
 
-        await app.UninstallCommand.ExecuteAsync(null);
+        app.BeginUninstallCommand.Execute(null);
+        await app.ConfirmUninstallCommand.ExecuteAsync(null);
 
         Assert.Empty(vm.Applications);
         Assert.True(vm.ShowEmptyState);
         Assert.Contains("Removed", vm.Message);
+        Assert.False(_store.IsInstalled("someone", "tool"));
     }
 
     [Fact]

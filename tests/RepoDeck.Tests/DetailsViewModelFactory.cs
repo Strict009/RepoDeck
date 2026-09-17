@@ -52,4 +52,7 @@ internal sealed class NoOpInstallationService : IInstallationService
     public Task<bool> UninstallAsync(
         ApplicationManifest manifest, CancellationToken cancellationToken = default) =>
         Task.FromResult(false);
+
+    public ExecutableChoiceResult ChooseExecutable(ApplicationManifest manifest, string relativePath) =>
+        ExecutableChoiceResult.Failed("Not available in this test.");
 }

@@ -68,27 +68,48 @@ public sealed partial class InstallationService
 
         var selection = LocateExecutable(plan, staging.Path);
 
-        // Promotion is the moment this becomes an installation.
+        // An archive with nothing runnable in it is not an installation. The download is
+        // kept - it succeeded, and a later version may do better with it - but the
+        // Installed library only ever means "RepoDeck established something you can run".
+        if (!selection.Found)
+        {
+            _log.Info("Install", $"{plan.FullName}: extracted, but nothing runnable was found. "
+                                 + "Recorded as downloaded rather than installed.");
+
+            return RecordDownloadOnly(plan, download,
+                "Download completed, but RepoDeck could not identify a runnable application "
+                + "in this release.");
+        }
+
+        // Promotion is the moment the files become an installation.
         progress?.Report(new InstallationProgress { Stage = InstallationStage.Registering });
 
         var final = PromoteStaging(staging, plan);
 
+        // Material ambiguity is not resolved by picking the winner and hoping. The files
+        // are installed; which of them to run is a question for the user.
+        var state = selection.IsAmbiguous
+            ? InstallationState.AwaitingExecutableChoice
+            : InstallationState.Installed;
+
         var manifest = BuildManifest(plan, download, final) with
         {
-            State = InstallationState.Installed,
-            ExecutableRelativePath = selection.Chosen,
-            AlternativeExecutables = selection.Alternatives,
+            State = state,
+            ExecutableRelativePath = selection.IsAmbiguous ? null : selection.Chosen,
+            AlternativeExecutables = CandidatesFor(selection),
             ExecutableIsAmbiguous = selection.IsAmbiguous,
-            OwnedEntries = TopLevelEntries(final)
+            OwnedEntries = TopLevelEntries(final),
+            NotInstalledReason = selection.IsAmbiguous
+                ? "RepoDeck found multiple possible application executables."
+                : null
         };
 
         _store.Save(manifest);
 
         _log.Info("Install", $"Installed {plan.FullName} into {final}. "
-                             + (selection.Found
-                                 ? $"Executable: {selection.Chosen}"
-                                   + (selection.IsAmbiguous ? " (ambiguous)" : "")
-                                 : "No executable identified."));
+                             + (selection.IsAmbiguous
+                                 ? $"{manifest.AlternativeExecutables.Count} possible executables; awaiting a choice."
+                                 : $"Executable: {selection.Chosen}"));
 
         progress?.Report(new InstallationProgress { Stage = InstallationStage.Finished });
 
@@ -97,8 +118,23 @@ public sealed partial class InstallationService
             Succeeded = true,
             Manifest = manifest,
             ExecutableIsAmbiguous = selection.IsAmbiguous,
-            ExecutableNote = selection.Reason
+            ExecutableNote = selection.IsAmbiguous
+                ? "RepoDeck found multiple possible application executables."
+                : selection.Reason
         };
+    }
+
+    /// <summary>
+    /// When the choice is unresolved, the best guess belongs in the candidate list rather
+    /// than being quietly promoted to "the executable".
+    /// </summary>
+    private static IReadOnlyList<string> CandidatesFor(ExecutableSelection selection)
+    {
+        if (!selection.IsAmbiguous) return selection.Alternatives;
+
+        return selection.Chosen is null
+            ? selection.Alternatives
+            : new[] { selection.Chosen }.Concat(selection.Alternatives).ToList();
     }
 
     /// <summary>
@@ -150,13 +186,17 @@ public sealed partial class InstallationService
     /// Records that the file was fetched and left alone. This is deliberately not an
     /// installation: the manifest says Downloaded, and nothing pretends otherwise.
     /// </summary>
-    private InstallationResult RecordDownloadOnly(InstallPlan plan, DownloadedFile download)
+    private InstallationResult RecordDownloadOnly(
+        InstallPlan plan, DownloadedFile download, string? reason = null)
     {
+        var explanation = reason ?? DefaultDownloadOnlyReason(plan);
+
         var manifest = BuildManifest(plan, download, Path.GetDirectoryName(download.Path)!) with
         {
             State = InstallationState.Downloaded,
             DownloadedFilePath = download.Path,
             ExecutableRelativePath = null,
+            NotInstalledReason = explanation,
             LaunchStrategy = LaunchStrategy.SystemInstalled
         };
 
@@ -169,9 +209,21 @@ public sealed partial class InstallationService
         {
             Succeeded = true,
             Manifest = manifest,
-            DownloadedOnly = true
+            DownloadedOnly = true,
+            ExecutableNote = explanation
         };
     }
+
+    private static string DefaultDownloadOnlyReason(InstallPlan plan) => plan.Strategy switch
+    {
+        InstallStrategy.WindowsInstaller =>
+            "This is a Windows installer. RepoDeck downloaded it but will not run installers "
+            + "on your behalf.",
+        InstallStrategy.LinuxPackage =>
+            "This is a system package. RepoDeck downloaded it but will not hand it to the "
+            + "package manager on your behalf.",
+        _ => "RepoDeck downloaded this but could not establish a runnable application from it."
+    };
 
     private ExecutableSelection LocateExecutable(InstallPlan plan, string directory)
     {

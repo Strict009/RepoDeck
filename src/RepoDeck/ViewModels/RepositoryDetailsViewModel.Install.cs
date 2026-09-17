@@ -19,8 +19,11 @@ public enum InstallState
     Installing,
     Installed,
 
-    /// <summary>Downloaded but deliberately not installed, because it is a system installer.</summary>
+    /// <summary>Fetched, but no runnable application was established from it.</summary>
     DownloadedOnly,
+
+    /// <summary>Files installed, but which one to run is unresolved.</summary>
+    NeedsExecutableChoice,
 
     /// <summary>Registered, but the program it points at is no longer there.</summary>
     Broken
@@ -44,6 +47,7 @@ public sealed partial class RepositoryDetailsViewModel
     [NotifyPropertyChangedFor(nameof(ShowRunButton))]
     [NotifyPropertyChangedFor(nameof(ShowProgress))]
     [NotifyPropertyChangedFor(nameof(ShowOpenFolder))]
+    [NotifyPropertyChangedFor(nameof(ShowUninstallButton))]
     private InstallState _installState = InstallState.Unavailable;
 
     [ObservableProperty] private string _installProgressText = "";
@@ -63,7 +67,8 @@ public sealed partial class RepositoryDetailsViewModel
     public bool ShowProgress => InstallState == InstallState.Installing;
     public bool ShowRunButton => InstallState is InstallState.Installed or InstallState.Broken;
     public bool ShowOpenFolder => InstallState is
-        InstallState.Installed or InstallState.DownloadedOnly or InstallState.Broken;
+        InstallState.Installed or InstallState.DownloadedOnly
+        or InstallState.Broken or InstallState.NeedsExecutableChoice;
 
     public string RunButtonText => InstallState == InstallState.Broken ? "Repair" : "Run";
 
@@ -80,19 +85,22 @@ public sealed partial class RepositoryDetailsViewModel
 
             InstallState = existing.IsDownloadOnly
                 ? InstallState.DownloadedOnly
-                : _launcher.IsIntact(existing)
-                    ? InstallState.Installed
-                    : InstallState.Broken;
+                : existing.NeedsExecutableChoice
+                    ? InstallState.NeedsExecutableChoice
+                    : _launcher.IsIntact(existing)
+                        ? InstallState.Installed
+                        : InstallState.Broken;
 
             InstallMessage = InstallState switch
             {
                 InstallState.DownloadedOnly =>
-                    "RepoDeck downloaded the installer but did not run it. Open the folder to run it yourself.",
+                    existing.NotInstalledReason
+                    ?? "RepoDeck downloaded this but did not establish a runnable application.",
+                InstallState.NeedsExecutableChoice =>
+                    "RepoDeck found multiple possible application executables. "
+                    + "Choose which one to run on the Installed page.",
                 InstallState.Broken =>
                     "The installed program is no longer where RepoDeck left it. Installing again will replace it.",
-                _ when existing.ExecutableIsAmbiguous =>
-                    "Several files here looked like the program. Check that "
-                    + Path.GetFileName(existing.ExecutablePath) + " is the right one.",
                 _ => null
             };
 
@@ -157,19 +165,25 @@ public sealed partial class RepositoryDetailsViewModel
 
         if (result.DownloadedOnly)
         {
+            // Either a system installer RepoDeck will not run, or an archive with nothing
+            // runnable in it. Both are downloads, neither is an installation.
             InstallState = InstallState.DownloadedOnly;
-            InstallMessage =
-                "RepoDeck downloaded the installer but did not run it. "
-                + "Open the folder to run it yourself when you are ready.";
+            InstallMessage = manifest.NotInstalledReason ?? result.ExecutableNote
+                ?? "RepoDeck downloaded this but could not establish a runnable application.";
             return;
         }
 
-        InstallState = manifest.HasExecutable ? InstallState.Installed : InstallState.Broken;
+        if (manifest.NeedsExecutableChoice)
+        {
+            // Installed, but RepoDeck will not guess which file is the program.
+            InstallState = InstallState.NeedsExecutableChoice;
+            InstallMessage = "RepoDeck found multiple possible application executables. "
+                             + "Choose which one to run on the Installed page.";
+            return;
+        }
 
-        // An uncertain choice is stated, not hidden behind a confident-looking Run button.
-        InstallMessage = manifest.HasExecutable
-            ? result.ExecutableIsAmbiguous ? result.ExecutableNote : null
-            : "The files were installed, but RepoDeck could not identify a program to run inside them.";
+        InstallState = manifest.IsRunnableInstallation ? InstallState.Installed : InstallState.Broken;
+        InstallMessage = null;
     }
 
     private void ReportInstallProgress(InstallationProgress progress)
@@ -219,9 +233,24 @@ public sealed partial class RepositoryDetailsViewModel
         if (folder is { Length: > 0 }) SystemBrowser.OpenFolder(folder, _log);
     }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUninstallButton))]
+    private bool _isConfirmingUninstall;
+
+    /// <summary>Removing an application is never a single click.</summary>
+    public bool ShowUninstallButton => ShowOpenFolder && !IsConfirmingUninstall;
+
+    [RelayCommand]
+    private void BeginUninstall() => IsConfirmingUninstall = true;
+
+    [RelayCommand]
+    private void CancelUninstall() => IsConfirmingUninstall = false;
+
     [RelayCommand]
     private async Task UninstallAsync()
     {
+        IsConfirmingUninstall = false;
+
         var manifest = _installedApps.Find(Repository.OwnerLogin, Repository.Name);
         if (manifest is null) return;
 

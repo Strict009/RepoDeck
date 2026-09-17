@@ -16,10 +16,17 @@ public enum InstallationState
     Installed,
 
     /// <summary>
-    /// The file was fetched and deliberately not run. RepoDeck does not execute system
-    /// installers, so the user decides what happens next.
+    /// The asset was obtained and preserved, but RepoDeck could not establish a runnable
+    /// application from it - a system installer it will not run, or an archive with
+    /// nothing runnable inside.
     /// </summary>
-    Downloaded
+    Downloaded,
+
+    /// <summary>
+    /// The files are installed, but several looked like the program and RepoDeck will not
+    /// guess. Runnable once the user says which one it is.
+    /// </summary>
+    AwaitingExecutableChoice
 }
 
 /// <summary>
@@ -99,6 +106,12 @@ public sealed record ApplicationManifest
     /// <summary>The fetched file itself, for a <see cref="InstallationState.Downloaded"/> record.</summary>
     public string? DownloadedFilePath { get; init; }
 
+    /// <summary>
+    /// Why this was not established as a runnable application. Shown verbatim on the
+    /// Downloads page, so it has to read as an explanation rather than an error code.
+    /// </summary>
+    public string? NotInstalledReason { get; init; }
+
     // ---- Classification ---------------------------------------------------
     public OsPlatform Platform { get; init; } = OsPlatform.Unknown;
     public CpuArchitecture Architecture { get; init; } = CpuArchitecture.Unknown;
@@ -113,9 +126,21 @@ public sealed record ApplicationManifest
 
     // ---- Derived ----------------------------------------------------------
 
-    /// <summary>True when the file was fetched but deliberately not installed.</summary>
+    /// <summary>True when the file was fetched but no runnable application was established.</summary>
     [JsonIgnore]
     public bool IsDownloadOnly => State == InstallationState.Downloaded;
+
+    /// <summary>Installed files are present, but which one to run is still unresolved.</summary>
+    [JsonIgnore]
+    public bool NeedsExecutableChoice => State == InstallationState.AwaitingExecutableChoice;
+
+    /// <summary>
+    /// True only when RepoDeck established a runnable application. This is what the
+    /// Installed library means, and what Run depends on.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsRunnableInstallation =>
+        State == InstallationState.Installed && ExecutableRelativePath is { Length: > 0 };
 
     /// <summary>Absolute path of the executable, or null when there is none.</summary>
     [JsonIgnore]

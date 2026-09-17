@@ -12,12 +12,11 @@
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,18">
             <TextBlock Text="Installed" Classes="display" />
             <TextBlock Classes="secondary"
-                       Text="Everything RepoDeck has installed, kept in its own folder." />
+                       Text="Applications RepoDeck installed into its own folder and can run." />
             <TextBlock Text="{Binding Message}" Classes="muted"
                        IsVisible="{Binding HasMessage}" Margin="0,6,0,0" />
         </StackPanel>
 
-        <!-- Nothing installed yet -->
         <StackPanel Grid.Row="1" Spacing="12" MaxWidth="560" HorizontalAlignment="Left"
                     VerticalAlignment="Top"
                     IsVisible="{Binding ShowEmptyState}">
@@ -31,52 +30,90 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:InstalledAppViewModel">
                         <Border Classes="card" Margin="0,0,0,14">
-                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                            <StackPanel Spacing="0">
 
-                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <TextBlock Text="{Binding Name}" Classes="h1" />
-                                        <Border Classes="chip" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding VersionText}" />
-                                        </Border>
-                                        <Border Classes="chip chipCaution" VerticalAlignment="Center"
-                                                IsVisible="{Binding NeedsAttention}">
-                                            <TextBlock Text="{Binding StatusText}" />
-                                        </Border>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="{Binding Name}" Classes="h1" />
+                                            <Border Classes="chip" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding VersionText}" />
+                                            </Border>
+                                            <Border Classes="chip chipCaution" VerticalAlignment="Center"
+                                                    IsVisible="{Binding NeedsAttention}">
+                                                <TextBlock Text="{Binding StatusText}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Owner}" Classes="muted" />
                                     </StackPanel>
-                                    <TextBlock Text="{Binding Owner}" Classes="muted" />
-                                </StackPanel>
 
-                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="10"
-                                            VerticalAlignment="Top">
-                                    <Button Classes="primary"
+                                    <Button Grid.Column="1" Classes="primary"
+                                            VerticalAlignment="Top"
                                             IsEnabled="{Binding CanRun}"
                                             Command="{Binding RunCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <TextBlock Text="&#x25B6;" VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding RunButtonText}" VerticalAlignment="Center" />
+                                            <TextBlock Text="Run" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
-                                </StackPanel>
+                                </Grid>
 
-                                <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                                           ItemSpacing="18" LineSpacing="6" Margin="0,12,0,0">
+                                <WrapPanel ItemSpacing="18" LineSpacing="6" Margin="0,12,0,0">
                                     <TextBlock Text="{Binding InstalledText}" Classes="muted" />
-                                    <TextBlock Text="{Binding LastRunText}" Classes="muted" />
+                                    <TextBlock Text="{Binding PlatformText}" Classes="muted"
+                                               IsVisible="{Binding HasPlatformText}" />
                                     <TextBlock Text="{Binding SizeText}" Classes="muted" />
+                                    <TextBlock Text="{Binding LastRunText}" Classes="muted" />
                                     <TextBlock Text="{Binding UpdateStatusText}" Classes="muted" />
                                 </WrapPanel>
 
-                                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                                            Orientation="Horizontal" Spacing="10" Margin="0,14,0,0">
+                                <!-- Several files looked like the program: the user decides -->
+                                <Border Background="{DynamicResource RdCautionSoftBrush}"
+                                        CornerRadius="10" Padding="14" Margin="0,14,0,0"
+                                        IsVisible="{Binding NeedsExecutableChoice}">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="{Binding AmbiguityMessage}" Classes="body"
+                                                   Foreground="{DynamicResource RdCautionBrush}" />
+                                        <TextBlock Classes="muted"
+                                                   Text="RepoDeck will not guess. Choose the one to run; the others are kept." />
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <ComboBox MinWidth="320"
+                                                      ItemsSource="{Binding ExecutableCandidates}"
+                                                      SelectedItem="{Binding SelectedCandidate}" />
+                                            <Button Classes="primary" Content="Use this one"
+                                                    Command="{Binding ChooseExecutableCommand}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,14,0,0">
                                     <Button Classes="secondary" Content="Open folder"
                                             Command="{Binding OpenFolderCommand}" />
-                                    <Button Classes="secondary" Content="View repository"
+                                    <Button Classes="secondary" Content="GitHub"
                                             Command="{Binding ViewRepositoryCommand}" />
                                     <Button Classes="secondary" Content="Uninstall"
-                                            Command="{Binding UninstallCommand}" />
+                                            IsVisible="{Binding ShowUninstallButton}"
+                                            Command="{Binding BeginUninstallCommand}" />
                                 </StackPanel>
-                            </Grid>
+
+                                <!-- Removing an application is never one click -->
+                                <Border Background="{DynamicResource RdDangerSoftBrush}"
+                                        CornerRadius="10" Padding="14" Margin="0,12,0,0"
+                                        IsVisible="{Binding IsConfirmingUninstall}">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Classes="body"
+                                                   Text="Remove this application and everything RepoDeck installed for it?" />
+                                        <TextBlock Classes="muted"
+                                                   Text="Only RepoDeck's own folder for this application is deleted. Nothing else on your computer is touched." />
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Button Classes="primary" Content="Remove it"
+                                                    Command="{Binding ConfirmUninstallCommand}" />
+                                            <Button Classes="secondary" Content="Keep it"
+                                                    Command="{Binding CancelUninstallCommand}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>

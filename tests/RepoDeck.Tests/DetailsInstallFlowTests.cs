@@ -155,7 +155,12 @@ public sealed class DetailsInstallFlowTests : IDisposable
             {
                 Succeeded = true,
                 DownloadedOnly = true,
-                Manifest = ManifestFor(plan, withExecutable: false) with { State = InstallationState.Downloaded }
+                Manifest = ManifestFor(plan, withExecutable: false) with
+                {
+                    State = InstallationState.Downloaded,
+                    NotInstalledReason = "This is a Windows installer. RepoDeck downloaded it "
+                                         + "but will not run installers on your behalf."
+                }
             }
         };
 
@@ -167,7 +172,7 @@ public sealed class DetailsInstallFlowTests : IDisposable
 
         Assert.Equal(InstallState.DownloadedOnly, vm.InstallState);
         Assert.False(vm.ShowRunButton);
-        Assert.Contains("did not run it", vm.InstallMessage);
+        Assert.Contains("will not run installers", vm.InstallMessage);
     }
 
     [Fact]
@@ -239,6 +244,73 @@ public sealed class DetailsInstallFlowTests : IDisposable
         Assert.Contains("no longer where RepoDeck left it", vm.InstallMessage);
     }
 
+    [Fact]
+    public async Task Uninstall_on_the_details_page_asks_before_removing_anything()
+    {
+        var directory = Path.Combine(_paths.Apps, "someone__example");
+        Directory.CreateDirectory(directory);
+        var executable = Path.Combine(directory, "example.exe");
+        await File.WriteAllTextAsync(executable, "program");
+
+        _store.Save(new ApplicationManifest
+        {
+            Owner = "someone",
+            Name = "example",
+            RepositoryUrl = "https://github.com/someone/example",
+            InstalledPath = directory,
+            ExecutableRelativePath = "example.exe",
+            ReleaseTag = "v1.0.0",
+            InstalledAt = DateTimeOffset.UtcNow
+        });
+
+        var vm = ViewModel(InstallableRepository(), new RecordingInstallationService());
+        await vm.LoadAsync(CancellationToken.None);
+
+        Assert.True(vm.ShowUninstallButton);
+
+        vm.BeginUninstallCommand.Execute(null);
+
+        // Asking is not doing.
+        Assert.True(vm.IsConfirmingUninstall);
+        Assert.False(vm.ShowUninstallButton);
+        Assert.True(_store.IsInstalled("someone", "example"));
+        Assert.True(Directory.Exists(directory));
+
+        vm.CancelUninstallCommand.Execute(null);
+
+        Assert.False(vm.IsConfirmingUninstall);
+        Assert.True(_store.IsInstalled("someone", "example"));
+    }
+
+    [Fact]
+    public async Task An_unresolved_installation_offers_no_Run_on_the_details_page()
+    {
+        var directory = Path.Combine(_paths.Apps, "someone__example");
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(Path.Combine(directory, "example.exe"), "program");
+
+        _store.Save(new ApplicationManifest
+        {
+            Owner = "someone",
+            Name = "example",
+            RepositoryUrl = "https://github.com/someone/example",
+            InstalledPath = directory,
+            ExecutableRelativePath = null,
+            AlternativeExecutables = ["example.exe", "example-updater.exe"],
+            ExecutableIsAmbiguous = true,
+            State = InstallationState.AwaitingExecutableChoice,
+            ReleaseTag = "v1.0.0",
+            InstalledAt = DateTimeOffset.UtcNow
+        });
+
+        var vm = ViewModel(InstallableRepository(), new RecordingInstallationService());
+        await vm.LoadAsync(CancellationToken.None);
+
+        Assert.Equal(InstallState.NeedsExecutableChoice, vm.InstallState);
+        Assert.False(vm.ShowRunButton);
+        Assert.Contains("multiple possible application executables", vm.InstallMessage);
+    }
+
     private ApplicationManifest ManifestFor(InstallPlan plan, bool withExecutable)
     {
         var directory = Path.Combine(_paths.Apps, "someone__example");
@@ -285,4 +357,7 @@ internal sealed class RecordingInstallationService : IInstallationService
     public Task<bool> UninstallAsync(
         ApplicationManifest manifest, CancellationToken cancellationToken = default) =>
         Task.FromResult(true);
+
+    public ExecutableChoiceResult ChooseExecutable(ApplicationManifest manifest, string relativePath) =>
+        ExecutableChoiceResult.Failed("Not available in this test.");
 }
