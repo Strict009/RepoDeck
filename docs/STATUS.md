@@ -31,7 +31,7 @@ repository information. All four verified (see Verification below).
 
 ## Verification performed
 
-- `dotnet build RepoDeck.sln` - clean, 0 warnings, 0 errors.
+- `dotnet build` - clean, 0 warnings, 0 errors.
 - `dotnet test` - 107 passed, 0 failed, ~54 ms.
 - End-to-end run against the **live** GitHub API through the real ViewModels: a search
   for "video editor" returned 30 of 15k matches; opening the first result loaded 71
@@ -39,6 +39,27 @@ repository information. All four verified (see Verification below).
   with a temporary test that was removed afterwards, so the committed suite stays
   offline.
 - Application launched on Windows 10 x64 and confirmed running with a clean startup log.
+
+## Milestone 1 self-audit (2026-09-16)
+
+Milestone 1 was audited against its own code rather than against this document. Findings
+and fixes, committed separately as `fix: harden milestone 1 foundation`:
+
+| # | Finding | Severity | Fix |
+|---|---|---|---|
+| 1 | A superseded search still ran its `catch`/`finally`, writing `IsBusy`, `ResultSummary` and `ErrorMessage` over the newer search's state. Results themselves were safe because the command cancels the previous execution, but the surrounding UI state was not. | Real | Generation counter; only the newest execution may write shared state. Regression test added. |
+| 2 | `LoadMoreAsync` took no `CancellationToken`, so paging could not be cancelled and page 2 of an old query could append to a new result set. | Real | Takes a token, and is guarded by the same generation counter. |
+| 3 | Opening a second repository left the first details page's four GitHub requests running against a page nobody was looking at. | Real | `MainWindowViewModel` cancels the active details load on navigation, back and section change. |
+| 4 | `RateLimitChanged` is raised from whichever thread completed the HTTP request; handlers updated bound properties directly. This worked only because the service layer happened to capture the UI synchronisation context. | Latent | Service layer now uses `ConfigureAwait(false)` throughout, and handlers marshal through `IUiDispatcher`. |
+| 5 | README regexes had no match timeout and no input cap, on content supplied by a stranger. | Real | 250 ms match timeout on every pattern, 512 KB input cap, graceful fallback on timeout. |
+| 6 | The build command recorded in Milestone 1's report was wrong: .NET 10 generated `RepoDeck.slnx`, not `RepoDeck.sln`, so `dotnet build RepoDeck.sln` fails. | Documentation | Corrected here and in `README.md`. |
+
+Checked and found already sound: no credentials, personal data or machine-specific paths
+in tracked files; tokens never logged and never written to disk; README links reduced to
+plain text so no repository-supplied URL is ever clickable; `SystemBrowser` refuses any
+scheme other than http/https; `HttpClient` is a single long-lived instance with a pooled
+connection lifetime; cancellation propagates through the client; supplementary detail
+requests degrade individually rather than failing the page.
 
 ## Known problems
 

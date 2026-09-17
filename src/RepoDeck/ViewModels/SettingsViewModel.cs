@@ -12,12 +12,16 @@ namespace RepoDeck.ViewModels;
 public sealed partial class SettingsViewModel : ViewModelBase
 {
     private readonly AppServices _services;
+    private readonly IUiDispatcher _dispatcher;
 
-    public SettingsViewModel(AppServices services)
+    public SettingsViewModel(AppServices services, IUiDispatcher? dispatcher = null)
     {
         _services = services;
+        _dispatcher = dispatcher ?? new AvaloniaUiDispatcher();
         RefreshRateLimit();
-        _services.GitHub.RateLimitChanged += _ => RefreshRateLimit();
+
+        // Raised on whichever thread finished the request, so marshal before binding.
+        _services.GitHub.RateLimitChanged += _ => _dispatcher.Post(RefreshRateLimit);
     }
 
     public string DataFolder => _services.Paths.Root;

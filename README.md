@@ -16,7 +16,7 @@ repository actually is in plain English.
 ## Build and run
 
 ```
-dotnet build RepoDeck.sln
+dotnet build
 dotnet run --project src/RepoDeck/RepoDeck.csproj
 dotnet test
 ```

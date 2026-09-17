@@ -50,7 +50,7 @@ public sealed class GitHubClient : IGitHubClient
             return cached;
         }
 
-        var envelope = await GetJsonAsync<SearchEnvelope<GitHubRepository>>(uri, cancellationToken)
+        var envelope = await GetJsonAsync<SearchEnvelope<GitHubRepository>>(uri, cancellationToken).ConfigureAwait(false)
                        ?? new SearchEnvelope<GitHubRepository>();
 
         var result = new RepositorySearchResult
@@ -74,7 +74,7 @@ public sealed class GitHubClient : IGitHubClient
 
         if (_cache.TryGet<GitHubRepository>(uri, out var cached)) return cached;
 
-        var repository = await GetJsonAsync<GitHubRepository>(uri, cancellationToken)
+        var repository = await GetJsonAsync<GitHubRepository>(uri, cancellationToken).ConfigureAwait(false)
                          ?? throw new GitHubApiException(
                              GitHubErrorKind.Unexpected,
                              "GitHub returned no information for this repository.");
@@ -96,7 +96,7 @@ public sealed class GitHubClient : IGitHubClient
         request.Headers.Accept.Clear();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.raw"));
 
-        using var response = await SendAsync(request, cancellationToken);
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -104,9 +104,9 @@ public sealed class GitHubClient : IGitHubClient
             return null;
         }
 
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
-        var markdown = await response.Content.ReadAsStringAsync(cancellationToken);
+        var markdown = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         _cache.Set(cacheKey, markdown, ContentCacheLifetime);
         return markdown;
     }
@@ -118,7 +118,7 @@ public sealed class GitHubClient : IGitHubClient
 
         if (_cache.TryGet<Dictionary<string, long>>(uri, out var cached)) return cached;
 
-        var languages = await GetJsonAsync<Dictionary<string, long>>(uri, cancellationToken)
+        var languages = await GetJsonAsync<Dictionary<string, long>>(uri, cancellationToken).ConfigureAwait(false)
                         ?? new Dictionary<string, long>();
 
         _cache.Set(uri, languages, ContentCacheLifetime);
@@ -137,7 +137,7 @@ public sealed class GitHubClient : IGitHubClient
         List<GitHubRelease> releases;
         try
         {
-            releases = await GetJsonAsync<List<GitHubRelease>>(uri, cancellationToken) ?? [];
+            releases = await GetJsonAsync<List<GitHubRelease>>(uri, cancellationToken).ConfigureAwait(false) ?? [];
         }
         catch (GitHubApiException ex) when (ex.Kind == GitHubErrorKind.NotFound)
         {
@@ -154,13 +154,13 @@ public sealed class GitHubClient : IGitHubClient
     private async Task<T?> GetJsonAsync<T>(string uri, CancellationToken cancellationToken)
     {
         using var request = CreateRequest(HttpMethod.Get, uri);
-        using var response = await SendAsync(request, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await JsonSerializer.DeserializeAsync<T>(stream, GitHubJson.Options, cancellationToken);
+            return await JsonSerializer.DeserializeAsync<T>(stream, GitHubJson.Options, cancellationToken).ConfigureAwait(false);
         }
         catch (JsonException ex)
         {
@@ -193,7 +193,7 @@ public sealed class GitHubClient : IGitHubClient
         HttpResponseMessage response;
         try
         {
-            response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -224,7 +224,7 @@ public sealed class GitHubClient : IGitHubClient
     {
         if (response.IsSuccessStatusCode) return;
 
-        var body = await SafeReadBodyAsync(response, cancellationToken);
+        var body = await SafeReadBodyAsync(response, cancellationToken).ConfigureAwait(false);
         var detail = $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}";
 
         // A 403/429 with no remaining quota is the rate limit, not a permissions problem.
@@ -293,7 +293,7 @@ public sealed class GitHubClient : IGitHubClient
     {
         try
         {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return body.Length > 500 ? body[..500] : body;
         }
         catch

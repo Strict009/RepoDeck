@@ -21,6 +21,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
     private RepositorySearchQuery? _lastQuery;
     private int _loadedPages;
+    private int _searchGeneration;
     private int _totalCount;
 
     public DiscoverViewModel(IGitHubClient github, IRepositoryExplanationService explanations, IAppLog log)
@@ -92,6 +93,12 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     [RelayCommand(IncludeCancelCommand = true)]
     private async Task SearchAsync(CancellationToken cancellationToken)
     {
+        // Starting a search supersedes any earlier one. The command cancels the previous
+        // execution, but a cancelled execution still runs its catch and finally blocks,
+        // and without this guard those would write IsBusy, ResultSummary and ErrorMessage
+        // over the results of the newer search.
+        var generation = Interlocked.Increment(ref _searchGeneration);
+
         var query = BuildQuery(page: 1);
         _lastQuery = query;
         _loadedPages = 0;
@@ -105,6 +112,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         try
         {
             var result = await _github.SearchRepositoriesAsync(query, cancellationToken);
+            if (!IsCurrent(generation)) return;
+
             _totalCount = result.TotalCount;
             _loadedPages = 1;
             AppendResults(result);
@@ -112,54 +121,78 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         }
         catch (OperationCanceledException)
         {
-            _log.Info("Discover", "Search cancelled by the user.");
-            ResultSummary = "Search cancelled.";
+            _log.Info("Discover", "Search cancelled.");
+            if (IsCurrent(generation)) ResultSummary = "Search cancelled.";
         }
         catch (GitHubApiException ex)
         {
-            ErrorMessage = ex.UserMessage;
             _log.Warn("Discover", "Search failed: " + ex.Message);
+            if (IsCurrent(generation)) ErrorMessage = ex.UserMessage;
         }
         catch (Exception ex)
         {
-            ErrorMessage = "Something unexpected went wrong. The log file has the details.";
             _log.Error("Discover", "Unexpected search failure", ex);
+            if (IsCurrent(generation))
+            {
+                ErrorMessage = "Something unexpected went wrong. The log file has the details.";
+            }
         }
         finally
         {
-            IsBusy = false;
-            RaiseResultStates();
+            if (IsCurrent(generation))
+            {
+                IsBusy = false;
+                RaiseResultStates();
+            }
         }
     }
 
+    /// <summary>True while this execution is still the newest one.</summary>
+    private bool IsCurrent(int generation) => Volatile.Read(ref _searchGeneration) == generation;
+
     [RelayCommand]
-    private async Task LoadMoreAsync()
+    private async Task LoadMoreAsync(CancellationToken cancellationToken)
     {
         if (_lastQuery is null || IsLoadingMore || !CanLoadMore) return;
+
+        // Page 2 of an old query must never be appended to the results of a new one.
+        var generation = Volatile.Read(ref _searchGeneration);
 
         IsLoadingMore = true;
         try
         {
             var next = _lastQuery with { Page = _loadedPages + 1 };
-            var result = await _github.SearchRepositoriesAsync(next);
+            var result = await _github.SearchRepositoriesAsync(next, cancellationToken);
+            if (!IsCurrent(generation)) return;
+
             _loadedPages++;
             AppendResults(result);
             UpdateSummaries(result);
         }
+        catch (OperationCanceledException)
+        {
+            _log.Info("Discover", "Loading more results was cancelled.");
+        }
         catch (GitHubApiException ex)
         {
-            ErrorMessage = ex.UserMessage;
             _log.Warn("Discover", "Loading more results failed: " + ex.Message);
+            if (IsCurrent(generation)) ErrorMessage = ex.UserMessage;
         }
         catch (Exception ex)
         {
-            ErrorMessage = "Something unexpected went wrong while loading more results.";
             _log.Error("Discover", "Unexpected paging failure", ex);
+            if (IsCurrent(generation))
+            {
+                ErrorMessage = "Something unexpected went wrong while loading more results.";
+            }
         }
         finally
         {
-            IsLoadingMore = false;
-            RaiseResultStates();
+            if (IsCurrent(generation))
+            {
+                IsLoadingMore = false;
+                RaiseResultStates();
+            }
         }
     }
 

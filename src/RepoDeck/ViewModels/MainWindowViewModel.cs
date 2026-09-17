@@ -13,10 +13,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly AppServices _services;
     private readonly DiscoverViewModel _discover;
+    private readonly IUiDispatcher _dispatcher;
+    private RepositoryDetailsViewModel? _activeDetails;
 
-    public MainWindowViewModel(AppServices services)
+    public MainWindowViewModel(AppServices services, IUiDispatcher? dispatcher = null)
     {
         _services = services;
+        _dispatcher = dispatcher ?? new AvaloniaUiDispatcher();
 
         _discover = new DiscoverViewModel(services.GitHub, services.Explanations, services.Log);
         _discover.RepositoryOpenRequested += ShowRepositoryDetails;
@@ -38,7 +41,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 "Favorites",
                 "Repositories you save for later will appear here, whether or not you install them.",
                 "Planned for Milestone 2")),
-            new NavigationItem("Settings", NavigationIcons.Settings, new SettingsViewModel(services))
+            new NavigationItem("Settings", NavigationIcons.Settings, new SettingsViewModel(services, _dispatcher))
         ];
 
         _selectedNavigationItem = NavigationItems[0];
@@ -65,6 +68,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     partial void OnSelectedNavigationItemChanged(NavigationItem value)
     {
         // Choosing a section always leaves any detail page behind.
+        CancelActiveDetailsLoad();
         CurrentPage = value.Page;
         CanGoBack = false;
         StatusText = value.Title;
@@ -73,6 +77,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanGoBack))]
     private void GoBack()
     {
+        CancelActiveDetailsLoad();
         CurrentPage = SelectedNavigationItem.Page;
         CanGoBack = false;
         StatusText = SelectedNavigationItem.Title;
@@ -80,9 +85,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void ShowRepositoryDetails(GitHubRepository repository)
     {
+        // Abandoning a half-loaded details page must stop its work, not leave four
+        // GitHub requests running against a page nobody is looking at.
+        CancelActiveDetailsLoad();
+
         var details = new RepositoryDetailsViewModel(
             repository, _services.GitHub, _services.Explanations, _services.Log);
 
+        _activeDetails = details;
         CurrentPage = details;
         CanGoBack = true;
         StatusText = repository.FullName;
@@ -91,7 +101,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _ = details.LoadCommand.ExecuteAsync(null);
     }
 
-    private void UpdateRateLimit(RateLimitStatus status)
+    private void CancelActiveDetailsLoad()
+    {
+        if (_activeDetails is null) return;
+
+        if (_activeDetails.LoadCancelCommand.CanExecute(null))
+        {
+            _activeDetails.LoadCancelCommand.Execute(null);
+        }
+
+        _activeDetails = null;
+    }
+
+    /// <summary>
+    /// Raised from whichever thread finished the HTTP request, so it is marshalled
+    /// onto the UI thread before touching a bound property.
+    /// </summary>
+    private void UpdateRateLimit(RateLimitStatus status) => _dispatcher.Post(() => ApplyRateLimit(status));
+
+    private void ApplyRateLimit(RateLimitStatus status)
     {
         if (!status.IsKnown)
         {

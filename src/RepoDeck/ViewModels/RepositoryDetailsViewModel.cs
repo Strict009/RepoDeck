@@ -95,7 +95,7 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
 
     // ---- Loading ----------------------------------------------------------
 
-    [RelayCommand]
+    [RelayCommand(IncludeCancelCommand = true)]
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
         IsLoading = true;

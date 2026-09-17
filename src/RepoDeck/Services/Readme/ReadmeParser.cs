@@ -13,10 +13,18 @@ public static partial class ReadmeParser
 {
     private const int MaxBlocks = 400;
 
+    /// <summary>
+    /// README content is untrusted input from a stranger on the internet. It is capped
+    /// before parsing, and every regex carries a match timeout, so a hostile or merely
+    /// enormous README cannot hang the UI thread.
+    /// </summary>
+    private const int MaxInputCharacters = 512 * 1024;
+
     /// <summary>Breaks README markdown into displayable blocks.</summary>
     public static IReadOnlyList<ReadmeBlock> Parse(string? markdown)
     {
         if (string.IsNullOrWhiteSpace(markdown)) return [];
+        if (markdown.Length > MaxInputCharacters) markdown = markdown[..MaxInputCharacters];
 
         var blocks = new List<ReadmeBlock>();
         var paragraph = new StringBuilder();
@@ -180,6 +188,21 @@ public static partial class ReadmeParser
     public static string CleanInline(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return "";
+        if (text.Length > MaxInputCharacters) text = text[..MaxInputCharacters];
+
+        try
+        {
+            return CleanInlineCore(text);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // Pathological input: fall back to the raw text rather than hanging.
+            return text.Trim();
+        }
+    }
+
+    private static string CleanInlineCore(string text)
+    {
 
         var result = ImagePattern().Replace(text, "");          // ![alt](url) and badges
         result = LinkPattern().Replace(result, "$1");            // [text](url) -> text
@@ -213,30 +236,30 @@ public static partial class ReadmeParser
         return markers.Any(m => lower.StartsWith(m, StringComparison.Ordinal));
     }
 
-    [GeneratedRegex(@"^(#{1,6})\s+(.*)$")]
+    [GeneratedRegex(@"^(#{1,6})\s+(.*)$", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex HeadingPattern();
 
-    [GeneratedRegex(@"^\s{0,3}([-*_])(?:\s*\1){2,}\s*$")]
+    [GeneratedRegex(@"^\s{0,3}([-*_])(?:\s*\1){2,}\s*$", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex HorizontalRulePattern();
 
-    [GeneratedRegex(@"^\s{0,4}(?:[-*+]|\d+\.)\s+(.*)$")]
+    [GeneratedRegex(@"^\s{0,4}(?:[-*+]|\d+\.)\s+(.*)$", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex ListItemPattern();
 
-    [GeneratedRegex(@"!\[[^\]]*\]\([^)]*\)")]
+    [GeneratedRegex(@"!\[[^\]]*\]\([^)]*\)", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex ImagePattern();
 
-    [GeneratedRegex(@"\[([^\]]*)\]\([^)]*\)")]
+    [GeneratedRegex(@"\[([^\]]*)\]\([^)]*\)", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex LinkPattern();
 
-    [GeneratedRegex(@"<[^>]{1,200}>")]
+    [GeneratedRegex(@"<[^>]{1,200}>", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex HtmlTagPattern();
 
-    [GeneratedRegex(@"`([^`]*)`")]
+    [GeneratedRegex(@"`([^`]*)`", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex InlineCodePattern();
 
-    [GeneratedRegex(@"(?:\*\*|__|\*|_)([^*_]+)(?:\*\*|__|\*|_)")]
+    [GeneratedRegex(@"(?:\*\*|__|\*|_)([^*_]+)(?:\*\*|__|\*|_)", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex EmphasisPattern();
 
-    [GeneratedRegex(@"\s{2,}")]
+    [GeneratedRegex(@"\s{2,}", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex WhitespacePattern();
 }
