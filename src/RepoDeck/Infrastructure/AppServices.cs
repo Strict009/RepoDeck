@@ -39,6 +39,12 @@ public sealed class AppServices : IDisposable
         Analyzer = new RepositoryAnalyzerService(GitHub, Log);
         InstallPlanner = new InstallPlanner(Paths);
 
+        InstalledApps = new InstalledAppStore(Paths, Log);
+        Downloads = new DownloadService(_http, Paths, Log);
+        Installer = new InstallationService(
+            Downloads, new ExtractionService(Log), InstalledApps, Paths, Log);
+        Launcher = new LaunchService(Paths, InstalledApps, Log);
+
         Log.Info("App", $"RepoDeck starting on {PlatformInfo.CurrentDescription}. Data root: {Paths.Root}");
         Log.Info("App", Tokens.HasToken
             ? "Using a GitHub token from the environment."
@@ -57,6 +63,11 @@ public sealed class AppServices : IDisposable
 
     public IRepositoryAnalyzerService Analyzer { get; }
     public InstallPlanner InstallPlanner { get; }
+
+    public IInstalledAppStore InstalledApps { get; }
+    public IDownloadService Downloads { get; }
+    public IInstallationService Installer { get; }
+    public LaunchService Launcher { get; }
 
     private static HttpClient CreateHttpClient()
     {

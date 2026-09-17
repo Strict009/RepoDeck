@@ -1,5 +1,6 @@
 using RepoDeck.Models;
 using RepoDeck.Services.GitHub;
+using RepoDeck.ViewModels;
 
 namespace RepoDeck.Tests;
 
@@ -44,14 +45,18 @@ public class RepositoryDetailsViewModelTests
     }
 
     [Fact]
-    public async Task The_install_button_stays_disabled_in_this_milestone()
+    public async Task An_installable_plan_offers_the_install_button()
     {
         var vm = DetailsViewModelFactory.Create(AvaloniaAppClient());
 
         await vm.LoadAsync(CancellationToken.None);
 
-        Assert.False(vm.CanInstall);
-        Assert.Contains("next milestone", vm.InstallButtonText);
+        Assert.Equal(InstallState.NotInstalled, vm.InstallState);
+        Assert.True(vm.ShowInstallButton);
+
+        // Nothing is offered as running until it has actually been installed.
+        Assert.False(vm.ShowRunButton);
+        Assert.False(vm.ShowProgress);
     }
 
     [Fact]

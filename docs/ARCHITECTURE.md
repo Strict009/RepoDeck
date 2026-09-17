@@ -10,7 +10,7 @@ this kind of application impossible to extend later:
 | **Discover** a repository | `Services/GitHub` | 1 (done) |
 | **Understand** a repository | `Services/Explanation`, `Services/Readme` | 1 (done) |
 | **Inspect** and plan an install | `Services/Analysis`, `Services/Install` | 2 (done) |
-| **Execute** a plan | not yet written | 3-4 |
+| **Execute** a plan | `Services/Install` | 3 (done) |
 
 Analysis never downloads. Planning never executes. Execution never decides. Each stage
 consumes the previous stage's output as data, so a stage can be replaced without
@@ -129,6 +129,69 @@ The service layer uses `ConfigureAwait(false)` throughout, as library code shoul
 ViewModels marshal onto the UI thread through `IUiDispatcher`, so correctness does not
 depend on the service layer happening to capture the UI synchronisation context.
 
+
+## Executing a plan (Milestone 3)
+
+```
+InstallPlan  (produced in Milestone 2, decided nothing further here)
+  -> InstallationService
+       DownloadService      .part file -> verify size -> rename
+       ExtractionService    every entry through ArchivePathGuard
+       ExecutableLocator    confirm or correct the plan's prediction
+       InstalledAppStore    manifest written as JSON
+  -> LaunchService          only on the user pressing Run
+```
+
+The installer re-decides nothing. Which asset, which platform, which strategy, where it
+goes - all of that was settled during analysis and travels in the plan. If the installer
+ever needs to make a judgement, that judgement belongs upstream.
+
+### Rules that are absolute
+
+- **Nothing downloaded is ever executed.** The only launch is `LaunchService`, and only
+  when the user presses Run on something already installed.
+- **A Windows installer or Linux package is downloaded and left alone.** Running it needs
+  elevation and is the user's decision. RepoDeck records where the file is and stops.
+- **Elevation is never requested.** `Verb` is never set to `runas`, and the application
+  manifest does not ask for administrator rights.
+- **Nothing outside `Apps` is written or deleted.** Every path is checked against
+  `AppPaths.Apps`, and the check is repeated at the point of deletion rather than trusted
+  from earlier, because the cost of being wrong there is somebody's files.
+- **A partial download never becomes an installation.** Bytes go to a `.part` file and are
+  renamed only after the transfer finished and the byte count matched.
+- **A failed install leaves nothing behind.** Any failure after the download rolls the
+  installation folder back.
+
+### Zip slip
+
+`ArchivePathGuard` is a pure function, tested on its own, and every archive entry passes
+through it before a byte is written. Traversal, absolute paths, drive-rooted paths, UNC
+paths and degenerate names are refused; in tar archives, symbolic and hard links are
+refused outright as another route out of the destination. Refused entries are recorded in
+the extraction result rather than silently skipped, so an archive that tried to escape is
+visible afterwards.
+
+### Choosing what to run
+
+The plan predicts executable names before anything is downloaded; `ExecutableLocator`
+confirms or corrects that against what was actually extracted. The hard part is not
+finding executables but rejecting the wrong ones - uninstallers, updaters, crash handlers
+and bundled redistributables all look like executables and none of them is the program.
+The locator is pure over a file list, so its ranking is tested without unpacking anything.
+
+### The manifest
+
+`ApplicationManifest` is RepoDeck's own bookkeeping, written as JSON under `Data`. The
+Installed page reads only from it, so the library opens instantly, works offline and
+costs nothing against the rate limit. The store writes through a temporary file and moves
+it into place; a library file that has become unreadable is set aside for inspection and
+RepoDeck carries on with an empty list rather than refusing to start.
+
+### The confirmation gate
+
+Pressing Install shows the plan and stops. Nothing is fetched until the user confirms.
+That step is not a formality: it is the point at which RepoDeck stops being a browser and
+starts writing to the machine.
 ## Caching and rate limits
 
 `ResponseCache` is an in-memory TTL cache keyed by request URI: 5 minutes for searches,
@@ -149,10 +212,13 @@ Every network call is `async` and takes a `CancellationToken`. The Discover sear
 `[RelayCommand(IncludeCancelCommand = true)]`, which is what backs the Cancel button.
 The UI thread is never blocked.
 
-## What Milestone 2 deliberately does not do
+## What Milestone 3 deliberately does not do
 
-No downloading, no extraction, no installation, no launching, no source builds. RepoDeck
-analyses and plans; Milestone 3 executes verified plans. The only process RepoDeck
-starts is the system browser for an `http`/`https` URL, and the system file manager for
-RepoDeck's own folder. Nothing from a repository is ever executed, and no command found
-in a README is ever run.
+No source builds, and no running of installers. RepoDeck installs precompiled release
+assets into its own folder and launches them on request; a Windows installer or a Linux
+package is fetched and handed to the user, because running one needs elevation and is
+their decision. No command found in a README is ever run, no PATH is modified, no runtime
+is installed, and no system setting is touched.
+
+Update checking is not implemented. The Installed page says so rather than offering a
+button that appears to work.

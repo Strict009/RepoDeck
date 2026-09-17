@@ -51,14 +51,6 @@ public sealed partial class RepositoryDetailsViewModel
     [ObservableProperty] private string _planDownloadSummary = "";
     [ObservableProperty] private string _planReleaseSummary = "";
 
-    /// <summary>
-    /// Always false in Milestone 2. The button exists so the workflow is visible, but
-    /// RepoDeck installs nothing until the next milestone.
-    /// </summary>
-    public bool CanInstall => false;
-
-    public string InstallButtonText => "Install - available in the next milestone";
-
     private void ApplyAnalysis(RepositoryAnalysis analysis, ReleaseAnalysis releases, InstallPlan plan)
     {
         AnalysisIncompleteReason = analysis.IsComplete ? null : analysis.IncompleteReason;

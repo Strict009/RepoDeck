@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:RepoDeck.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+             x:Class="RepoDeck.Views.InstalledView"
+             x:DataType="vm:InstalledViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="28,22,28,0">
+
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,18">
+            <TextBlock Text="Installed" Classes="display" />
+            <TextBlock Classes="secondary"
+                       Text="Everything RepoDeck has installed, kept in its own folder." />
+            <TextBlock Text="{Binding Message}" Classes="muted"
+                       IsVisible="{Binding HasMessage}" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <!-- Nothing installed yet -->
+        <StackPanel Grid.Row="1" Spacing="12" MaxWidth="560" HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    IsVisible="{Binding ShowEmptyState}">
+            <TextBlock Text="Nothing installed yet" Classes="h1" />
+            <TextBlock Classes="body" Foreground="{DynamicResource RdTextSecondaryBrush}"
+                       Text="Find something on the Discover page. RepoDeck shows you exactly what it will download and where it will put it before anything happens." />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowList}">
+            <ItemsControl ItemsSource="{Binding Applications}" Margin="0,0,14,20">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:InstalledAppViewModel">
+                        <Border Classes="card" Margin="0,0,0,14">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+
+                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="{Binding Name}" Classes="h1" />
+                                        <Border Classes="chip" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding VersionText}" />
+                                        </Border>
+                                        <Border Classes="chip chipCaution" VerticalAlignment="Center"
+                                                IsVisible="{Binding NeedsAttention}">
+                                            <TextBlock Text="{Binding StatusText}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Owner}" Classes="muted" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                                            VerticalAlignment="Top">
+                                    <Button Classes="primary"
+                                            IsEnabled="{Binding CanRun}"
+                                            Command="{Binding RunCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="&#x25B6;" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding RunButtonText}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+
+                                <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                           ItemSpacing="18" LineSpacing="6" Margin="0,12,0,0">
+                                    <TextBlock Text="{Binding InstalledText}" Classes="muted" />
+                                    <TextBlock Text="{Binding LastRunText}" Classes="muted" />
+                                    <TextBlock Text="{Binding SizeText}" Classes="muted" />
+                                    <TextBlock Text="{Binding UpdateStatusText}" Classes="muted" />
+                                </WrapPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                            Orientation="Horizontal" Spacing="10" Margin="0,14,0,0">
+                                    <Button Classes="secondary" Content="Open folder"
+                                            Command="{Binding OpenFolderCommand}" />
+                                    <Button Classes="secondary" Content="View repository"
+                                            Command="{Binding ViewRepositoryCommand}" />
+                                    <Button Classes="secondary" Content="Uninstall"
+                                            Command="{Binding UninstallCommand}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

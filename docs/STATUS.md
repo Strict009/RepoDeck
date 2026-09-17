@@ -1,61 +1,107 @@
 # RepoDeck status
 
-_Last updated: 2026-09-16_
+_Last updated: 2026-09-17_
 
 ## Current milestone
 
-**Milestone 2 - Repository intelligence and install planning.** Complete and verified.
+**Milestone 3 - Download, extract, install, register, run.** Complete and verified.
 
-RepoDeck can now answer: what is this repository, can it run on this computer, and how
-would RepoDeck install it? It produces a full installation plan and stops there.
-**Nothing is downloaded, extracted or executed.**
+RepoDeck now carries out the plans it produced in Milestone 2. It downloads a release
+asset, verifies it, extracts it into its own folder, identifies the program inside,
+records a manifest, and launches it when the user presses Run.
 
-## Completed in Milestone 2
+**Nothing downloaded is ever executed by RepoDeck.** The only launch is the user pressing
+Run on something already installed. Windows installers and Linux packages are downloaded
+and handed over, never run. Elevation is never requested.
 
-- `RepositoryAnalyzerService` producing a typed `RepositoryAnalysis` with evidence,
-  warnings and explicit unknowns.
-- `GetTreeAsync`: the whole file listing in one request, so classification does not
-  scale with repository size and nothing is cloned.
-- `ProjectStructureDetector` for .NET, Node, Rust, Python, Java, C/C++, Go, Unity,
-  Godot, Docker and script-only repositories, ignoring vendored dependencies.
-- A manifest pass reading at most three project files, resolving Avalonia, WPF, Windows
-  Forms, Electron, Tauri, Qt/Tk/wx, and library versus application.
-- `ApplicationClassifier`: weighted evidence, never repository names, confidence capped
-  below Confirmed.
-- `AssetNameParser`, `CompatibilityAnalyzer`, `ReleaseAnalyzer`: platform, architecture
-  and package-type detection with deterministic, explainable ranking.
-- `MachineProfile` passed into the analyzers, including emulation rules, so nothing is
-  hard-coded to the development machine.
-- `InstallPlan` and `InstallPlanner`: typed, serialisable, inspectable, never executed.
-- Details page: RepoDeck Analysis panel, compatibility evidence, recommended download
-  with reasons, installation plan and Installation Preview, disabled Install button.
-- Analysis progress reporting; the UI stays responsive.
-- 274 unit tests, all offline.
+## Completed in Milestone 3
+
+- `DownloadService`: streams to a `.part` file, verifies the byte count against what the
+  server promised, and only then renames. Cancellation and every failure path delete the
+  partial file. SHA-256 computed in passing and recorded in the manifest.
+- `ExtractionService` for ZIP and tar.gz, with `ArchivePathGuard` refusing traversal,
+  absolute, drive-rooted, UNC and degenerate entry paths, and refusing symbolic and hard
+  links in tar archives. Refused entries are reported, not silently skipped. Expanded
+  size and entry count are capped.
+- `ExecutableLocator`: confirms or corrects the plan's predicted executable against what
+  was actually extracted, and rejects uninstallers, updaters, crash handlers and bundled
+  redistributables.
+- `InstallationService`: orchestrates the sequence, refuses any plan where `CanProceed`
+  is false, and rolls the installation folder back on any failure.
+- `InstalledAppStore`: manifests as JSON, written through a temporary file and moved into
+  place; an unreadable library is set aside rather than deleted.
+- `LaunchService`: re-confirms at launch that the executable is the recorded one, still
+  exists, and is inside RepoDeck's `Apps` folder. Never elevates.
+- Details page install flow: Install shows the plan and stops; a confirmation step
+  precedes any download; live progress with a working Cancel; then Run, Open folder and
+  Uninstall. A registered application whose program has gone offers Repair.
+- Installed page: every installation with version, install date, last run, size, status,
+  and Run / Open folder / View repository / Uninstall.
+- 371 unit tests, all offline.
 
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - 274 passed, 0 failed.
-- Six real repositories analysed against live GitHub (see below).
+- `dotnet test` - 371 passed, 0 failed.
+- **A real install against live GitHub**: `sharkdp/bat` v0.26.1.
+  - Plan selected `bat-v0.26.1-x86_64-pc-windows-msvc.zip` (3.4 MB), portable archive.
+  - Downloaded with real progress reporting, extracted to 10 files.
+  - Executable correctly identified as `bat.exe` inside the archive's nested versioned
+    folder - the common case the locator exists to handle.
+  - SHA-256 recorded; every extracted file confirmed inside RepoDeck's `Apps` folder.
+  - Uninstall removed the folder completely.
+  - **The downloaded binary was not executed.** The check asserted the launcher considered
+    it runnable and deliberately stopped there.
+  - Run in a temporary root and cleaned up, so nothing was left on the machine.
 - Application launched on Windows 10 x64; clean startup log.
-- Confirmed by inspection that the only `Process.Start` calls in the codebase are the
-  guarded browser opener (http/https only) and the folder opener (RepoDeck's own
-  directories). There is no download, extraction or execution code anywhere.
+- Confirmed by inspection that there are exactly three `Process.Start` calls in the
+  codebase: the browser opener (http/https only), the folder opener (RepoDeck's own
+  directories), and `LaunchService`. No `runas`, no elevation request anywhere.
 
-## Real repositories tested
+## Known problems
 
-| Repository | RepoDeck's conclusion | Correct? |
-|---|---|---|
-| ShareX/ShareX | .NET / Avalonia / Windows Forms, desktop application (Likely), recommends the x64 setup executable, Windows installer, warns about administrator rights | Yes |
-| sharkdp/bat | Rust, command-line tool (Likely), recommends the x86_64 pc-windows-msvc ZIP, portable archive, expects `bat.exe` | Yes |
-| mltframework/shotcut | C/C++, desktop application (Possible), recommends the win64 executable, standalone executable | Yes |
-| AvaloniaUI/Avalonia | .NET / Avalonia, desktop application (Likely), no downloads, source build required | Type wrong - it is a framework. Plan is correct. |
-| nlohmann/json | C/C++, not determined, no compatible download, cannot install | Honest. Ideally "library". |
-| FFmpeg/FFmpeg | C/C++, not determined, no releases, source build required | Honest |
+1. **Update checking is not implemented.** The Installed page states this rather than
+   offering a button that does nothing. It needs version comparison, which is the first
+   task of the next milestone.
+2. **The Downloads page is still a placeholder.** Download progress appears on the details
+   page during an install, which covers the need, but there is no history of past
+   downloads. Deliberately deprioritised below the install pipeline.
+3. **Favorites are still not implemented.** Deferred twice now; it should either be built
+   or dropped from the plan.
+4. **Only the first-level archive layout is understood.** An archive that nests the
+   program two or more folders deep still resolves, but the ranking penalty for depth is
+   a heuristic and could pick wrongly in an unusual layout.
+5. **`.7z`, `.tar.xz` and `.dmg` are recognised by the analyzer but cannot be extracted.**
+   Only ZIP and tar.gz are implemented; a plan naming another format is refused at the
+   point of extraction with a readable message.
+6. **No integrity check against a publisher-provided checksum.** RepoDeck records the
+   SHA-256 it computed, but does not compare it to a `.sha256` asset when one exists.
+   That is a genuine gap and worth closing early in the next milestone.
+7. **Uninstall does not ask for confirmation.** It only ever deletes inside RepoDeck's own
+   folder, but a confirmation step would still be better.
+8. **The GUI was verified by launching it and by testing every ViewModel behind it**, not
+   by visually reviewing each rendered panel at several window sizes.
+9. **Earlier classification weaknesses remain**: a UI framework's own repository still
+   reads as a desktop application, and library repositories often land on "not
+   determined".
 
-Two genuine bugs were found this way and fixed as general rules, not special cases:
-project types were ranked by detection order rather than proximity to the repository
-root, and any archive counted as evidence of a runnable program.
+## Next task
+
+**Milestone 4 - Updates and trust.**
+
+1. Version comparison, handling the tag spellings real projects use (`v1.2.3`, `1.2.3`,
+   `release-1.2.3`, date stamps), with tests over real examples.
+2. Check update per application, and an update-all across the library, reusing the
+   existing analysis and plan pipeline rather than a second path.
+3. Verify downloads against a publisher-provided checksum asset when one is published,
+   and say plainly when none is.
+4. Confirmation before uninstall.
+5. A real Downloads page with history and cleanup of the Downloads folder.
+6. Favorites, or a decision to drop them.
+7. `.7z` and `.tar.xz` extraction, if repositories worth installing actually use them.
+
+Source builds remain out of scope. Release-based installation should be boring and
+reliable before dependency managers enter the picture.
 
 ## Milestone 1 self-audit (2026-09-16)
 
@@ -64,65 +110,24 @@ Audited against the code, not against this document. Committed as
 
 | # | Finding | Severity | Fix |
 |---|---|---|---|
-| 1 | A superseded search still ran its `catch`/`finally`, writing `IsBusy`, `ResultSummary` and `ErrorMessage` over the newer search's state. Results were safe because the command cancels the previous execution; the surrounding UI state was not. | Real | Generation counter; only the newest execution may write shared state. Regression test added. |
+| 1 | A superseded search still ran its `catch`/`finally`, writing `IsBusy`, `ResultSummary` and `ErrorMessage` over the newer search's state. | Real | Generation counter; only the newest execution may write shared state. |
 | 2 | `LoadMoreAsync` took no `CancellationToken`, so paging could not be cancelled and page 2 of an old query could append to a new result set. | Real | Takes a token, guarded by the same counter. |
 | 3 | Opening a second repository left the first details page's four GitHub requests running. | Real | Cancelled on navigation, back and section change. |
-| 4 | `RateLimitChanged` is raised on whichever thread finished the request; handlers updated bound properties directly. This worked only because the service layer happened to capture the UI context. | Latent | `ConfigureAwait(false)` throughout the service layer; handlers marshal via `IUiDispatcher`. |
-| 5 | README regexes had no match timeout and no input cap, on content from a stranger. | Real | 250 ms match timeout per pattern, 512 KB input cap, graceful fallback. |
-| 6 | Milestone 1's reported build command was wrong: .NET 10 generated `RepoDeck.slnx`, so `dotnet build RepoDeck.sln` fails. | Documentation | Corrected; the command is plain `dotnet build`. |
+| 4 | `RateLimitChanged` is raised on whichever thread finished the request; handlers updated bound properties directly. | Latent | `ConfigureAwait(false)` in the service layer; handlers marshal via `IUiDispatcher`. |
+| 5 | README regexes had no match timeout and no input cap, on content from a stranger. | Real | 250 ms match timeout per pattern, 512 KB input cap. |
+| 6 | Milestone 1's reported build command was wrong: .NET 10 generated `RepoDeck.slnx`. | Documentation | Corrected; the command is plain `dotnet build`. |
 
-Checked and already sound: no credentials, personal data or machine-specific paths in
-tracked files; tokens never logged or persisted; README links reduced to plain text so
-no repository-supplied URL is clickable; `SystemBrowser` refuses any non-http(s) scheme;
-one long-lived `HttpClient`; cancellation propagates; supplementary detail requests
-degrade individually rather than failing the page.
+## Milestone 2 live-testing findings
 
-## Known problems
-
-1. **A UI framework's own repository reads as a desktop application.** AvaloniaUI/Avalonia
-   references Avalonia packages, so it is classified as a desktop application rather than
-   a framework. The install plan is still correct (source build required, nothing to
-   download). Fixing it properly means weighing NuGet packaging evidence across several
-   project files rather than only the one nearest the root; deliberately not overfitted.
-2. **Header-only and library repositories often land on "not determined"** rather than
-   "library". Honest, but less useful than it could be.
-3. **The Discover page still uses Milestone 1 metadata heuristics** for its verdict
-   badges. Deep analysis costs roughly six requests, so it stays on the details page.
-4. **Only the shallowest manifest of each kind is read**, at most three in total. A
-   repository whose real nature is described in a deeper project file may be misjudged.
-5. **Unauthenticated rate limits are tight.** A details page costs about six requests, so
-   roughly ten repositories an hour without a token. Set `REPODECK_GITHUB_TOKEN`.
-6. **Favorites were not implemented.** Milestone 2 explicitly deprioritised them below
-   the analysis work, and the analysis work filled the milestone.
-7. **The GUI was verified by launching it and by testing every ViewModel behind it**, not
-   by visually reviewing each rendered panel at several window sizes.
-8. **README rendering is still plain text.** Links, tables and images are stripped.
-
-## Next task
-
-**Milestone 3 - Download, extract, install, register.** Executing verified plans.
-
-1. `DownloadService`: progress, cancellation, temporary files, failure cleanup and a
-   verified byte count. A partial download must never masquerade as an installation.
-2. `ExtractionService` for ZIP and tar.gz into RepoDeck's managed `Apps` folder, with
-   path traversal ("zip slip") refused outright.
-3. Executable identification after extraction, confirming or correcting the plan's
-   predicted candidates.
-4. `ApplicationManifest` written as JSON in `Data`, recording repository, release tag,
-   installed path, executable, platform, architecture and dates.
-5. The Installed library page, with Run, Open folder, View repository, Check update and
-   Uninstall.
-6. Uninstall confined strictly to RepoDeck's own directory.
-7. Enable the Install button only for plans where `CanProceed` is true, and show the
-   plan for confirmation before anything is fetched.
-
-Windows installers and Linux packages stay out of scope for automatic execution:
-RepoDeck should download them and hand the decision to the user. Source builds remain
-out of scope until release-based installation is reliable.
+Running real repositories through the analyzer found two genuine bugs, fixed as general
+rules rather than special cases: project types were ranked by detection order rather than
+proximity to the repository root (so `bat` reported as ".NET" and `shotcut` as
+"Node.js"), and any archive counted as evidence of a runnable program (so a header-only
+C++ library was called a desktop application).
 
 ## Architecture decisions
 
 Recorded in `ARCHITECTURE.md`. In short: discover, understand, inspect and execute stay
-separate; analysis never downloads and planning never executes; detection logic is pure
-and testable against machines other than this one; uncertainty is a type rather than a
-string; and RepoDeck never renders a "safe" verdict.
+separate; the installer re-decides nothing; every write and delete is confined to
+RepoDeck's own folder and re-checked at the point of use; uncertainty is a type rather
+than a string; and RepoDeck never renders a "safe" verdict.

@@ -13,6 +13,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly AppServices _services;
     private readonly DiscoverViewModel _discover;
+    private readonly InstalledViewModel _installed;
     private readonly IUiDispatcher _dispatcher;
     private RepositoryDetailsViewModel? _activeDetails;
 
@@ -24,14 +25,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _discover = new DiscoverViewModel(services.GitHub, services.Explanations, services.Log);
         _discover.RepositoryOpenRequested += ShowRepositoryDetails;
 
+        _installed = new InstalledViewModel(
+            services.InstalledApps, services.Installer, services.Launcher, services.Log);
+
         NavigationItems =
         [
             new NavigationItem("Discover", NavigationIcons.Discover, _discover),
-            new NavigationItem("Installed", NavigationIcons.Installed, new PlaceholderViewModel(
-                "Installed applications",
-                "Applications you install through RepoDeck will be listed here, with buttons to run, "
-                + "update or remove them.",
-                "Planned for Milestone 3")),
+            new NavigationItem("Installed", NavigationIcons.Installed, _installed),
             new NavigationItem("Downloads", NavigationIcons.Downloads, new PlaceholderViewModel(
                 "Downloads",
                 "Downloads in progress will appear here, with progress, cancellation and a record of "
@@ -69,6 +69,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         // Choosing a section always leaves any detail page behind.
         CancelActiveDetailsLoad();
+
+        // The library may have changed while the user was elsewhere in the application.
+        if (ReferenceEquals(value.Page, _installed)) _installed.Refresh();
+
         CurrentPage = value.Page;
         CanGoBack = false;
         StatusText = value.Title;
@@ -95,6 +99,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             _services.Explanations,
             _services.Analyzer,
             _services.InstallPlanner,
+            _services.Installer,
+            _services.InstalledApps,
+            _services.Launcher,
             _services.Machine,
             _services.Log);
 

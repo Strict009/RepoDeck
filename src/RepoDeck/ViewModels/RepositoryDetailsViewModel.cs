@@ -20,6 +20,9 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
     private readonly IRepositoryExplanationService _explanations;
     private readonly IRepositoryAnalyzerService _analyzer;
     private readonly InstallPlanner _planner;
+    private readonly IInstallationService _installer;
+    private readonly IInstalledAppStore _installedApps;
+    private readonly LaunchService _launcher;
     private readonly MachineProfile _machine;
     private readonly IAppLog _log;
 
@@ -29,6 +32,9 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
         IRepositoryExplanationService explanations,
         IRepositoryAnalyzerService analyzer,
         InstallPlanner planner,
+        IInstallationService installer,
+        IInstalledAppStore installedApps,
+        LaunchService launcher,
         MachineProfile machine,
         IAppLog log)
     {
@@ -37,6 +43,9 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
         _explanations = explanations;
         _analyzer = analyzer;
         _planner = planner;
+        _installer = installer;
+        _installedApps = installedApps;
+        _launcher = launcher;
         _machine = machine;
         _log = log;
 
@@ -227,6 +236,7 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
             var plan = _planner.Create(details.Repository, analysis, releaseAnalysis, _machine);
 
             ApplyAnalysis(analysis, releaseAnalysis, plan);
+            ApplyInstallState(plan);
 
             _log.Info("Details", $"{details.Repository.FullName}: {analysis.ApplicationType} "
                                  + $"({analysis.ApplicationTypeConfidence}), plan: {plan.Strategy}");
