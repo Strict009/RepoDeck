@@ -52,6 +52,12 @@ public sealed record RepositoryAnalysis
     public IReadOnlyList<string> Unknowns { get; init; } = [];
 
     /// <summary>
+    /// The file listing the analysis was built from, carried so later steps - picking
+    /// screenshots, for instance - do not have to ask for it a second time.
+    /// </summary>
+    public RepositoryTree FileListing { get; init; } = RepositoryTree.Empty;
+
+    /// <summary>
     /// False when analysis could not be finished - a rate limit, a truncated file listing
     /// or a network failure. An incomplete analysis must never be presented as confident.
     /// </summary>

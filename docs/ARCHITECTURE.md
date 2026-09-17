@@ -11,6 +11,7 @@ this kind of application impossible to extend later:
 | **Understand** a repository | `Services/Explanation`, `Services/Readme` | 1 (done) |
 | **Inspect** and plan an install | `Services/Analysis`, `Services/Install` | 2 (done) |
 | **Execute** a plan | `Services/Install` | 3 (done) |
+| **Present** it approachably | `Services/Media`, `FriendlyNaming`, `SetupDifficultyEvaluator` | 3.5 (done) |
 
 Analysis never downloads. Planning never executes. Execution never decides. Each stage
 consumes the previous stage's output as data, so a stage can be replaced without
@@ -192,6 +193,75 @@ RepoDeck carries on with an empty list rather than refusing to start.
 Pressing Install shows the plan and stops. Nothing is fetched until the user confirms.
 That step is not a formality: it is the point at which RepoDeck stops being a browser and
 starts writing to the machine.
+
+## Making it approachable (Milestone 3.5)
+
+RepoDeck's user wants useful software and does not need to know what a repository is. The
+technical truth is never removed - it moves one level in.
+
+### Pictures, without extra requests
+
+```
+RepositoryMediaService
+  README markdown      (already fetched by the analyzer)
+  file listing         (already fetched by the analyzer, carried on RepositoryAnalysis)
+  social preview       (a predictable address; no API call at all)
+    -> MediaRanker      pure: classify, reject, order
+    -> ImageLoader      fetches only the winner
+```
+
+Discovery costs zero additional GitHub requests. A search result gets only the social
+preview address, which is one predictable URL per repository and no API call; the full
+discovery runs when a project is opened, from data already in hand.
+
+Choosing a picture is almost entirely a rejection problem. A typical README opens with
+eight build badges, a sponsor button and a licence shield. `MediaRanker` refuses badge
+hosts, sponsorship buttons, workflow status images, SVGs and anything without an image
+extension, then ranks screenshots above logos above the social preview. The social
+preview is deliberately last: GitHub generates it automatically when the maintainer has
+not uploaded one, so it is frequently text on a gradient. Its job is to be the fallback
+that is never worse than an empty tile.
+
+One keyword was removed after a test caught it: "example" matched every image in an
+`examples/` folder and every URL on `example.com`.
+
+### Untrusted images
+
+Addresses come from READMEs written by strangers and point at hosts RepoDeck knows
+nothing about. `ImageLoader` therefore takes https only, caps redirects, checks the
+content type, enforces a byte ceiling *while streaming* rather than trusting
+Content-Length, decodes inside a try, and downscales on load. A failure is never an error
+the user sees: the card shows its fallback tile instead.
+
+Card pictures load after the results appear and are cancelled when a new search starts,
+so abandoning a search does not keep paying for images nobody is looking at.
+
+### Setup difficulty
+
+`SetupLevel` is Easy, SomeSetup, Advanced, DeveloperFocused or Unknown, and is
+deliberately blind to popularity. A wildly popular project can be Advanced; an obscure one
+can be Easy. Conflating difficulty with quality would be the same mistake as treating
+stars as a safety signal, and there is a test that holds two identical projects - one with
+three stars, one with three hundred thousand - to the same verdict.
+
+There are two entry points because the callers can afford different evidence. A search
+result gets metadata only and is capped at `Possible` confidence; an opened project has
+been analysed properly and can reach `Likely`.
+
+### Terminology
+
+The interface says App, Version, Download and "Will it work on this PC?". It says
+Repository, release tag, asset, architecture and install strategy inside the GitHub
+information and Technical details sections, where someone looking for them will find them
+and nobody else has to.
+
+### Progressive disclosure
+
+The details page answers four questions before any GitHub vocabulary appears: what is
+this, what can I do with it, will it work on this PC, can RepoDeck install it. Then
+pictures. Then the installation plan and the factual signals panel. Everything else -
+RepoDeck's analysis, every download in the release, GitHub metadata, the README - sits
+behind collapsed disclosures. Nothing was deleted to achieve this.
 ## Caching and rate limits
 
 `ResponseCache` is an in-memory TTL cache keyed by request URI: 5 minutes for searches,

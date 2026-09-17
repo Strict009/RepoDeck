@@ -3,6 +3,7 @@ using RepoDeck.Models;
 using RepoDeck.Services.Analysis;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.Install;
+using RepoDeck.Services.Media;
 using RepoDeck.ViewModels;
 
 namespace RepoDeck.Tests;
@@ -32,6 +33,7 @@ internal static class DetailsViewModelFactory
             installer ?? new NoOpInstallationService(),
             store,
             new LaunchService(appPaths, store, NullAppLog.Instance),
+            new RepositoryMediaService(NullAppLog.Instance),
             profile,
             NullAppLog.Instance);
     }

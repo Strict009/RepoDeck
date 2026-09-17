@@ -23,7 +23,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _services = services;
         _dispatcher = dispatcher ?? new AvaloniaUiDispatcher();
 
-        _discover = new DiscoverViewModel(services.GitHub, services.Explanations, services.Log);
+        _discover = new DiscoverViewModel(
+            services.GitHub, services.Explanations, services.Media, services.Log, services.Images);
         _discover.RepositoryOpenRequested += ShowRepositoryDetails;
 
         _installed = new InstalledViewModel(
@@ -103,8 +104,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             _services.Installer,
             _services.InstalledApps,
             _services.Launcher,
+            _services.Media,
             _services.Machine,
-            _services.Log);
+            _services.Log,
+            _services.Images);
 
         _activeDetails = details;
         CurrentPage = details;

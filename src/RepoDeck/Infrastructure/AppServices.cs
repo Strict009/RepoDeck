@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using RepoDeck.Models;
 using RepoDeck.Services.Analysis;
+using RepoDeck.Services.Media;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.GitHub;
 using RepoDeck.Services.Install;
@@ -45,6 +46,8 @@ public sealed class AppServices : IDisposable
             Downloads, new ExtractionService(Log), InstalledApps, Paths, Log);
         Installer = installer;
         Launcher = new LaunchService(Paths, InstalledApps, Log);
+        Media = new RepositoryMediaService(Log);
+        Images = new ImageLoader(Log);
 
         // An installation that never promoted out of staging is not an installation;
         // its remains should not accumulate across runs.
@@ -73,6 +76,8 @@ public sealed class AppServices : IDisposable
     public IDownloadService Downloads { get; }
     public IInstallationService Installer { get; }
     public LaunchService Launcher { get; }
+    public IRepositoryMediaService Media { get; }
+    public ImageLoader Images { get; }
 
     private static HttpClient CreateHttpClient()
     {
@@ -99,6 +104,7 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        Images.Dispose();
         _http.Dispose();
     }
 }

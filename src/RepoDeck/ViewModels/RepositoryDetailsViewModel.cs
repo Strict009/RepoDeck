@@ -7,6 +7,7 @@ using RepoDeck.Services.Analysis;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.GitHub;
 using RepoDeck.Services.Install;
+using RepoDeck.Services.Media;
 
 namespace RepoDeck.ViewModels;
 
@@ -20,6 +21,8 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
     private readonly IRepositoryExplanationService _explanations;
     private readonly IRepositoryAnalyzerService _analyzer;
     private readonly InstallPlanner _planner;
+    private readonly IRepositoryMediaService _mediaService;
+    private readonly ImageLoader? _images;
     private readonly IInstallationService _installer;
     private readonly IInstalledAppStore _installedApps;
     private readonly LaunchService _launcher;
@@ -35,8 +38,10 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
         IInstallationService installer,
         IInstalledAppStore installedApps,
         LaunchService launcher,
+        IRepositoryMediaService mediaService,
         MachineProfile machine,
-        IAppLog log)
+        IAppLog log,
+        ImageLoader? images = null)
     {
         Repository = repository;
         _github = github;
@@ -46,6 +51,8 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
         _installer = installer;
         _installedApps = installedApps;
         _launcher = launcher;
+        _mediaService = mediaService;
+        _images = images;
         _machine = machine;
         _log = log;
 
@@ -235,8 +242,16 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
 
             var plan = _planner.Create(details.Repository, analysis, releaseAnalysis, _machine);
 
+
             ApplyAnalysis(analysis, releaseAnalysis, plan);
+            ApplyFriendlySummary(analysis, releaseAnalysis, plan);
             ApplyInstallState(plan);
+
+            // The README and file listing are already in hand, so finding pictures costs
+            // no further GitHub requests.
+            // The analysis carries the file listing it used, so pictures cost no extra request.
+            ApplyMedia(_mediaService.Discover(
+                details.Repository, details.ReadmeMarkdown, analysis.FileListing));
 
             _log.Info("Details", $"{details.Repository.FullName}: {analysis.ApplicationType} "
                                  + $"({analysis.ApplicationTypeConfidence}), plan: {plan.Strategy}");

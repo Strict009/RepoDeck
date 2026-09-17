@@ -6,6 +6,7 @@ using RepoDeck.Models;
 using RepoDeck.Services.Analysis;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.GitHub;
+using RepoDeck.Services.Media;
 
 namespace RepoDeck.ViewModels;
 
@@ -17,17 +18,28 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 {
     private readonly IGitHubClient _github;
     private readonly IRepositoryExplanationService _explanations;
+    private readonly IRepositoryMediaService _media;
+    private readonly ImageLoader? _images;
     private readonly IAppLog _log;
+
+    private CancellationTokenSource? _imageCancellation;
 
     private RepositorySearchQuery? _lastQuery;
     private int _loadedPages;
     private int _searchGeneration;
     private int _totalCount;
 
-    public DiscoverViewModel(IGitHubClient github, IRepositoryExplanationService explanations, IAppLog log)
+    public DiscoverViewModel(
+        IGitHubClient github,
+        IRepositoryExplanationService explanations,
+        IRepositoryMediaService media,
+        IAppLog log,
+        ImageLoader? images = null)
     {
         _github = github;
         _explanations = explanations;
+        _media = media;
+        _images = images;
         _log = log;
 
         SelectedSort = SortOption.All[0];
@@ -106,6 +118,9 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         IsBusy = true;
         ErrorMessage = null;
         HasSearched = true;
+
+        // The previous results are gone, so their pictures are no longer wanted.
+        CancelImageLoading();
         Results.Clear();
         RaiseResultStates();
 
@@ -236,6 +251,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     private void AppendResults(RepositorySearchResult result)
     {
         var hidden = 0;
+        var added = new List<RepositoryCardViewModel>();
 
         foreach (var repository in result.Items)
         {
@@ -250,13 +266,63 @@ public sealed partial class DiscoverViewModel : ViewModelBase
             }
 
             var explanation = _explanations.ExplainFromMetadata(repository);
-            Results.Add(new RepositoryCardViewModel(
-                repository, explanation, likelihood, OnRepositoryOpenRequested, _log));
+            var setup = SetupDifficultyEvaluator.EvaluateFromMetadata(repository, likelihood);
+
+            // Metadata only: one predictable address, no API call, no rate limit spent.
+            var media = _media.DiscoverFromMetadata(repository);
+
+            var card = new RepositoryCardViewModel(
+                repository, explanation, likelihood, setup,
+                media.Primary?.Url, OnRepositoryOpenRequested, _log);
+
+            Results.Add(card);
+            added.Add(card);
         }
 
         HiddenByFilterNotice = hidden == 0
             ? null
             : $"{hidden} result{(hidden == 1 ? "" : "s")} hidden because they do not look like applications.";
+
+        // Pictures arrive afterwards and never hold up the results.
+        StartLoadingImages(added);
+    }
+
+    /// <summary>
+    /// Fetches card pictures in the background.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately fire-and-forget: search results appear immediately and fill in as the
+    /// images arrive. The token is tied to the current result set, so starting a new
+    /// search abandons every request still in flight rather than paying for pictures
+    /// nobody is looking at any more.
+    /// </remarks>
+    private void StartLoadingImages(IReadOnlyList<RepositoryCardViewModel> cards)
+    {
+        if (_images is null || cards.Count == 0) return;
+
+        var token = _imageCancellation?.Token ?? CancellationToken.None;
+
+        foreach (var card in cards)
+        {
+            _ = card.LoadImageAsync(_images, token);
+        }
+    }
+
+    /// <summary>Abandons picture requests for cards that are no longer on screen.</summary>
+    private void CancelImageLoading()
+    {
+        var previous = _imageCancellation;
+        _imageCancellation = new CancellationTokenSource();
+
+        try
+        {
+            previous?.Cancel();
+            previous?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already gone; nothing to abandon.
+        }
     }
 
     private void OnRepositoryOpenRequested(GitHubRepository repository)

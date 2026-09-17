@@ -122,6 +122,7 @@ public sealed class RepositoryAnalyzerService : IRepositoryAnalyzerService
             BuildSystem = structure.BuildSystem,
             SupportedPlatforms = platforms,
             SupportedArchitectures = architectures,
+            FileListing = tree,
             HasReleases = releases.HasRelease,
             HasDownloadableBinaries = releases.HasAnyBinary,
             InstallStrategy = InstallStrategy.Unknown,

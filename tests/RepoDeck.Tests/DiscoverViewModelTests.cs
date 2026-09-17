@@ -1,5 +1,6 @@
 using RepoDeck.Infrastructure;
 using RepoDeck.Services.Explanation;
+using RepoDeck.Services.Media;
 using RepoDeck.ViewModels;
 
 namespace RepoDeck.Tests;
@@ -7,7 +8,10 @@ namespace RepoDeck.Tests;
 public class DiscoverViewModelTests
 {
     private static DiscoverViewModel Create(FakeGitHubClient github) =>
-        new(github, new HeuristicRepositoryExplanationService(), NullAppLog.Instance);
+        new(github,
+            new HeuristicRepositoryExplanationService(),
+            new RepositoryMediaService(NullAppLog.Instance),
+            NullAppLog.Instance);
 
     [Fact]
     public async Task A_slow_earlier_search_cannot_overwrite_a_newer_one()
@@ -33,7 +37,7 @@ public class DiscoverViewModelTests
         gate.TrySetResult();
         await firstSearch;
 
-        Assert.Equal(["new-result"], vm.Results.Select(r => r.Name));
+        Assert.Equal(["new-result"], vm.Results.Select(r => r.Repository.Name));
         Assert.False(vm.IsBusy);
         Assert.Null(vm.ErrorMessage);
         Assert.DoesNotContain("cancelled", vm.ResultSummary, StringComparison.OrdinalIgnoreCase);
