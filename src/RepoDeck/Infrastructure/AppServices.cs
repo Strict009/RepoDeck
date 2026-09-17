@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
+using RepoDeck.Models;
+using RepoDeck.Services.Analysis;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.GitHub;
+using RepoDeck.Services.Install;
 
 namespace RepoDeck.Infrastructure;
 
@@ -32,6 +35,9 @@ public sealed class AppServices : IDisposable
         _http = CreateHttpClient();
         GitHub = new GitHubClient(_http, Cache, Tokens, Log);
         Explanations = new HeuristicRepositoryExplanationService();
+        Machine = PlatformInfo.CurrentMachine();
+        Analyzer = new RepositoryAnalyzerService(GitHub, Log);
+        InstallPlanner = new InstallPlanner(Paths);
 
         Log.Info("App", $"RepoDeck starting on {PlatformInfo.CurrentDescription}. Data root: {Paths.Root}");
         Log.Info("App", Tokens.HasToken
@@ -45,6 +51,12 @@ public sealed class AppServices : IDisposable
     public GitHubTokenProvider Tokens { get; }
     public IGitHubClient GitHub { get; }
     public IRepositoryExplanationService Explanations { get; }
+
+    /// <summary>The machine every compatibility decision is made against.</summary>
+    public MachineProfile Machine { get; }
+
+    public IRepositoryAnalyzerService Analyzer { get; }
+    public InstallPlanner InstallPlanner { get; }
 
     private static HttpClient CreateHttpClient()
     {

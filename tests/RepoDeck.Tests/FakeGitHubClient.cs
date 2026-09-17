@@ -19,6 +19,8 @@ internal sealed class FakeGitHubClient : IGitHubClient
     public int RepositoryCallCount { get; private set; }
     public int ReadmeCallCount { get; private set; }
     public int ReleaseCallCount { get; private set; }
+    public int TreeCallCount { get; private set; }
+    public int TextFileCallCount { get; private set; }
 
     /// <summary>When set, a search waits on this before returning.</summary>
     public TaskCompletionSource? SearchGate { get; set; }
@@ -31,9 +33,12 @@ internal sealed class FakeGitHubClient : IGitHubClient
     public string? Readme { get; set; }
     public Dictionary<string, long> Languages { get; set; } = new();
     public List<GitHubRelease> Releases { get; set; } = [];
+    public RepositoryTree Tree { get; set; } = RepositoryTree.Empty;
+    public Dictionary<string, string> TextFiles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public Exception? SearchThrows { get; set; }
     public Exception? ReleasesThrows { get; set; }
+    public Exception? TreeThrows { get; set; }
     public Exception? ReadmeThrows { get; set; }
 
     public async Task<RepositorySearchResult> SearchRepositoriesAsync(
@@ -95,6 +100,23 @@ internal sealed class FakeGitHubClient : IGitHubClient
         cancellationToken.ThrowIfCancellationRequested();
         if (ReleasesThrows is not null) throw ReleasesThrows;
         return Task.FromResult<IReadOnlyList<GitHubRelease>>(Releases);
+    }
+
+    public Task<RepositoryTree> GetTreeAsync(
+        string owner, string name, string? reference = null, CancellationToken cancellationToken = default)
+    {
+        TreeCallCount++;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (TreeThrows is not null) throw TreeThrows;
+        return Task.FromResult(Tree);
+    }
+
+    public Task<string?> GetTextFileAsync(
+        string owner, string name, string path, CancellationToken cancellationToken = default)
+    {
+        TextFileCallCount++;
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(TextFiles.TryGetValue(path, out var content) ? content : null);
     }
 
     public void RaiseRateLimit(RateLimitStatus status)

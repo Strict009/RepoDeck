@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using RepoDeck.Infrastructure;
+using RepoDeck.Models;
 using RepoDeck.Services.GitHub;
 
 namespace RepoDeck.Tests;

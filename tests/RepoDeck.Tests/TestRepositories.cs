@@ -39,6 +39,21 @@ internal static class TestRepositories
         };
     }
 
+    /// <summary>A draft release: visible only to maintainers, so RepoDeck must ignore it.</summary>
+    public static GitHubRelease DraftRelease(string tag, params string[] assetNames)
+    {
+        var release = Release(tag, false, assetNames);
+        return new GitHubRelease
+        {
+            TagName = release.TagName,
+            Name = release.Name,
+            Draft = true,
+            Prerelease = release.Prerelease,
+            PublishedAt = release.PublishedAt,
+            Assets = release.Assets
+        };
+    }
+
     public static GitHubRelease Release(
         string tag = "v1.0.0",
         bool prerelease = false,

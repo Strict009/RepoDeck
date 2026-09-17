@@ -16,6 +16,9 @@ public sealed class GitHubClient : IGitHubClient
 {
     private const string ApiVersion = "2022-11-28";
 
+    /// <summary>Project manifests are small; anything larger is not worth reading to classify.</summary>
+    private const int MaxTextFileBytes = 256 * 1024;
+
     private static readonly TimeSpan SearchCacheLifetime = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan RepositoryCacheLifetime = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan ContentCacheLifetime = TimeSpan.FromMinutes(30);
@@ -147,6 +150,91 @@ public sealed class GitHubClient : IGitHubClient
 
         _cache.Set(uri, releases, ContentCacheLifetime);
         return releases;
+    }
+
+    public async Task<RepositoryTree> GetTreeAsync(
+        string owner, string name, string? reference = null, CancellationToken cancellationToken = default)
+    {
+        // "HEAD" resolves to the default branch without RepoDeck needing to know its name.
+        var branch = string.IsNullOrWhiteSpace(reference) ? "HEAD" : reference;
+        var uri = $"repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(name)}"
+                  + $"/git/trees/{Uri.EscapeDataString(branch)}?recursive=1";
+
+        if (_cache.TryGet<RepositoryTree>(uri, out var cached)) return cached;
+
+        TreeResponse? response;
+        try
+        {
+            response = await GetJsonAsync<TreeResponse>(uri, cancellationToken).ConfigureAwait(false);
+        }
+        catch (GitHubApiException ex) when (ex.Kind is GitHubErrorKind.NotFound or GitHubErrorKind.Forbidden)
+        {
+            // An empty repository has no tree at all; treat that as "nothing to see".
+            _log.Info("GitHub", $"No file listing available for {owner}/{name}: {ex.Kind}");
+            return RepositoryTree.Empty;
+        }
+
+        var tree = new RepositoryTree
+        {
+            Entries = response?.Tree ?? [],
+            IsTruncated = response?.Truncated ?? false
+        };
+
+        if (tree.IsTruncated)
+        {
+            _log.Warn("GitHub", $"File listing for {owner}/{name} was truncated by GitHub.");
+        }
+
+        _cache.Set(uri, tree, ContentCacheLifetime);
+        _log.Info("GitHub", $"File listing for {owner}/{name}: {tree.Entries.Count} entries"
+                            + (tree.IsTruncated ? " (truncated)" : ""));
+        return tree;
+    }
+
+    public async Task<string?> GetTextFileAsync(
+        string owner, string name, string path, CancellationToken cancellationToken = default)
+    {
+        var uri = $"repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(name)}"
+                  + $"/contents/{EscapePath(path)}";
+        var cacheKey = uri + "#raw";
+
+        if (_cache.TryGet<string>(cacheKey, out var cached)) return cached;
+
+        using var request = CreateRequest(HttpMethod.Get, uri);
+        request.Headers.Accept.Clear();
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.raw"));
+
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken).ConfigureAwait(false);
+
+        // Project files are small. Anything large is not a manifest worth reading.
+        if (response.Content.Headers.ContentLength > MaxTextFileBytes)
+        {
+            _log.Info("GitHub", $"Skipped {path} in {owner}/{name}: larger than the text file limit.");
+            return null;
+        }
+
+        var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        if (content.Length > MaxTextFileBytes) content = content[..MaxTextFileBytes];
+
+        _cache.Set(cacheKey, content, ContentCacheLifetime);
+        return content;
+    }
+
+    /// <summary>Escapes each path segment but keeps the slashes that separate them.</summary>
+    private static string EscapePath(string path) =>
+        string.Join('/', path.Split('/').Select(Uri.EscapeDataString));
+
+    private sealed class TreeResponse
+    {
+        public IReadOnlyList<RepositoryTreeEntry> Tree { get; init; } = [];
+        public bool Truncated { get; init; }
     }
 
     // ---- Plumbing ---------------------------------------------------------

@@ -27,6 +27,24 @@ public interface IGitHubClient
     Task<IReadOnlyList<GitHubRelease>> GetReleasesAsync(
         string owner, string name, int limit = 10, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The repository's complete file listing in a single request.
+    /// </summary>
+    /// <remarks>
+    /// This is what makes structural classification affordable: one call instead of one
+    /// per directory, and no cloning. Very large repositories come back truncated, which
+    /// the result reports so callers do not read absence as proof.
+    /// </remarks>
+    Task<RepositoryTree> GetTreeAsync(
+        string owner, string name, string? reference = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// One text file from the repository, or null when it does not exist or is too large.
+    /// Used sparingly - only when a file's contents would change a conclusion.
+    /// </summary>
+    Task<string?> GetTextFileAsync(
+        string owner, string name, string path, CancellationToken cancellationToken = default);
+
     /// <summary>Rate limit as of the most recent response. <see cref="RateLimitStatus.Unknown"/> before the first call.</summary>
     RateLimitStatus RateLimit { get; }
 
