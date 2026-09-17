@@ -44,6 +44,26 @@ public static class Humanize
         return Plural(Math.Max(years, 1), "year") + " ago";
     }
 
+    /// <summary>How long until a moment in the future, e.g. "in 43 minutes".</summary>
+    /// <remarks>
+    /// <see cref="RelativeTime"/> only ever renders the past, so borrowing it for a
+    /// GitHub rate-limit reset produced sentences like "Resets 43 minutes ago" about
+    /// something that had not happened yet.
+    /// </remarks>
+    public static string TimeUntil(DateTimeOffset? value, DateTimeOffset? now = null)
+    {
+        if (value is null) return "unknown";
+
+        var delta = value.Value - (now ?? DateTimeOffset.UtcNow);
+
+        if (delta <= TimeSpan.Zero) return "shortly";
+        if (delta.TotalSeconds < 60) return "in less than a minute";
+        if (delta.TotalMinutes < 60) return "in " + Plural((int)delta.TotalMinutes, "minute");
+        if (delta.TotalHours < 24) return "in " + Plural((int)delta.TotalHours, "hour");
+
+        return "in " + Plural(Math.Max((int)delta.TotalDays, 1), "day");
+    }
+
     /// <summary>Bytes to a short human size, e.g. "4.2 MB".</summary>
     public static string FileSize(long bytes)
     {

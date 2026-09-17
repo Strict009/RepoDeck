@@ -47,9 +47,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         _selectedNavigationItem = NavigationItems[0];
         _currentPage = _discover;
+        _statusText = _selectedNavigationItem.Title;
 
         UpdateRateLimit(services.GitHub.RateLimit);
         services.GitHub.RateLimitChanged += UpdateRateLimit;
+        RefreshLibraryCount();
     }
 
     public ObservableCollection<NavigationItem> NavigationItems { get; }
@@ -61,7 +63,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(GoBackCommand))]
     private bool _canGoBack;
 
-    [ObservableProperty] private string _statusText = "Ready";
+    // Set from the selected page in the constructor, so the strip never opens showing
+    // a placeholder that does not match what is on screen.
+    [ObservableProperty] private string _statusText = "";
     [ObservableProperty] private string _rateLimitText = "";
 
     public string PlatformText => PlatformInfo.CurrentDescription;
@@ -136,15 +140,4 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     private void UpdateRateLimit(RateLimitStatus status) => _dispatcher.Post(() => ApplyRateLimit(status));
 
-    private void ApplyRateLimit(RateLimitStatus status)
-    {
-        if (!status.IsKnown)
-        {
-            RateLimitText = "";
-            return;
-        }
-
-        var suffix = status.IsAuthenticated ? "" : " (no token)";
-        RateLimitText = $"GitHub requests left: {status.Remaining}/{status.Limit}{suffix}";
-    }
 }

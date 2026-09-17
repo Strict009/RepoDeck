@@ -2,7 +2,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:infra="using:RepoDeck.Infrastructure"
              x:Class="RepoDeck.App"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Dark">
+    <!--
+        RepoDeck presents a dark interface by design. The visual identity is drawn from
+        late-1990s media players and desktop utilities, which were dark, dense and
+        industrial. The Light dictionary below is kept complete and readable so switching
+        variant never produces an unusable window, but Dark is the intended appearance.
+    -->
 
     <Application.DataTemplates>
         <infra:ViewLocator />
@@ -17,66 +23,147 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
 
-                <ResourceDictionary x:Key="Light">
-                    <Color x:Key="RdPageBackground">#F4F5F7</Color>
-                    <Color x:Key="RdSurface">#FFFFFF</Color>
-                    <Color x:Key="RdSurfaceAlt">#EDEFF3</Color>
-                    <Color x:Key="RdSidebar">#FFFFFF</Color>
-                    <Color x:Key="RdBorder">#DDE1E7</Color>
-                    <Color x:Key="RdTextPrimary">#16191D</Color>
-                    <Color x:Key="RdTextSecondary">#5A6270</Color>
-                    <Color x:Key="RdTextMuted">#858D9A</Color>
-                    <Color x:Key="RdAccent">#2F6FEB</Color>
-                    <Color x:Key="RdAccentSoft">#E4EDFD</Color>
-                    <Color x:Key="RdPositive">#1A7F52</Color>
-                    <Color x:Key="RdPositiveSoft">#E2F4EB</Color>
-                    <Color x:Key="RdCaution">#9A6206</Color>
-                    <Color x:Key="RdCautionSoft">#FBF0DC</Color>
-                    <Color x:Key="RdDanger">#B3261E</Color>
-                    <Color x:Key="RdDangerSoft">#FBE6E4</Color>
-                    <Color x:Key="RdChip">#EEF1F5</Color>
+                <!--
+                    Dark: near-black chassis, layered grey panels, one acid lime accent.
+                    The lime is deliberately rationed. It means selection, active state,
+                    ready, compatible, progress, primary action and the RepoDeck mark -
+                    and nothing else. A window where every border is green communicates
+                    nothing at all.
+                -->
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="RdPageBackground">#0C0E10</Color>
+                    <Color x:Key="RdSidebar">#121518</Color>
+                    <Color x:Key="RdSurface">#171B1F</Color>
+                    <Color x:Key="RdSurfaceAlt">#1F252A</Color>
+                    <Color x:Key="RdPanelRaised">#242B31</Color>
+                    <Color x:Key="RdPanelInset">#08090B</Color>
+                    <Color x:Key="RdBorder">#2B3339</Color>
+                    <Color x:Key="RdBorderStrong">#3D4750</Color>
+                    <Color x:Key="RdHighlightEdge">#343D45</Color>
+
+                    <Color x:Key="RdTextPrimary">#E9EFF3</Color>
+                    <Color x:Key="RdTextSecondary">#9CA8B3</Color>
+                    <Color x:Key="RdTextMuted">#75818C</Color>
+
+                    <Color x:Key="RdAccent">#B3F03C</Color>
+                    <Color x:Key="RdAccentHover">#C9FF5E</Color>
+                    <Color x:Key="RdAccentPressed">#8FC72E</Color>
+                    <Color x:Key="RdAccentSoft">#1D2711</Color>
+                    <Color x:Key="RdOnAccent">#0C0E10</Color>
+
+                    <Color x:Key="RdPositive">#B3F03C</Color>
+                    <Color x:Key="RdPositiveSoft">#1D2711</Color>
+                    <Color x:Key="RdCaution">#F2B33D</Color>
+                    <Color x:Key="RdCautionSoft">#2B2113</Color>
+                    <Color x:Key="RdDanger">#FF6B6B</Color>
+                    <Color x:Key="RdDangerSoft">#2C1517</Color>
+                    <Color x:Key="RdInfo">#56C2F0</Color>
+                    <Color x:Key="RdInfoSoft">#102431</Color>
+
+                    <Color x:Key="RdChip">#202830</Color>
+                    <Color x:Key="RdDisabled">#232A30</Color>
+                    <Color x:Key="RdDisabledText">#5D6871</Color>
+
+                    <!-- The faint grid drawn behind a fallback tile. -->
+                    <Color x:Key="RdGridLine">#000000</Color>
                 </ResourceDictionary>
 
-                <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="RdPageBackground">#16181C</Color>
-                    <Color x:Key="RdSurface">#1E2127</Color>
-                    <Color x:Key="RdSurfaceAlt">#262A32</Color>
-                    <Color x:Key="RdSidebar">#1A1D22</Color>
-                    <Color x:Key="RdBorder">#343941</Color>
-                    <Color x:Key="RdTextPrimary">#EDEFF2</Color>
-                    <Color x:Key="RdTextSecondary">#AAB2BE</Color>
-                    <Color x:Key="RdTextMuted">#79818E</Color>
-                    <Color x:Key="RdAccent">#6E9BFF</Color>
-                    <Color x:Key="RdAccentSoft">#243250</Color>
-                    <Color x:Key="RdPositive">#5CCB94</Color>
-                    <Color x:Key="RdPositiveSoft">#1C3329</Color>
-                    <Color x:Key="RdCaution">#E5B567</Color>
-                    <Color x:Key="RdCautionSoft">#352C1B</Color>
-                    <Color x:Key="RdDanger">#F2837C</Color>
-                    <Color x:Key="RdDangerSoft">#3A2222</Color>
-                    <Color x:Key="RdChip">#2B3038</Color>
+                <!-- Light: the same identity in daylight. Kept readable, not the target. -->
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="RdPageBackground">#EDEFF1</Color>
+                    <Color x:Key="RdSidebar">#E2E6E9</Color>
+                    <Color x:Key="RdSurface">#FFFFFF</Color>
+                    <Color x:Key="RdSurfaceAlt">#E9ECEF</Color>
+                    <Color x:Key="RdPanelRaised">#F5F7F8</Color>
+                    <Color x:Key="RdPanelInset">#DCE0E4</Color>
+                    <Color x:Key="RdBorder">#C9D0D6</Color>
+                    <Color x:Key="RdBorderStrong">#A7B1BA</Color>
+                    <Color x:Key="RdHighlightEdge">#FFFFFF</Color>
+
+                    <Color x:Key="RdTextPrimary">#12161A</Color>
+                    <Color x:Key="RdTextSecondary">#4B555F</Color>
+                    <Color x:Key="RdTextMuted">#6E7982</Color>
+
+                    <Color x:Key="RdAccent">#5C8A0F</Color>
+                    <Color x:Key="RdAccentHover">#6FA315</Color>
+                    <Color x:Key="RdAccentPressed">#48700A</Color>
+                    <Color x:Key="RdAccentSoft">#E6F3CE</Color>
+                    <Color x:Key="RdOnAccent">#FFFFFF</Color>
+
+                    <Color x:Key="RdPositive">#2F7A2F</Color>
+                    <Color x:Key="RdPositiveSoft">#E0F2E0</Color>
+                    <Color x:Key="RdCaution">#8A5D06</Color>
+                    <Color x:Key="RdCautionSoft">#FBF0D8</Color>
+                    <Color x:Key="RdDanger">#B3261E</Color>
+                    <Color x:Key="RdDangerSoft">#FBE5E4</Color>
+                    <Color x:Key="RdInfo">#0E5E83</Color>
+                    <Color x:Key="RdInfoSoft">#DDEFF8</Color>
+
+                    <Color x:Key="RdChip">#E4E8EC</Color>
+                    <Color x:Key="RdDisabled">#DDE2E6</Color>
+                    <Color x:Key="RdDisabledText">#98A2AB</Color>
+                    <Color x:Key="RdGridLine">#FFFFFF</Color>
                 </ResourceDictionary>
 
             </ResourceDictionary.ThemeDictionaries>
 
-            <!-- Brushes resolve against whichever theme dictionary is active. -->
+            <!-- ==== Brushes: the only things XAML should reference ==== -->
             <SolidColorBrush x:Key="RdPageBackgroundBrush" Color="{DynamicResource RdPageBackground}" />
+            <SolidColorBrush x:Key="RdSidebarBrush" Color="{DynamicResource RdSidebar}" />
             <SolidColorBrush x:Key="RdSurfaceBrush" Color="{DynamicResource RdSurface}" />
             <SolidColorBrush x:Key="RdSurfaceAltBrush" Color="{DynamicResource RdSurfaceAlt}" />
-            <SolidColorBrush x:Key="RdSidebarBrush" Color="{DynamicResource RdSidebar}" />
+            <SolidColorBrush x:Key="RdPanelRaisedBrush" Color="{DynamicResource RdPanelRaised}" />
+            <SolidColorBrush x:Key="RdPanelInsetBrush" Color="{DynamicResource RdPanelInset}" />
             <SolidColorBrush x:Key="RdBorderBrush" Color="{DynamicResource RdBorder}" />
+            <SolidColorBrush x:Key="RdBorderStrongBrush" Color="{DynamicResource RdBorderStrong}" />
+            <SolidColorBrush x:Key="RdHighlightEdgeBrush" Color="{DynamicResource RdHighlightEdge}" />
+
             <SolidColorBrush x:Key="RdTextPrimaryBrush" Color="{DynamicResource RdTextPrimary}" />
             <SolidColorBrush x:Key="RdTextSecondaryBrush" Color="{DynamicResource RdTextSecondary}" />
             <SolidColorBrush x:Key="RdTextMutedBrush" Color="{DynamicResource RdTextMuted}" />
+
             <SolidColorBrush x:Key="RdAccentBrush" Color="{DynamicResource RdAccent}" />
+            <SolidColorBrush x:Key="RdAccentHoverBrush" Color="{DynamicResource RdAccentHover}" />
+            <SolidColorBrush x:Key="RdAccentPressedBrush" Color="{DynamicResource RdAccentPressed}" />
             <SolidColorBrush x:Key="RdAccentSoftBrush" Color="{DynamicResource RdAccentSoft}" />
+            <SolidColorBrush x:Key="RdOnAccentBrush" Color="{DynamicResource RdOnAccent}" />
+
             <SolidColorBrush x:Key="RdPositiveBrush" Color="{DynamicResource RdPositive}" />
             <SolidColorBrush x:Key="RdPositiveSoftBrush" Color="{DynamicResource RdPositiveSoft}" />
             <SolidColorBrush x:Key="RdCautionBrush" Color="{DynamicResource RdCaution}" />
             <SolidColorBrush x:Key="RdCautionSoftBrush" Color="{DynamicResource RdCautionSoft}" />
             <SolidColorBrush x:Key="RdDangerBrush" Color="{DynamicResource RdDanger}" />
             <SolidColorBrush x:Key="RdDangerSoftBrush" Color="{DynamicResource RdDangerSoft}" />
+            <SolidColorBrush x:Key="RdInfoBrush" Color="{DynamicResource RdInfo}" />
+            <SolidColorBrush x:Key="RdInfoSoftBrush" Color="{DynamicResource RdInfoSoft}" />
+
             <SolidColorBrush x:Key="RdChipBrush" Color="{DynamicResource RdChip}" />
+            <SolidColorBrush x:Key="RdDisabledBrush" Color="{DynamicResource RdDisabled}" />
+            <SolidColorBrush x:Key="RdDisabledTextBrush" Color="{DynamicResource RdDisabledText}" />
+            <SolidColorBrush x:Key="RdGridLineBrush" Color="{DynamicResource RdGridLine}" />
+
+            <!-- ==== Metrics: squared-off utility hardware, not rounded web cards ==== -->
+            <CornerRadius x:Key="RdRadiusSharp">0</CornerRadius>
+            <CornerRadius x:Key="RdRadiusSmall">2</CornerRadius>
+            <CornerRadius x:Key="RdRadiusMedium">4</CornerRadius>
+            <CornerRadius x:Key="RdRadiusLarge">6</CornerRadius>
+            <CornerRadius x:Key="RdRadiusPill">10</CornerRadius>
+
+            <Thickness x:Key="RdBorderThin">1</Thickness>
+            <Thickness x:Key="RdPanelPadding">18</Thickness>
+            <Thickness x:Key="RdCardPadding">0</Thickness>
+
+            <x:Double x:Key="RdSpaceXs">4</x:Double>
+            <x:Double x:Key="RdSpaceSm">8</x:Double>
+            <x:Double x:Key="RdSpaceMd">12</x:Double>
+            <x:Double x:Key="RdSpaceLg">18</x:Double>
+            <x:Double x:Key="RdSpaceXl">28</x:Double>
+
+            <x:Double x:Key="RdControlHeight">34</x:Double>
+            <x:Double x:Key="RdControlHeightLarge">44</x:Double>
+            <x:Double x:Key="RdCardSpacing">16</x:Double>
+            <x:Double x:Key="RdCardMinWidth">300</x:Double>
+            <x:Double x:Key="RdMediaHeight">150</x:Double>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

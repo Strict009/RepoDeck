@@ -3,60 +3,113 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:RepoDeck.ViewModels"
+        xmlns:controls="using:RepoDeck.Controls"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="820"
         x:Class="RepoDeck.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="RepoDeck"
-        Width="1280" Height="820"
-        MinWidth="900" MinHeight="600"
+        Width="1320" Height="860"
+        MinWidth="880" MinHeight="600"
         Background="{DynamicResource RdPageBackgroundBrush}">
 
-    <Grid ColumnDefinitions="224,*">
+    <Grid ColumnDefinitions="232,*">
 
-        <!-- Navigation rail -->
+        <!-- ==================== Control strip ==================== -->
         <Border Grid.Column="0"
                 Background="{DynamicResource RdSidebarBrush}"
                 BorderBrush="{DynamicResource RdBorderBrush}"
                 BorderThickness="0,0,1,0">
             <Grid RowDefinitions="Auto,*,Auto">
 
-                <StackPanel Grid.Row="0" Margin="22,26,22,18" Spacing="2">
-                    <TextBlock Text="RepoDeck" FontSize="20" FontWeight="Bold" />
-                    <TextBlock Text="GitHub, made approachable" Classes="muted" />
-                </StackPanel>
+                <!-- Wordmark: a lime bar, the name, a running light -->
+                <Border Grid.Row="0"
+                        BorderBrush="{DynamicResource RdBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="18,20,18,16">
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Width="4" Height="26"
+                                    Background="{DynamicResource RdAccentBrush}"
+                                    CornerRadius="{DynamicResource RdRadiusSharp}" />
+                            <StackPanel Spacing="0" VerticalAlignment="Center">
+                                <TextBlock Text="RepoDeck" FontSize="20" FontWeight="Bold"
+                                           LetterSpacing="0.4" />
+                                <TextBlock Text="GITHUB, MADE APPROACHABLE"
+                                           Classes="microLabel" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Border Classes="inset" Padding="8,5">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Ellipse Classes="led ledOn"
+                                         ToolTip.Tip="RepoDeck is running normally" />
+                                <TextBlock Text="{Binding SystemStateText}" Classes="microLabel"
+                                           Foreground="{DynamicResource RdAccentBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
 
                 <ListBox Grid.Row="1"
                          Classes="nav"
+                         Margin="0,10,0,0"
                          ItemsSource="{Binding NavigationItems}"
                          SelectedItem="{Binding SelectedNavigationItem}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:NavigationItem">
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <Path Data="{Binding Icon}"
-                                      Fill="{DynamicResource RdTextSecondaryBrush}"
-                                      Width="18" Height="18"
+                                      Fill="{Binding $parent[ListBoxItem].Foreground}"
+                                      Width="16" Height="16"
                                       Stretch="Uniform"
                                       VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding Title}"
-                                           FontSize="14"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Foreground="{Binding $parent[ListBoxItem].Foreground}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <StackPanel Grid.Row="2" Margin="22,14,22,18" Spacing="4">
-                    <TextBlock Text="{Binding PlatformText}" Classes="muted" />
-                    <TextBlock Text="Milestone 1 - browse and understand" Classes="muted" />
-                </StackPanel>
+                <!-- System panel: the machine, the connection, the allowance -->
+                <Border Grid.Row="2"
+                        BorderBrush="{DynamicResource RdBorderBrush}"
+                        BorderThickness="0,1,0,0"
+                        Padding="14,14,14,16">
+                    <StackPanel Spacing="9">
+                        <TextBlock Text="SYSTEM" Classes="microLabel" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Ellipse Classes="led"
+                                     Classes.ledOn="{Binding IsConnected}"
+                                     Classes.ledWarn="{Binding !IsConnected}" />
+                            <TextBlock Text="{Binding ConnectionText}" Classes="muted"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- The meter shows the allowance at a glance; numbers on hover -->
+                        <StackPanel Spacing="4" IsVisible="{Binding HasRateLimit}"
+                                    ToolTip.Tip="{Binding RateLimitDetail}">
+                            <TextBlock Text="{Binding RateLimitLabel}" Classes="muted" />
+                            <controls:SegmentedMeter Height="6" SegmentCount="14"
+                                                     Value="{Binding RateLimitPercent}"
+                                                     OnBrush="{DynamicResource RdAccentBrush}"
+                                                     OffBrush="{DynamicResource RdPanelInsetBrush}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding PlatformText}" Classes="muted" />
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 
-        <!-- Content -->
+        <!-- ==================== Content ==================== -->
         <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
 
             <Border Grid.Row="0"
-                    Padding="28,18,28,0"
+                    Padding="28,16,28,0"
                     IsVisible="{Binding CanGoBack}">
                 <Button Classes="link"
                         Command="{Binding GoBackCommand}"
@@ -64,23 +117,43 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Path Data="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"
                               Fill="{DynamicResource RdAccentBrush}"
-                              Width="14" Height="14" Stretch="Uniform"
+                              Width="13" Height="13" Stretch="Uniform"
                               VerticalAlignment="Center" />
-                        <TextBlock Text="Back to results" VerticalAlignment="Center" />
+                        <TextBlock Text="BACK TO RESULTS" VerticalAlignment="Center"
+                                   FontSize="11" FontWeight="Bold" LetterSpacing="0.8"
+                                   Foreground="{DynamicResource RdAccentBrush}" />
                     </StackPanel>
                 </Button>
             </Border>
 
             <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" />
 
+            <!-- Status strip, in the manner of a classic desktop application -->
             <Border Grid.Row="2"
-                    Background="{DynamicResource RdSurfaceBrush}"
+                    Background="{DynamicResource RdSidebarBrush}"
                     BorderBrush="{DynamicResource RdBorderBrush}"
                     BorderThickness="0,1,0,0"
-                    Padding="28,8">
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="{Binding StatusText}" Classes="muted" />
-                    <TextBlock Grid.Column="1" Text="{Binding RateLimitText}" Classes="muted" />
+                    Padding="18,7">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                        <Ellipse Classes="led"
+                                 Classes.ledOn="{Binding IsReady}"
+                                 Classes.ledWarn="{Binding IsBusy}" />
+                        <TextBlock Text="{Binding ActivityText}" Classes="microLabel"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1" Text="{Binding StatusText}" Classes="muted"
+                               Margin="18,0" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <TextBlock Grid.Column="2" Text="{Binding LibraryText}" Classes="muted"
+                               Margin="0,0,18,0" VerticalAlignment="Center" />
+
+                    <TextBlock Grid.Column="3" Text="{Binding RateLimitText}" Classes="muted"
+                               VerticalAlignment="Center"
+                               ToolTip.Tip="{Binding RateLimitDetail}" />
                 </Grid>
             </Border>
         </Grid>

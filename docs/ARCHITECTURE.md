@@ -262,6 +262,85 @@ this, what can I do with it, will it work on this PC, can RepoDeck install it. T
 pictures. Then the installation plan and the factual signals panel. Everything else -
 RepoDeck's analysis, every download in the release, GitHub metadata, the README - sits
 behind collapsed disclosures. Nothing was deleted to achieve this.
+
+## The design system
+
+RepoDeck has a deliberate visual identity, drawn from the late-1990s media-player and
+file-sharing era: a dark industrial chassis, dense panels, small capitalised labels,
+segmented meters and a single acid accent. It is an interpretation, not a skin - nothing
+here reproduces a particular product's artwork, and none of it changes what the
+application does or says.
+
+### Tokens, and nothing else
+
+`App.axaml` holds the entire palette as themed colours, each exposed as a brush, plus
+radii, spacing and control metrics. Views reference brushes and metrics; they never
+reference a colour. This is enforced: a test fails the build if any view under
+`Views/` reintroduces a literal hex value, because a design system that anything can
+bypass stops being one within a month.
+
+Both theme variants are complete. Dark is the intended appearance and what every visual
+judgement was made against; Light exists so that switching variant never produces an
+unusable window.
+
+### The accent is rationed
+
+Acid lime means exactly seven things: selection, active state, ready, compatible,
+progress, the primary action in an area, and the RepoDeck mark. It means nothing else. A
+window where every border is green communicates nothing at all, and RepoDeck's accent has
+to stay legible because it is also how the interface says "this will work on your
+computer".
+
+Caution amber, danger red and info blue carry the meanings their names suggest and are
+used no more freely.
+
+### State is never colour alone
+
+Every status light in the application sits beside a word. The shell's light is next to
+READY or WORKING, the connection light next to the service name, the allowance meter next
+to ALLOWANCE OK, ALLOWANCE LOW or ALLOWANCE USED UP, and the compatibility light next to
+the sentence stating the verdict. Someone who cannot distinguish lime from amber loses
+decoration and no information.
+
+### `SegmentedMeter`
+
+A custom-drawn `Control` rather than a hundred nested borders, so it is cheap enough to
+sit anywhere. Its rule - how many bars light for a value - is a pure static function,
+tested for clamping, negative input, over-range input, a zero maximum, zero segments and
+NaN, without standing up a windowing system.
+
+It is only used where progress is actually known. Where progress is indeterminate the
+interface shows an indeterminate bar instead. A meter displaying an invented percentage
+would be lying, and lying about progress is the specific thing RepoDeck exists not to do.
+
+### The Discover landing
+
+An empty search box is a poor thing to greet someone with, so the landing offers nine
+category tiles and a row of plain-English prompts. Each one runs an ordinary GitHub
+search with a query deliberately more specific than its label - searching the word
+"Games" alone returns engines and tutorials. There is no curated catalogue behind the
+tiles and the interface does not imply one.
+
+### Cards
+
+`RepositoryCardView` is a real view resolved by the `ViewLocator`, not an inline
+template, so the card can be laid out properly and reused. It carries a fixed-height
+media band, the friendly name, the purpose in plain English, the setup level as a chip
+with a status light, and a footer bar holding the owner slug, the language and the two
+actions. The grid is a `WrapPanel`, so it reflows from three columns to two to one.
+
+Where no image is available the fallback is designed rather than absent: a stable colour
+derived from the project's full name, a faint grid, and the project's initial. The same
+project looks the same on every visit, and a page of results with no screenshots still
+looks deliberate rather than broken.
+
+### Button hierarchy
+
+One primary action per area. Secondary for everything ordinary. `danger` for anything
+that removes files, which is the only styling cue the uninstall and forget flows get in
+addition to their explicit confirmation step. Link styling for navigation away from the
+application.
+
 ## Caching and rate limits
 
 `ResponseCache` is an in-memory TTL cache keyed by request URI: 5 minutes for searches,

@@ -1,38 +1,45 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        RepoDeck's visual language: dark industrial chassis, layered panel edges, squared
+        controls, uppercase micro-labels and one acid lime accent used sparingly. The
+        reference points are late-1990s media players and desktop utilities, interpreted
+        as a modern application rather than reproduced. Every colour here comes from a
+        token in App.axaml; no literal colours belong in this file or in any view.
+    -->
 
-    <!-- Typography -->
+    <!-- ==================== Typography ==================== -->
     <Style Selector="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
     <Style Selector="TextBlock.display">
-        <Setter Property="FontSize" Value="28" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="LineHeight" Value="36" />
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LineHeight" Value="32" />
     </Style>
 
     <Style Selector="TextBlock.h1">
-        <Setter Property="FontSize" Value="21" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="LineHeight" Value="28" />
-    </Style>
-
-    <Style Selector="TextBlock.h2">
-        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontSize" Value="18" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="LineHeight" Value="24" />
     </Style>
 
+    <Style Selector="TextBlock.h2">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="22" />
+    </Style>
+
     <Style Selector="TextBlock.body">
         <Setter Property="FontSize" Value="14" />
-        <Setter Property="LineHeight" Value="22" />
+        <Setter Property="LineHeight" Value="21" />
     </Style>
 
     <Style Selector="TextBlock.secondary">
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="LineHeight" Value="20" />
+        <Setter Property="LineHeight" Value="19" />
         <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
     </Style>
 
@@ -41,137 +48,380 @@
         <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
     </Style>
 
+    <!--
+        The micro-label: small, uppercase, letter-spaced. The single strongest borrowing
+        from the era, and it does real work - it separates a section heading from body
+        text without needing a rule or a heavier weight.
+    -->
     <Style Selector="TextBlock.sectionLabel">
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontSize" Value="10" />
         <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="1.4" />
         <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
         <Setter Property="Margin" Value="0,0,0,6" />
     </Style>
 
-    <!-- Cards and panels -->
+    <Style Selector="TextBlock.microLabel">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="1.2" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.accent">
+        <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <!-- ==================== Panels and cards ==================== -->
+    <!--
+        Panels carry a top highlight edge and a darker body, which is how the era faked
+        a raised surface before anyone had real shadows. It reads as hardware.
+    -->
+    <Style Selector="Border.panel">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusMedium}" />
+        <Setter Property="Padding" Value="{DynamicResource RdPanelPadding}" />
+    </Style>
+
     <Style Selector="Border.card">
         <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="Padding" Value="20" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusMedium}" />
+        <Setter Property="Padding" Value="18" />
         <Setter Property="Transitions">
             <Transitions>
-                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
             </Transitions>
         </Setter>
     </Style>
 
     <Style Selector="Border.card:pointerover">
         <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
     </Style>
 
-    <Style Selector="Border.panel">
-        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+    <!-- An inset well: recessed, for things the interface reads from rather than acts on. -->
+    <Style Selector="Border.inset">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="Padding" Value="22" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Padding" Value="12" />
     </Style>
 
-    <!-- Small pill labels for topics, languages and status -->
+    <Style Selector="Border.raised">
+        <Setter Property="Background" Value="{DynamicResource RdPanelRaisedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+    </Style>
+
+    <!-- ==================== Chips and status ==================== -->
     <Style Selector="Border.chip">
         <Setter Property="Background" Value="{DynamicResource RdChipBrush}" />
-        <Setter Property="CornerRadius" Value="11" />
-        <Setter Property="Padding" Value="9,3" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Padding" Value="8,3" />
     </Style>
 
     <Style Selector="Border.chip > TextBlock">
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="11" />
         <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
     </Style>
 
     <Style Selector="Border.chipAccent">
         <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
     </Style>
 
     <Style Selector="Border.chipAccent > TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.6" />
     </Style>
 
     <Style Selector="Border.chipCaution">
         <Setter Property="Background" Value="{DynamicResource RdCautionSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdCautionBrush}" />
     </Style>
 
     <Style Selector="Border.chipCaution > TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource RdCautionBrush}" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Bold" />
     </Style>
 
-    <!-- Buttons -->
+    <Style Selector="Border.chipInfo">
+        <Setter Property="Background" Value="{DynamicResource RdInfoSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdInfoBrush}" />
+    </Style>
+
+    <Style Selector="Border.chipInfo > TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdInfoBrush}" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <!--
+        Status LEDs. Colour alone never carries meaning: every LED sits beside a word,
+        so the state is legible without seeing the difference between lime and amber.
+    -->
+    <Style Selector="Ellipse.led">
+        <Setter Property="Width" Value="7" />
+        <Setter Property="Height" Value="7" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Fill" Value="{DynamicResource RdTextMutedBrush}" />
+    </Style>
+
+    <Style Selector="Ellipse.ledOn">
+        <Setter Property="Fill" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="Ellipse.ledWarn">
+        <Setter Property="Fill" Value="{DynamicResource RdCautionBrush}" />
+    </Style>
+
+    <Style Selector="Ellipse.ledOff">
+        <Setter Property="Fill" Value="{DynamicResource RdDisabledTextBrush}" />
+    </Style>
+
+    <!-- ==================== Buttons ==================== -->
+    <!--
+        Three levels and no more. Primary is lime with dark ink and is the one thing on a
+        screen you are meant to press. Secondary is a raised dark panel. Danger is
+        reserved for removal. Each responds to hover and press through its border and
+        background, which is what makes a flat control feel like a button.
+    -->
     <Style Selector="Button.primary">
         <Setter Property="Background" Value="{DynamicResource RdAccentBrush}" />
-        <Setter Property="Foreground" Value="#FFFFFF" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource RdOnAccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LetterSpacing" Value="0.7" />
         <Setter Property="Padding" Value="16,9" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="MinHeight" Value="{DynamicResource RdControlHeight}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button.primary /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdOnAccentBrush}" />
     </Style>
 
     <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource RdAccentBrush}" />
-        <Setter Property="TextElement.Foreground" Value="#FFFFFF" />
-        <Setter Property="Opacity" Value="0.88" />
+        <Setter Property="Background" Value="{DynamicResource RdAccentHoverBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdOnAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentPressedBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdOnAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdDisabledBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdDisabledTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
     </Style>
 
     <Style Selector="Button.secondary">
-        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Background" Value="{DynamicResource RdPanelRaisedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="Padding" Value="16,9" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="0.5" />
+        <Setter Property="Padding" Value="14,9" />
+        <Setter Property="MinHeight" Value="{DynamicResource RdControlHeight}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button.secondary /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdPanelRaisedBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
     </Style>
 
     <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
         <Setter Property="TextElement.Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="Button.secondary:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="Button.secondary:disabled /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdDisabledBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdDisabledTextBrush}" />
+    </Style>
+
+    <!-- Reserved for removal. Nothing else should ever be red. -->
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="{DynamicResource RdDangerSoftBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource RdDangerBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdDangerBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.5" />
+        <Setter Property="Padding" Value="14,9" />
+        <Setter Property="MinHeight" Value="{DynamicResource RdControlHeight}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.danger /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdDangerSoftBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdDangerBrush}" />
+    </Style>
+
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdDangerBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdOnAccentBrush}" />
     </Style>
 
     <Style Selector="Button.link">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="0" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="2" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.link /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdAccentBrush}" />
     </Style>
 
     <Style Selector="Button.link:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdAccentBrush}" />
-        <Setter Property="Opacity" Value="0.8" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdAccentHoverBrush}" />
     </Style>
 
-    <!-- Navigation rail -->
+    <!-- A category tile on the landing page: bigger target, same tactile behaviour. -->
+    <Style Selector="Button.tile">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="MinWidth" Value="132" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+
+    <Style Selector="Button.tile /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+    </Style>
+
+    <Style Selector="Button.tile:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <!-- Keyboard focus must stay obvious against a dark chassis. -->
+    <Style Selector="Button:focus-visible /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <!-- ==================== Inputs ==================== -->
+    <!--
+        The search field is recessed: dark well, thin border, lime edge when focused. It
+        is the loudest thing on the Discover page after the primary button, because it is
+        the one control the whole application exists to serve.
+    -->
+    <Style Selector="TextBox.search">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="Padding" Value="14,0" />
+        <Setter Property="MinHeight" Value="{DynamicResource RdControlHeightLarge}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.search /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.search:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.search:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="MinHeight" Value="{DynamicResource RdControlHeight}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Background" Value="{DynamicResource RdPanelRaisedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="CheckBox">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+    </Style>
+
+    <!-- ==================== Navigation rail ==================== -->
+    <!--
+        A control strip rather than a web sidebar. The selected item is inset and carries
+        a lime bar on its leading edge - the same trick a tape deck used to show which
+        function was engaged.
+    -->
     <Style Selector="ListBox.nav">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Padding" Value="8,4" />
     </Style>
 
     <Style Selector="ListBox.nav ListBoxItem">
         <Setter Property="Padding" Value="12,10" />
-        <Setter Property="Margin" Value="0,2" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Margin" Value="0,1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
     </Style>
 
     <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="2,0,0,0" />
     </Style>
 
-    <!-- Result list: the container is invisible, the card inside does the work -->
+    <Style Selector="ListBox.nav ListBoxItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+    </Style>
+
+    <!-- ==================== Result grid ==================== -->
     <Style Selector="ListBox.cards">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
@@ -180,9 +430,10 @@
 
     <Style Selector="ListBox.cards ListBoxItem">
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0,0,0,14" />
+        <Setter Property="Margin" Value="0,0,16,16" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusMedium}" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
     </Style>
 
     <Style Selector="ListBox.cards ListBoxItem:selected /template/ ContentPresenter">
@@ -193,22 +444,51 @@
         <Setter Property="Background" Value="Transparent" />
     </Style>
 
-    <!-- Inputs -->
-    <Style Selector="TextBox.search">
-        <Setter Property="FontSize" Value="15" />
-        <Setter Property="Padding" Value="14,11" />
-        <Setter Property="CornerRadius" Value="10" />
+    <!-- Keyboard focus on a card must be visible without a pointer. -->
+    <Style Selector="ListBox.cards ListBoxItem:focus-visible /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <!-- ==================== Progress ==================== -->
+    <!--
+        The stock bar is used only where progress is genuinely indeterminate. Anything
+        with a real percentage gets the segmented meter instead, which is both more
+        honest and more in keeping.
+    -->
+    <Style Selector="ProgressBar">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSharp}" />
+        <Setter Property="MinHeight" Value="6" />
+    </Style>
+
+    <!-- ==================== Expanders ==================== -->
+    <Style Selector="Expander">
         <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusMedium}" />
+        <Setter Property="Padding" Value="18" />
     </Style>
 
-    <Style Selector="ComboBox">
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="MinHeight" Value="34" />
-        <Setter Property="FontSize" Value="13" />
+    <Style Selector="Expander /template/ ToggleButton">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.8" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
     </Style>
 
-    <Style Selector="CheckBox">
-        <Setter Property="FontSize" Value="13" />
+    <!-- ==================== Scrolling ==================== -->
+    <Style Selector="ScrollViewer">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- ==================== Selectable text ==================== -->
+    <Style Selector="SelectableTextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource RdAccentSoftBrush}" />
     </Style>
 </Styles>

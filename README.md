@@ -5,8 +5,19 @@ not write software.
 
 **Discover -> Understand -> Inspect -> Install -> Run -> Update**
 
-Milestone 1 delivers the first two steps: search GitHub, and understand what a
-repository actually is in plain English.
+Search GitHub, understand in plain English what a project actually is, see whether it
+will run on your computer, and install and launch the ones RepoDeck can handle. Anything
+it cannot install confidently is downloaded and handed to you with the reason stated -
+nothing is ever run on your behalf without you asking.
+
+Update checking is the next milestone and is not implemented yet.
+
+## Look and feel
+
+A dark, dense interface in the spirit of late-1990s media players and desktop utilities:
+squared-off panels, small capitalised labels, segmented meters and one acid-lime accent
+that is used sparingly enough to still mean something. Every status light sits beside a
+word, so no state is carried by colour alone.
 
 ## Requirements
 

@@ -4,80 +4,94 @@ _Last updated: 2026-09-17_
 
 ## Current milestone
 
-**Milestone 3.5 - Visual discovery and accessibility.** Complete and verified.
+**Visual identity pass - retro digital.** Complete and verified. Stopping here for review
+before Milestone 4.
 
-RepoDeck is now built for someone who wants useful software and does not need to know what
-a repository, a release asset or an architecture is. The technical truth is all still
-here; it sits one level in rather than in the way.
+RepoDeck now looks like a piece of software rather than a generic form. The identity is
+drawn from the late-1990s media-player and file-sharing era - dark industrial chassis,
+dense panels, one acid accent, segmented meters, small capitalised labels - interpreted
+as a modern application rather than reproduced as a skin. No behaviour, security boundary
+or wording of a verdict was changed to accommodate it.
 
-## Completed in Milestone 3.5
+## Completed in the visual identity pass
 
-- `RepositoryMediaService`: finds screenshots, logos and preview images from the README,
-  the repository file listing and GitHub's social preview card - **at no additional API
-  cost**, because the first two are already fetched by the analyzer and the third is a
-  predictable address.
-- `MediaRanker`: pure classification and ranking. Refuses badge hosts, sponsorship
-  buttons, workflow status images, SVGs and anything without an image extension; ranks
-  screenshots above logos above the social preview.
-- `ImageLoader`: https only, capped redirects, content-type check, byte ceiling enforced
-  while streaming, decode inside a try, downscale on load, in-memory cache. A failed image
-  is never a user-visible error.
-- Visual Discover cards: picture, friendly name, plain-English purpose, setup level,
-  platform hint. Owner slug, language and update date demoted to small print; stars and
-  licence moved to Details.
-- Attractive fallback tiles: a stable colour derived from the project name plus its
-  initial, so a result with no imagery still looks deliberate.
-- Lazy image loading, cancelled when a new search replaces the results.
-- `SetupDifficultyEvaluator`: Easy, SomeSetup, Advanced, DeveloperFocused, Unknown - with
-  reasons, and deliberately blind to popularity.
-- `FriendlyNaming`: "obs-studio" reads as "Obs Studio"; "ShareX" is left alone; known
-  abbreviations are not mangled into "Ui" and "Cli".
-- Details page restructured to answer four questions before any GitHub vocabulary:
-  what is this, what can I do with it, will it work on this PC, can RepoDeck install it.
-  Then pictures. Then the plan. Everything technical behind collapsed disclosures.
-- Search prompts phrased by purpose: video editor, send files, music player, screen
-  recorder, retro games, duplicate files.
-- 507 tests, verified stable across five consecutive runs.
+- **One token system.** `App.axaml` holds every colour, radius, spacing and metric as a
+  themed resource. Dark is the intended appearance; a complete Light dictionary is kept
+  so switching variant never produces an unusable window. A test fails the build if any
+  view reintroduces a literal hex colour.
+- **A rationed accent.** Acid lime (`#B3F03C`) means selection, active state, ready,
+  compatible, progress, primary action and the RepoDeck mark - and nothing else.
+- **Squared-off metrics.** Radii of 0-6px, not 12px web cards. Controls are 34px, large
+  controls 44px.
+- **Branded shell.** A 232px control strip: wordmark with an accent bar, an inset state
+  panel, navigation with a leading accent border on the selected item, and a SYSTEM panel
+  carrying a connection light, the GitHub allowance meter and the detected platform.
+- **Status strip** along the bottom: activity light and word, current context, installed
+  count, and any allowance warning with the exact numbers in a tooltip.
+- **`SegmentedMeter`**, a custom-drawn bar meter used for the GitHub allowance and for
+  determinate install progress. Where progress is genuinely unknown, an indeterminate bar
+  is shown instead - the meter never invents a percentage.
+- **Discover landing.** Nine category tiles and a row of plain-English prompts, so an
+  empty search box is not the first thing a newcomer meets. Each tile runs an ordinary
+  search; there is no curated catalogue and RepoDeck does not imply one.
+- **Card grid.** `RepositoryCardView` as a real view: a 150px media band, a designed
+  fallback (stable colour from the name, faint grid, initial), setup level as a chip with
+  a status light, an ABANDONED marker, and a footer bar carrying the owner slug, language
+  and the two actions. The grid reflows from three columns to two to one.
+- **Details hero band**, carrying the best image found, the friendly title, setup level
+  and the compatibility answer with a status light.
+- **Button hierarchy** made explicit: one primary action per area, secondary for
+  everything ordinary, `danger` for anything that removes files, link style for
+  navigation away.
+- **Accessibility kept.** Every status light sits beside a word, so no state is carried
+  by colour alone; focus is visible on every interactive control; the meter is paired
+  with a written allowance label.
 
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - 506 passed, 0 failed.
-- **Live media discovery** against ShareX, shotcut, bat and localsend: real screenshots
-  found for three of the four, the social preview used as fallback for the fourth, and
-  **no badge survived ranking in any of them**.
-- Every chosen image fetched successfully over the network with a correct image content
-  type and verified image magic numbers.
-- Image decoding verified manually against three live images under Avalonia's headless
-  platform, which decoded and downscaled them correctly. That verification is **not kept
-  as an automated test**: the headless platform binds to whichever thread initialises it
-  and failed three runs in four under xunit. A flaky test is worse than no test, so the
-  dependency was removed and decoding is verified by running the application.
-- **Live setup classification**: ShareX "Needs some setup" (installer), bat "Ready to use"
-  (portable build), nlohmann/json and FFmpeg "For advanced users" (would need compiling).
-- Application launched on Windows 10 x64, clean startup log.
+- `dotnet test` - **552 passed, 0 failed** (up from 507; 45 new tests).
+- **The application was launched and driven**, not merely started: the Discover landing,
+  a live "video editor" search returning thirty cards in a three-column grid, and a
+  details page with a real README screenshot in the hero band were all captured on
+  screen and inspected.
+- Two defects were found by this work and fixed:
+  - The allowance tooltip described a **future** reset with the past-tense formatter,
+    producing "Resets 43 minutes ago" for something that had not happened yet. A
+    forward-looking `Humanize.TimeUntil` was added and is tested across the range.
+  - The status strip opened showing a hard-coded "Ready" rather than the page actually
+    on screen. It is now initialised from the selected navigation item.
+- The segmented meter's rule was extracted as a pure function and tested for clamping,
+  negative values, over-range values, a zero maximum, zero segments and NaN.
 
 ## Known problems
 
-1. **Card pictures are the social preview only.** A search result carries no README or
+1. **The identity is only enforced by convention plus one test.** The test catches
+   literal hex colours in views; it does not catch a hard-coded radius or margin that
+   should have been a token.
+2. **Light theme is untested in practice.** The dictionary is complete and the
+   application is usable in it, but every screenshot and every judgement in this pass was
+   made against Dark.
+3. **Card pictures are the social preview only.** A search result carries no README or
    file listing, so cards show GitHub's preview card rather than a real screenshot. Real
    screenshots appear when a project is opened. Fetching more per card would cost one API
-   request each and is not worth the rate limit.
-2. **Image decoding has no automated test.** It needs Avalonia's render platform, which
+   request each and is not worth the rate limit. GitHub's card is white, which sits
+   awkwardly in a dark grid, but it carries real information and a blank tile does not.
+4. **Image decoding has no automated test.** It needs Avalonia's render platform, which
    is unreliable under xunit without the dedicated Avalonia.Headless.XUnit integration.
    The loader's refusals and limits are tested deterministically; the decode itself is
    verified by running the application. Worth revisiting with the proper integration.
-3. **Search is GitHub's search.** Typing "video editor" searches those words. There is no
+5. **Search is GitHub's search.** Typing "video editor" searches those words. There is no
    semantic or AI search, and RepoDeck does not claim any. The application-likelihood
    filter is the only prioritisation, and it is metadata-only.
-4. **Setup level on cards is provisional** and capped at `Possible` confidence, because a
+6. **Setup level on cards is provisional** and capped at `Possible` confidence, because a
    search result carries no release information. The authoritative answer needs the
    details page.
-5. **GIF screenshots are penalised** for size, so an animated demo may lose to a static
+7. **GIF screenshots are penalised** for size, so an animated demo may lose to a static
    image even when the animation is more useful.
-6. **No disk cache for images.** They are cached in memory for the session only, so
+8. **No disk cache for images.** They are cached in memory for the session only, so
    restarting refetches. Adequate, and worth revisiting if it becomes noticeable.
-7. Earlier weaknesses remain: update checking is unimplemented, Favorites deferred, a UI
+9. Earlier weaknesses remain: update checking is unimplemented, Favorites deferred, a UI
    framework's own repository still reads as a desktop application.
 
 ## Next task
@@ -93,6 +107,19 @@ here; it sits one level in rather than in the way.
 Source builds remain out of scope.
 
 ## Earlier milestones
+
+### Milestone 3.5 - visual discovery and plain English
+
+RepoDeck became usable by someone who does not know what a repository, a release asset or
+an architecture is. `RepositoryMediaService` finds screenshots, logos and preview images
+from material the analyzer already fetched, so pictures cost **no additional API
+requests**. `MediaRanker` refuses badge hosts, sponsorship buttons, workflow status
+images and SVGs. `ImageLoader` is https-only with capped redirects, a content-type check
+and a byte ceiling enforced while streaming; a failed image is never a user-visible
+error. Cards lead with a picture, a friendly name and a plain-English purpose;
+`SetupDifficultyEvaluator` states how much work a project will be and is deliberately
+blind to popularity; the details page answers four questions before using any GitHub
+vocabulary.
 
 ### Milestone 3 - install, register, run
 

@@ -3,24 +3,24 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:RepoDeck.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="700"
+             mc:Ignorable="d" d:DesignWidth="1040" d:DesignHeight="720"
              x:Class="RepoDeck.Views.DiscoverView"
              x:DataType="vm:DiscoverViewModel">
 
     <Grid RowDefinitions="Auto,Auto,*" Margin="28,22,28,0">
 
-        <!-- Search -->
+        <!-- ==================== Search ==================== -->
         <StackPanel Grid.Row="0" Spacing="14">
-            <StackPanel Spacing="4">
+            <StackPanel Spacing="2">
                 <TextBlock Text="Discover" Classes="display" />
-                <TextBlock Classes="secondary"
-                           Text="Find free software, and let RepoDeck explain what it is and whether it runs on your computer." />
+                <TextBlock Text="Find something useful" Classes="secondary" />
             </StackPanel>
 
-            <Grid ColumnDefinitions="*,Auto,Auto" >
+            <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBox Grid.Column="0"
                          Classes="search"
-                         PlaceholderText="What do you want to do? For example: video editor, send files, music player"
+                         Name="SearchBox"
+                         PlaceholderText="What do you want your PC to do?"
                          Text="{Binding SearchText}">
                     <TextBox.KeyBindings>
                         <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
@@ -29,56 +29,60 @@
 
                 <Button Grid.Column="1"
                         Classes="primary"
-                        Margin="12,0,0,0"
-                        Content="Search"
+                        Margin="10,0,0,0"
+                        MinHeight="44" MinWidth="110"
+                        Content="SEARCH"
                         IsEnabled="{Binding !IsBusy}"
                         Command="{Binding SearchCommand}" />
 
                 <Button Grid.Column="2"
                         Classes="secondary"
                         Margin="8,0,0,0"
-                        Content="Cancel"
+                        MinHeight="44"
+                        Content="STOP"
                         IsVisible="{Binding IsBusy}"
                         Command="{Binding SearchCancelCommand}" />
             </Grid>
+
+            <TextBlock Classes="muted"
+                       Text="Try &quot;edit videos&quot;, &quot;send files&quot;, &quot;music player&quot;, &quot;retro games&quot;..." />
         </StackPanel>
 
-        <!-- Filters -->
-        <Border Grid.Row="1" Margin="0,16,0,0" Padding="0,0,0,14">
+        <!-- ==================== Filters ==================== -->
+        <Border Grid.Row="1" Margin="0,16,0,14" Padding="0">
             <StackPanel Spacing="10">
-                <WrapPanel ItemSpacing="10" LineSpacing="10">
+                <WrapPanel ItemSpacing="8" LineSpacing="8">
                     <ComboBox ItemsSource="{Binding SortOptions}"
                               SelectedItem="{Binding SelectedSort}"
-                              MinWidth="150"
-                              ToolTip.Tip="How GitHub orders the results" />
+                              MinWidth="140"
+                              ToolTip.Tip="How results are ordered" />
 
                     <ComboBox ItemsSource="{Binding LanguageOptions}"
                               SelectedItem="{Binding SelectedLanguage}"
-                              MinWidth="150"
+                              MinWidth="140"
                               ToolTip.Tip="Restrict results to one programming language" />
 
                     <ComboBox ItemsSource="{Binding StarsOptions}"
                               SelectedItem="{Binding SelectedStars}"
-                              MinWidth="150"
+                              MinWidth="140"
                               ToolTip.Tip="Filter by how many people have starred the project" />
 
                     <ComboBox ItemsSource="{Binding UpdatedOptions}"
                               SelectedItem="{Binding SelectedUpdated}"
-                              MinWidth="150"
+                              MinWidth="140"
                               ToolTip.Tip="Filter by when the project was last worked on" />
 
-                    <CheckBox Content="Hide archived"
+                    <CheckBox Content="Hide abandoned"
                               IsChecked="{Binding ExcludeArchived}"
                               VerticalAlignment="Center"
-                              ToolTip.Tip="Archived projects are no longer maintained" />
+                              ToolTip.Tip="Hide projects the authors have stopped maintaining" />
 
-                    <CheckBox Content="Probably applications"
+                    <CheckBox Content="Programs only"
                               IsChecked="{Binding OnlyLikelyApplications}"
                               VerticalAlignment="Center"
-                              ToolTip.Tip="Hide results that look like libraries, tutorials or link collections. RepoDeck judges this from the description and tags, so it is a guess." />
+                              ToolTip.Tip="Hide results that look like building blocks for developers rather than programs. RepoDeck judges this from the description and tags, so it is a guess." />
 
-                    <Button Classes="link"
-                            Content="Reset filters"
+                    <Button Classes="link" Content="RESET"
                             VerticalAlignment="Center"
                             Command="{Binding ClearFiltersCommand}" />
                 </WrapPanel>
@@ -91,189 +95,142 @@
             </StackPanel>
         </Border>
 
-        <!-- Results and states -->
+        <!-- ==================== States ==================== -->
         <Panel Grid.Row="2">
 
-            <!-- Loading -->
+            <!-- Working -->
             <Border IsVisible="{Binding IsBusy}" VerticalAlignment="Top" Margin="0,40,0,0">
-                <StackPanel Spacing="14" HorizontalAlignment="Center" MaxWidth="380">
-                    <ProgressBar IsIndeterminate="True" Height="4" />
+                <StackPanel Spacing="14" HorizontalAlignment="Center" MaxWidth="360">
+                    <TextBlock Text="SEARCHING" Classes="microLabel" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource RdAccentBrush}" />
+                    <ProgressBar IsIndeterminate="True" Height="6" />
                     <TextBlock Text="Asking GitHub..." Classes="secondary" HorizontalAlignment="Center" />
                 </StackPanel>
             </Border>
 
-            <!-- Error -->
+            <!-- Trouble -->
             <Border IsVisible="{Binding HasError}" VerticalAlignment="Top" Margin="0,24,0,0">
                 <Border Background="{DynamicResource RdDangerSoftBrush}"
                         BorderBrush="{DynamicResource RdDangerBrush}"
                         BorderThickness="1"
-                        CornerRadius="12"
-                        Padding="22"
+                        CornerRadius="{DynamicResource RdRadiusMedium}"
+                        Padding="20"
                         MaxWidth="640"
                         HorizontalAlignment="Left">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="That did not work" Classes="h2"
+                        <TextBlock Text="THAT DID NOT WORK" Classes="microLabel"
                                    Foreground="{DynamicResource RdDangerBrush}" />
                         <TextBlock Text="{Binding ErrorMessage}" Classes="body" />
-                        <Button Classes="secondary" Content="Try again"
+                        <Button Classes="secondary" Content="TRY AGAIN"
                                 HorizontalAlignment="Left"
                                 Command="{Binding RetryCommand}" />
                     </StackPanel>
                 </Border>
             </Border>
 
-            <!-- Welcome -->
+            <!-- Landing -->
             <ScrollViewer IsVisible="{Binding ShowWelcome}">
-                <StackPanel Spacing="18" Margin="0,30,0,30" MaxWidth="620" HorizontalAlignment="Left">
-                    <TextBlock Text="What do you want to do?" Classes="h1" />
-                    <TextBlock Classes="body" Foreground="{DynamicResource RdTextSecondaryBrush}"
-                               Text="Describe it in ordinary words. RepoDeck searches a large collection of free, open software and explains in plain English what it finds." />
-                    <TextBlock Text="OR TRY ONE OF THESE" Classes="sectionLabel" Margin="0,8,0,0" />
-                    <WrapPanel ItemSpacing="10" LineSpacing="10">
-                        <Button Classes="secondary" Content="Video editor"
-                                Command="{Binding SearchForCommand}" CommandParameter="video editor" />
-                        <Button Classes="secondary" Content="Send files"
-                                Command="{Binding SearchForCommand}" CommandParameter="send files" />
-                        <Button Classes="secondary" Content="Music player"
-                                Command="{Binding SearchForCommand}" CommandParameter="music player" />
-                        <Button Classes="secondary" Content="Screen recorder"
-                                Command="{Binding SearchForCommand}" CommandParameter="screen recorder" />
-                        <Button Classes="secondary" Content="Retro games"
-                                Command="{Binding SearchForCommand}" CommandParameter="retro games emulator" />
-                        <Button Classes="secondary" Content="Duplicate files"
-                                Command="{Binding SearchForCommand}" CommandParameter="find duplicate files" />
-                        <Button Classes="secondary" Content="Password manager"
-                                Command="{Binding SearchForCommand}" CommandParameter="password manager" />
-                        <Button Classes="secondary" Content="Note taking"
-                                Command="{Binding SearchForCommand}" CommandParameter="note taking app" />
-                    </WrapPanel>
+                <StackPanel Spacing="22" Margin="0,8,14,28">
+
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="BROWSE BY CATEGORY" Classes="sectionLabel" />
+                        <ItemsControl ItemsSource="{Binding Categories}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel ItemSpacing="10" LineSpacing="10" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DiscoverCategory">
+                                    <Button Classes="tile" Width="178" Height="74"
+                                            Command="{Binding $parent[ItemsControl].((vm:DiscoverViewModel)DataContext).SearchCategoryCommand}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip.Tip="{Binding Description}">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="{Binding Label}" FontSize="14"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Description}" Classes="muted"
+                                                       TextWrapping="Wrap" MaxLines="2"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="OR DESCRIBE WHAT YOU WANT" Classes="sectionLabel" />
+                        <WrapPanel ItemSpacing="8" LineSpacing="8">
+                            <Button Classes="secondary" Content="Edit videos"
+                                    Command="{Binding SearchForCommand}" CommandParameter="video editor" />
+                            <Button Classes="secondary" Content="Send files"
+                                    Command="{Binding SearchForCommand}" CommandParameter="send files between devices" />
+                            <Button Classes="secondary" Content="Music player"
+                                    Command="{Binding SearchForCommand}" CommandParameter="music player" />
+                            <Button Classes="secondary" Content="Record my screen"
+                                    Command="{Binding SearchForCommand}" CommandParameter="screen recorder" />
+                            <Button Classes="secondary" Content="Retro games"
+                                    Command="{Binding SearchForCommand}" CommandParameter="retro game emulator" />
+                            <Button Classes="secondary" Content="Find duplicate files"
+                                    Command="{Binding SearchForCommand}" CommandParameter="find duplicate files" />
+                            <Button Classes="secondary" Content="Password manager"
+                                    Command="{Binding SearchForCommand}" CommandParameter="password manager" />
+                            <Button Classes="secondary" Content="Take notes"
+                                    Command="{Binding SearchForCommand}" CommandParameter="note taking app" />
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <Border Classes="inset" MaxWidth="620" HorizontalAlignment="Left">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="HOW THIS WORKS" Classes="microLabel" />
+                            <TextBlock Classes="secondary"
+                                       Text="RepoDeck searches a large collection of free, open software. It reads each project, explains in plain English what it does, works out whether it runs on your computer, and installs the ones it can." />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
 
             <!-- Nothing found -->
             <Border IsVisible="{Binding ShowEmptyState}" VerticalAlignment="Top" Margin="0,40,0,0">
                 <StackPanel Spacing="12" MaxWidth="520" HorizontalAlignment="Left">
+                    <TextBlock Text="NOTHING MATCHED" Classes="microLabel"
+                               Foreground="{DynamicResource RdCautionBrush}" />
                     <TextBlock Text="Nothing matched that search" Classes="h1" />
                     <TextBlock Classes="body" Foreground="{DynamicResource RdTextSecondaryBrush}"
-                               Text="Try fewer words, or loosen the filters. Filters for stars, language and update date can rule out a lot at once." />
-                    <Button Classes="secondary" Content="Reset filters" HorizontalAlignment="Left"
+                               Text="Try fewer words, or loosen the filters. The stars, language and date filters can rule out a lot at once." />
+                    <Button Classes="secondary" Content="RESET FILTERS" HorizontalAlignment="Left"
                             Command="{Binding ClearFiltersCommand}" />
                 </StackPanel>
             </Border>
 
             <!-- Results -->
             <ScrollViewer IsVisible="{Binding ShowResults}">
-                <StackPanel Spacing="0" Margin="0,4,14,20">
+                <StackPanel Spacing="0" Margin="0,0,14,24">
                     <ListBox Classes="cards"
                              ItemsSource="{Binding Results}"
                              SelectionMode="Single">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:RepositoryCardViewModel">
-                                <Border Classes="card" Padding="0" ClipToBounds="True">
-                                    <Grid ColumnDefinitions="176,*">
-
-                                        <!-- Picture, or an attractive tile when there is none -->
-                                        <Panel Grid.Column="0" Background="{DynamicResource RdSurfaceAltBrush}">
-                                            <Border Background="{Binding FallbackBrush}"
-                                                    IsVisible="{Binding ShowFallback}">
-                                                <TextBlock Text="{Binding FallbackInitial}"
-                                                           FontSize="52" FontWeight="SemiBold"
-                                                           Foreground="#FFFFFF" Opacity="0.9"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center" />
-                                            </Border>
-
-                                            <Image Source="{Binding Image}"
-                                                   IsVisible="{Binding ShowImage}"
-                                                   Stretch="UniformToFill"
-                                                   StretchDirection="Both" />
-                                        </Panel>
-
-                                        <StackPanel Grid.Column="1" Spacing="0" Margin="20,18,20,18">
-
-                                            <!-- Name and how much work it is -->
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <StackPanel Grid.Column="0" Spacing="1">
-                                                    <TextBlock Text="{Binding FriendlyName}" Classes="h1" />
-                                                    <TextBlock Text="{Binding Owner}" Classes="muted" />
-                                                </StackPanel>
-
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                                            VerticalAlignment="Top">
-                                                    <Border Classes="chip chipCaution"
-                                                            VerticalAlignment="Center"
-                                                            IsVisible="{Binding IsArchived}">
-                                                        <TextBlock Text="No longer updated" />
-                                                    </Border>
-                                                    <Border Classes="chip chipAccent"
-                                                            VerticalAlignment="Center"
-                                                            IsVisible="{Binding ShowSetupLabel}"
-                                                            ToolTip.Tip="{Binding VerdictExplanation}">
-                                                        <TextBlock Text="{Binding SetupLabel}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </Grid>
-
-                                            <!-- What it is, in plain words -->
-                                            <TextBlock Text="{Binding Purpose}"
-                                                       Classes="body"
-                                                       Foreground="{DynamicResource RdTextSecondaryBrush}"
-                                                       MaxLines="2"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Margin="0,10,0,0" />
-
-                                            <ItemsControl ItemsSource="{Binding Topics}"
-                                                          IsVisible="{Binding HasTopics}"
-                                                          Margin="0,10,0,0">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <WrapPanel ItemSpacing="6" LineSpacing="6" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate x:DataType="x:String">
-                                                        <Border Classes="chip">
-                                                            <TextBlock Text="{Binding}" />
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-
-                                            <!-- Small print: still here, no longer the headline -->
-                                            <Grid ColumnDefinitions="*,Auto" Margin="0,14,0,0">
-                                                <WrapPanel Grid.Column="0" ItemSpacing="14" LineSpacing="4"
-                                                           VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding PlatformText}" Classes="muted"
-                                                               IsVisible="{Binding HasPlatformText}" />
-                                                    <TextBlock Text="{Binding UpdatedText}" Classes="muted" />
-                                                    <TextBlock Text="{Binding LanguageText}" Classes="muted"
-                                                               IsVisible="{Binding HasLanguage}" />
-                                                </WrapPanel>
-
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-                                                    <Button Classes="secondary" Content="GitHub"
-                                                            Command="{Binding OpenOnGitHubCommand}"
-                                                            ToolTip.Tip="Open this project's page on GitHub" />
-                                                    <Button Classes="primary" Content="Look at this"
-                                                            Command="{Binding OpenDetailsCommand}" />
-                                                </StackPanel>
-                                            </Grid>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
+                                <ContentControl Content="{Binding}" />
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
 
                     <Button Classes="secondary"
-                            Content="Show more results"
+                            Content="SHOW MORE RESULTS"
                             HorizontalAlignment="Center"
-                            Margin="0,6,0,0"
+                            Margin="0,10,0,0"
                             IsVisible="{Binding CanLoadMore}"
                             IsEnabled="{Binding !IsLoadingMore}"
                             Command="{Binding LoadMoreCommand}" />
 
-                    <ProgressBar IsIndeterminate="True" Height="3" Margin="0,10,0,0"
+                    <ProgressBar IsIndeterminate="True" Height="4" Margin="0,12,0,0"
                                  IsVisible="{Binding IsLoadingMore}" />
                 </StackPanel>
             </ScrollViewer>

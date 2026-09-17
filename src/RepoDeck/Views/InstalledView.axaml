@@ -12,7 +12,7 @@
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,18">
             <TextBlock Text="Installed" Classes="display" />
             <TextBlock Classes="secondary"
-                       Text="Applications RepoDeck installed into its own folder and can run." />
+                       Text="Programs RepoDeck installed and can start for you" />
             <TextBlock Text="{Binding Message}" Classes="muted"
                        IsVisible="{Binding HasMessage}" Margin="0,6,0,0" />
         </StackPanel>
@@ -53,7 +53,7 @@
                                             Command="{Binding RunCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <TextBlock Text="&#x25B6;" VerticalAlignment="Center" />
-                                            <TextBlock Text="Run" VerticalAlignment="Center" />
+                                            <TextBlock Text="RUN" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
                                 </Grid>
@@ -80,18 +80,18 @@
                                             <ComboBox MinWidth="320"
                                                       ItemsSource="{Binding ExecutableCandidates}"
                                                       SelectedItem="{Binding SelectedCandidate}" />
-                                            <Button Classes="primary" Content="Use this one"
+                                            <Button Classes="primary" Content="USE THIS ONE"
                                                     Command="{Binding ChooseExecutableCommand}" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
 
                                 <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,14,0,0">
-                                    <Button Classes="secondary" Content="Open folder"
+                                    <Button Classes="secondary" Content="OPEN FOLDER"
                                             Command="{Binding OpenFolderCommand}" />
-                                    <Button Classes="secondary" Content="GitHub"
+                                    <Button Classes="secondary" Content="GITHUB"
                                             Command="{Binding ViewRepositoryCommand}" />
-                                    <Button Classes="secondary" Content="Uninstall"
+                                    <Button Classes="danger" Content="REMOVE"
                                             IsVisible="{Binding ShowUninstallButton}"
                                             Command="{Binding BeginUninstallCommand}" />
                                 </StackPanel>
@@ -106,9 +106,9 @@
                                         <TextBlock Classes="muted"
                                                    Text="Only RepoDeck's own folder for this application is deleted. Nothing else on your computer is touched." />
                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Button Classes="primary" Content="Remove it"
+                                            <Button Classes="danger" Content="REMOVE IT"
                                                     Command="{Binding ConfirmUninstallCommand}" />
-                                            <Button Classes="secondary" Content="Keep it"
+                                            <Button Classes="secondary" Content="KEEP IT"
                                                     Command="{Binding CancelUninstallCommand}" />
                                         </StackPanel>
                                     </StackPanel>

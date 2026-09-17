@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:RepoDeck.ViewModels"
              xmlns:models="using:RepoDeck.Models"
+             xmlns:controls="using:RepoDeck.Controls"
              mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="700"
              x:Class="RepoDeck.Views.RepositoryDetailsView"
              x:DataType="vm:RepositoryDetailsViewModel">
@@ -14,39 +15,109 @@
                      IsVisible="{Binding IsLoading}" />
 
         <ScrollViewer>
-            <StackPanel Margin="28,14,28,28" Spacing="16" MaxWidth="900" HorizontalAlignment="Left">
+            <StackPanel Margin="28,14,28,28" Spacing="16" MaxWidth="980" HorizontalAlignment="Left">
 
-                <!-- Header -->
-                <StackPanel Spacing="6">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="{Binding FriendlyTitle}" Classes="display" />
-                        <Border Classes="chip chipCaution" VerticalAlignment="Center"
-                                IsVisible="{Binding IsArchived}">
-                            <TextBlock Text="No longer updated" />
-                        </Border>
+                <!--
+                    Hero band. The strongest application-store moment RepoDeck has: a
+                    picture, the name, what it is, whether it runs here, and the action -
+                    all above the fold and none of it in GitHub's vocabulary.
+                -->
+                <Border Classes="panel" Padding="0" ClipToBounds="True">
+                    <StackPanel Spacing="0">
+
+                        <Panel Height="220" ClipToBounds="True">
+                            <Panel IsVisible="{Binding ShowHeroFallback}">
+                                <Border Background="{Binding FallbackBrush}" />
+                                <Border Opacity="0.13">
+                                    <Border.Background>
+                                        <VisualBrush TileMode="Tile"
+                                                     SourceRect="0,0,18,18"
+                                                     DestinationRect="0,0,18,18">
+                                            <VisualBrush.Visual>
+                                                <Canvas Width="18" Height="18">
+                                                    <Rectangle Width="18" Height="1" Fill="{DynamicResource RdGridLineBrush}" />
+                                                    <Rectangle Width="1" Height="18" Fill="{DynamicResource RdGridLineBrush}" />
+                                                </Canvas>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </Border.Background>
+                                </Border>
+                                <TextBlock Text="{Binding FallbackInitial}"
+                                           FontSize="86" FontWeight="Bold"
+                                           Foreground="{DynamicResource RdOnAccentBrush}"
+                                           Opacity="0.8"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Panel>
+
+                            <Image Source="{Binding Hero.Image}"
+                                   IsVisible="{Binding !ShowHeroFallback}"
+                                   Stretch="UniformToFill" />
+                        </Panel>
+
+                        <StackPanel Margin="20,18,20,18" Spacing="14">
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="3">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="{Binding FriendlyTitle}" Classes="display" />
+                                        <Border Classes="chip chipCaution" VerticalAlignment="Center"
+                                                IsVisible="{Binding IsArchived}">
+                                            <TextBlock Text="ABANDONED" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Owner}" Classes="muted" />
+                                </StackPanel>
+
+                                <Border Grid.Column="1" Classes="chip chipAccent"
+                                        VerticalAlignment="Top"
+                                        IsVisible="{Binding HasSetupAssessment}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Ellipse Classes="led ledOn" Width="6" Height="6" />
+                                        <TextBlock Text="{Binding SetupLabel}" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <TextBlock Text="{Binding WhatItIs}" Classes="body"
+                                       MaxLines="3" TextTrimming="CharacterEllipsis" />
+
+                            <!-- Compatibility, stated as a sentence and marked with a light -->
+                            <Border Classes="inset">
+                                <StackPanel Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="9">
+                                        <Ellipse Classes="led"
+                                                 Classes.ledOn="{Binding WorksHereIsGood}"
+                                                 Classes.ledWarn="{Binding !WorksHereIsGood}"
+                                                 VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding WorksHereHeadline}" Classes="body"
+                                                   FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding ThisComputerText}" Classes="muted" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
-                    <TextBlock Text="{Binding Owner}" Classes="secondary" />
-                    <TextBlock Text="{Binding Headline}" Classes="secondary"
-                               Foreground="{DynamicResource RdAccentBrush}" />
-                </StackPanel>
+                </Border>
 
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Classes="primary" Content="Open on GitHub"
+                    <Button Classes="secondary" Content="GITHUB"
                             Command="{Binding OpenOnGitHubCommand}" />
-                    <Button Classes="secondary" Content="Project website"
+                    <Button Classes="secondary" Content="WEBSITE"
                             IsVisible="{Binding HasHomepage}"
                             Command="{Binding OpenHomepageCommand}" />
-                    <Button Classes="secondary" Content="Releases"
+                    <Button Classes="secondary" Content="ALL VERSIONS"
                             Command="{Binding OpenReleasesCommand}" />
                 </StackPanel>
 
                 <!-- Error -->
                 <Border Background="{DynamicResource RdDangerSoftBrush}"
                         BorderBrush="{DynamicResource RdDangerBrush}"
-                        BorderThickness="1" CornerRadius="12" Padding="18"
+                        BorderThickness="1"
+                        CornerRadius="{DynamicResource RdRadiusMedium}" Padding="18"
                         IsVisible="{Binding HasError}">
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Some information could not be loaded" Classes="h2"
+                        <TextBlock Text="SOME INFORMATION COULD NOT BE LOADED" Classes="microLabel"
                                    Foreground="{DynamicResource RdDangerBrush}" />
                         <TextBlock Text="{Binding ErrorMessage}" Classes="body" />
                     </StackPanel>
@@ -351,10 +422,14 @@
 
                             <!-- In progress -->
                             <StackPanel Spacing="10" IsVisible="{Binding ShowProgress}">
-                                <ProgressBar Height="6"
-                                             Minimum="0" Maximum="100"
-                                             Value="{Binding InstallProgressFraction}"
-                                             IsIndeterminate="{Binding InstallProgressIsIndeterminate}" />
+                                <!-- A real percentage gets the meter; unknown progress gets a bar. -->
+                                <controls:SegmentedMeter Height="10" SegmentCount="24"
+                                                         Value="{Binding InstallProgressFraction}"
+                                                         IsVisible="{Binding !InstallProgressIsIndeterminate}"
+                                                         OnBrush="{DynamicResource RdAccentBrush}"
+                                                         OffBrush="{DynamicResource RdPanelInsetBrush}" />
+                                <ProgressBar Height="6" IsIndeterminate="True"
+                                             IsVisible="{Binding InstallProgressIsIndeterminate}" />
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                     <TextBlock Text="{Binding InstallProgressText}" Classes="secondary"
                                                VerticalAlignment="Center" />

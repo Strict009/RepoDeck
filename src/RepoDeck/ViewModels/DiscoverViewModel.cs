@@ -53,6 +53,9 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
     public ObservableCollection<RepositoryCardViewModel> Results { get; } = [];
 
+    /// <summary>Starting points for someone who has not decided what they want yet.</summary>
+    public IReadOnlyList<DiscoverCategory> Categories => DiscoverCategory.All;
+
     public IReadOnlyList<SortOption> SortOptions => SortOption.All;
     public IReadOnlyList<StarsOption> StarsOptions => StarsOption.All;
     public IReadOnlyList<UpdatedOption> UpdatedOptions => UpdatedOption.All;
@@ -226,13 +229,30 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         return HasSearched ? SearchCommand.ExecuteAsync(null) : Task.CompletedTask;
     }
 
-    /// <summary>Runs a suggested search from the welcome screen.</summary>
+    /// <summary>Runs a suggested search from the landing page.</summary>
     [RelayCommand]
     private Task SearchForAsync(string? term)
     {
         SearchText = term ?? "";
         return SearchCommand.ExecuteAsync(null);
     }
+
+    /// <summary>
+    /// Runs a category. The box shows the short label while the richer query does the
+    /// actual searching, so the user sees "Games" rather than a keyword soup.
+    /// </summary>
+    [RelayCommand]
+    private Task SearchCategoryAsync(DiscoverCategory? category)
+    {
+        if (category is null) return Task.CompletedTask;
+
+        SearchText = category.Query;
+        ActiveCategory = category.Label;
+        return SearchCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>The category currently being browsed, when the search came from a tile.</summary>
+    [ObservableProperty] private string? _activeCategory;
 
     // ---- Internals --------------------------------------------------------
 

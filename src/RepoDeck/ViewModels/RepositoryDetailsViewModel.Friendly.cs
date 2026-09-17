@@ -42,6 +42,19 @@ public sealed partial class RepositoryDetailsViewModel
     // ---- Pictures ---------------------------------------------------------
     public ObservableCollection<MediaTileViewModel> Gallery { get; } = [];
 
+    /// <summary>The large image at the top of the page, when there is one worth showing.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowHeroFallback))]
+    private MediaTileViewModel? _hero;
+
+    /// <summary>True until a hero picture arrives, and permanently when none does.</summary>
+    public bool ShowHeroFallback => Hero is null || !Hero.IsLoaded;
+
+    /// <summary>The same designed fallback the cards use, so the two agree.</summary>
+    public string FallbackInitial => FriendlyNaming.Initial(Repository.Name);
+
+    public Avalonia.Media.IBrush FallbackBrush => FriendlyNaming.ColourFor(Repository.FullName);
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGallery))]
     private bool _hasGallery;
@@ -142,10 +155,23 @@ public sealed partial class RepositoryDetailsViewModel
         }
 
         HasGallery = Gallery.Count > 0;
+        Hero = Gallery.FirstOrDefault();
 
-        // Pictures load afterwards and never hold up the page.
+        // Pictures load afterwards and never hold up the page. The hero reports back so
+        // the fallback panel can step aside the moment a real image arrives.
         foreach (var tile in Gallery)
         {
+            if (ReferenceEquals(tile, Hero))
+            {
+                tile.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MediaTileViewModel.Image))
+                    {
+                        OnPropertyChanged(nameof(ShowHeroFallback));
+                    }
+                };
+            }
+
             _ = tile.LoadAsync(_images, CancellationToken.None);
         }
     }

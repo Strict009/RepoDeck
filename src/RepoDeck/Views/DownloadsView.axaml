@@ -12,7 +12,7 @@
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,18">
             <TextBlock Text="Downloads" Classes="display" />
             <TextBlock Classes="secondary"
-                       Text="Files RepoDeck fetched but did not turn into a runnable application." />
+                       Text="Files RepoDeck fetched but could not turn into a working program" />
             <TextBlock Classes="muted"
                        Text="RepoDeck will not run any of these for you. Open the folder and decide for yourself." />
             <TextBlock Text="{Binding Message}" Classes="muted"
@@ -61,11 +61,11 @@
                                 </Border>
 
                                 <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,14,0,0">
-                                    <Button Classes="secondary" Content="Open folder"
+                                    <Button Classes="secondary" Content="OPEN FOLDER"
                                             Command="{Binding OpenFolderCommand}" />
-                                    <Button Classes="secondary" Content="GitHub"
+                                    <Button Classes="secondary" Content="GITHUB"
                                             Command="{Binding ViewRepositoryCommand}" />
-                                    <Button Classes="secondary" Content="Remove"
+                                    <Button Classes="danger" Content="REMOVE"
                                             IsVisible="{Binding ShowForgetButton}"
                                             Command="{Binding BeginForgetCommand}" />
                                 </StackPanel>
@@ -77,9 +77,9 @@
                                         <TextBlock Classes="body"
                                                    Text="Delete this downloaded file and forget it?" />
                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Button Classes="primary" Content="Delete it"
+                                            <Button Classes="danger" Content="DELETE IT"
                                                     Command="{Binding ConfirmForgetCommand}" />
-                                            <Button Classes="secondary" Content="Keep it"
+                                            <Button Classes="secondary" Content="KEEP IT"
                                                     Command="{Binding CancelForgetCommand}" />
                                         </StackPanel>
                                     </StackPanel>
