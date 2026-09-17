@@ -82,19 +82,17 @@ public sealed partial class InstallationService : IInstallationService
         }
         catch (OperationCanceledException)
         {
-            RollBack(plan);
-            _log.Info("Install", $"Installation of {plan.FullName} cancelled; folder removed.");
+            // Staging disposal has already removed the partial work.
+            _log.Info("Install", $"Installation of {plan.FullName} cancelled; staging removed.");
             return InstallationResult.Cancelled();
         }
         catch (ExtractionException ex)
         {
-            RollBack(plan);
             _log.Warn("Install", $"Extraction failed for {plan.FullName}: {ex.Message}");
             return InstallationResult.Failed(ex.UserMessage);
         }
         catch (Exception ex)
         {
-            RollBack(plan);
             _log.Error("Install", $"Installation of {plan.FullName} failed", ex);
             return InstallationResult.Failed(
                 "Something went wrong while installing. RepoDeck has cleaned up after itself.");

@@ -55,12 +55,15 @@ public sealed partial class InstalledAppViewModel : ViewModelBase
 
     public string StatusText => Manifest.IsDownloadOnly
         ? "Downloaded, not installed"
-        : IsIntact
-            ? "Ready"
-            : "Program missing";
+        : !IsIntact
+            ? "Program missing"
+            : Manifest.ExecutableIsAmbiguous
+                ? "Check which program runs"
+                : "Ready";
 
     public bool IsDownloadOnly => Manifest.IsDownloadOnly;
-    public bool NeedsAttention => !IsIntact || Manifest.IsDownloadOnly;
+    public bool NeedsAttention =>
+        !IsIntact || Manifest.IsDownloadOnly || Manifest.ExecutableIsAmbiguous;
 
     /// <summary>
     /// Update checking is a later milestone. The row says so rather than leaving a

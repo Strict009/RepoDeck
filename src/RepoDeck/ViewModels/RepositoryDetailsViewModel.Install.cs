@@ -90,6 +90,9 @@ public sealed partial class RepositoryDetailsViewModel
                     "RepoDeck downloaded the installer but did not run it. Open the folder to run it yourself.",
                 InstallState.Broken =>
                     "The installed program is no longer where RepoDeck left it. Installing again will replace it.",
+                _ when existing.ExecutableIsAmbiguous =>
+                    "Several files here looked like the program. Check that "
+                    + Path.GetFileName(existing.ExecutablePath) + " is the right one.",
                 _ => null
             };
 
@@ -163,9 +166,10 @@ public sealed partial class RepositoryDetailsViewModel
 
         InstallState = manifest.HasExecutable ? InstallState.Installed : InstallState.Broken;
 
+        // An uncertain choice is stated, not hidden behind a confident-looking Run button.
         InstallMessage = manifest.HasExecutable
-            ? null
-            : "The download was installed, but RepoDeck could not identify a program to run inside it.";
+            ? result.ExecutableIsAmbiguous ? result.ExecutableNote : null
+            : "The files were installed, but RepoDeck could not identify a program to run inside them.";
     }
 
     private void ReportInstallProgress(InstallationProgress progress)

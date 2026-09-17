@@ -5,44 +5,8 @@ namespace RepoDeck.Services.Install;
 
 public sealed partial class InstallationService
 {
-    /// <summary>
-    /// Creates the installation folder, having first confirmed it really is inside
-    /// RepoDeck's Apps directory. The plan proposes a path; this refuses to trust it.
-    /// </summary>
-    private string EnsureManagedDirectory(InstallPlan plan)
-    {
-        var directory = Path.GetFullPath(plan.ProposedInstallDirectory);
-
-        if (!ArchivePathGuard.IsInside(_paths.Apps, directory))
-        {
-            throw new InvalidOperationException(
-                $"Refused to install outside RepoDeck's managed folder: {directory}");
-        }
-
-        // A previous attempt may have left something behind; start from a clean folder.
-        if (Directory.Exists(directory)) DeleteManagedDirectory(directory);
-
-        Directory.CreateDirectory(directory);
-        return directory;
-    }
-
-    /// <summary>Removes a half-finished installation so it cannot be mistaken for a working one.</summary>
-    private void RollBack(InstallPlan plan)
-    {
-        try
-        {
-            var directory = Path.GetFullPath(plan.ProposedInstallDirectory);
-            if (!ArchivePathGuard.IsInside(_paths.Apps, directory)) return;
-            if (!Directory.Exists(directory)) return;
-
-            DeleteManagedDirectory(directory);
-            _log.Info("Install", $"Rolled back the failed installation at {directory}");
-        }
-        catch (Exception ex)
-        {
-            _log.Warn("Install", $"Could not roll back the failed installation: {ex.Message}");
-        }
-    }
+    /// <summary>A guard against a pathological archive turning executable discovery into a crawl.</summary>
+    private const int MaxScannedFiles = 20_000;
 
     public Task<bool> UninstallAsync(
         ApplicationManifest manifest, CancellationToken cancellationToken = default)
@@ -51,25 +15,9 @@ public sealed partial class InstallationService
 
         try
         {
-            // Download-only records own no folder, so there is nothing to delete.
-            if (!manifest.IsDownloadOnly)
-            {
-                var directory = Path.GetFullPath(manifest.InstalledPath);
-
-                if (!ArchivePathGuard.IsInside(_paths.Apps, directory))
-                {
-                    // This should be impossible, and is exactly why it is checked again.
-                    _log.Error("Install",
-                        $"Refused to uninstall {manifest.Id}: {directory} is outside RepoDeck's folder.");
-                    return Task.FromResult(false);
-                }
-
-                if (Directory.Exists(directory)) DeleteManagedDirectory(directory);
-            }
-
-            _store.Remove(manifest.Owner, manifest.Name);
-            _log.Info("Install", $"Uninstalled {manifest.Id}");
-            return Task.FromResult(true);
+            return Task.FromResult(manifest.State == InstallationState.Downloaded
+                ? RemoveDownloadedFile(manifest)
+                : RemoveInstallation(manifest));
         }
         catch (Exception ex)
         {
@@ -78,10 +26,55 @@ public sealed partial class InstallationService
         }
     }
 
+    private bool RemoveInstallation(ApplicationManifest manifest)
+    {
+        var directory = Path.GetFullPath(manifest.InstalledPath);
+
+        if (!ArchivePathGuard.IsInside(_paths.Apps, directory))
+        {
+            // Should be impossible, which is exactly why it is checked again here.
+            _log.Error("Install",
+                $"Refused to uninstall {manifest.Id}: {directory} is outside RepoDeck's folder.");
+            return false;
+        }
+
+        if (Directory.Exists(directory)) DeleteManagedDirectory(directory);
+
+        _store.Remove(manifest.Owner, manifest.Name);
+        _log.Info("Install", $"Uninstalled {manifest.Id}");
+        return true;
+    }
+
     /// <summary>
-    /// Deletes a directory RepoDeck owns. The caller has already established that the
-    /// path is inside Apps; this re-checks anyway, because the cost of being wrong here
-    /// is somebody's files.
+    /// A downloaded installer owns no application folder - just the file RepoDeck fetched,
+    /// which lives in Downloads and is removed with the record.
+    /// </summary>
+    private bool RemoveDownloadedFile(ApplicationManifest manifest)
+    {
+        if (manifest.DownloadedFilePath is { Length: > 0 } file)
+        {
+            var full = Path.GetFullPath(file);
+
+            if (ArchivePathGuard.IsInside(_paths.Downloads, full))
+            {
+                TryDeleteFile(full);
+            }
+            else
+            {
+                _log.Warn("Install",
+                    $"Left {full} alone while forgetting {manifest.Id}: it is outside the Downloads folder.");
+            }
+        }
+
+        _store.Remove(manifest.Owner, manifest.Name);
+        _log.Info("Install", $"Forgot the downloaded file for {manifest.Id}");
+        return true;
+    }
+
+    /// <summary>
+    /// Deletes a directory RepoDeck owns. Callers have already established that the path
+    /// is inside Apps; this re-checks anyway, because the cost of being wrong here is
+    /// somebody's files.
     /// </summary>
     private void DeleteManagedDirectory(string directory)
     {
@@ -94,6 +87,18 @@ public sealed partial class InstallationService
         }
 
         Directory.Delete(full, recursive: true);
+    }
+
+    private void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            _log.Warn("Install", $"Could not remove {path}: {ex.Message}");
+        }
     }
 
     private void TryMakeExecutable(string path)

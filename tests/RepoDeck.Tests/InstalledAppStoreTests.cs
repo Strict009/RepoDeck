@@ -37,7 +37,7 @@ public sealed class InstalledAppStoreTests : IDisposable
         Name = name,
         RepositoryUrl = $"https://github.com/{owner}/{name}",
         InstalledPath = Path.Combine(_paths.Apps, $"{owner}__{name}"),
-        ExecutablePath = Path.Combine(_paths.Apps, $"{owner}__{name}", "tool.exe"),
+        ExecutableRelativePath = "tool.exe",
         ReleaseTag = "v1.0.0",
         InstalledAt = DateTimeOffset.UtcNow
     };

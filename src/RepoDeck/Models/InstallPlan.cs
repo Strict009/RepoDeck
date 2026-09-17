@@ -18,11 +18,17 @@ public sealed record InstallPlan
     public required string Name { get; init; }
     public required string RepositoryUrl { get; init; }
 
-    public string FullName => $"{Owner}/{Name}";
+    /// <summary>GitHub's numeric repository id, carried through to the manifest.</summary>
+    public long RepositoryId { get; init; }
+
+    public string FullName => Owner + "/" + Name;
 
     // ---- What would be downloaded ----------------------------------------
     public string? ReleaseTag { get; init; }
     public string? ReleaseName { get; init; }
+
+    /// <summary>GitHub's numeric release id, when the release was known.</summary>
+    public long? ReleaseId { get; init; }
     public DateTimeOffset? ReleasePublishedAt { get; init; }
     public bool IsPrerelease { get; init; }
 

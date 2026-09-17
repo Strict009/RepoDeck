@@ -37,14 +37,20 @@ public sealed class LaunchServiceTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Builds a manifest whose executable resolves to <paramref name="executablePath"/>,
+    /// splitting it so the stored path stays relative to the install directory.
+    /// </summary>
     private ApplicationManifest Manifest(string? executablePath, bool downloadOnly = false) => new()
     {
         Owner = "someone",
         Name = "tool",
         RepositoryUrl = "https://github.com/someone/tool",
-        InstalledPath = Path.Combine(_paths.Apps, "someone__tool"),
-        ExecutablePath = executablePath,
-        IsDownloadOnly = downloadOnly,
+        InstalledPath = executablePath is null
+            ? Path.Combine(_paths.Apps, "someone__tool")
+            : Path.GetDirectoryName(Path.GetFullPath(executablePath))!,
+        ExecutableRelativePath = executablePath is null ? null : Path.GetFileName(executablePath),
+        State = downloadOnly ? InstallationState.Downloaded : InstallationState.Installed,
         InstalledAt = DateTimeOffset.UtcNow
     };
 

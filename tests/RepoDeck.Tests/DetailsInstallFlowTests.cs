@@ -155,7 +155,7 @@ public sealed class DetailsInstallFlowTests : IDisposable
             {
                 Succeeded = true,
                 DownloadedOnly = true,
-                Manifest = ManifestFor(plan, withExecutable: false) with { IsDownloadOnly = true }
+                Manifest = ManifestFor(plan, withExecutable: false) with { State = InstallationState.Downloaded }
             }
         };
 
@@ -201,7 +201,7 @@ public sealed class DetailsInstallFlowTests : IDisposable
             Name = "example",
             RepositoryUrl = "https://github.com/someone/example",
             InstalledPath = directory,
-            ExecutablePath = executable,
+            ExecutableRelativePath = Path.GetFileName(executable),
             ReleaseTag = "v1.0.0",
             InstalledAt = DateTimeOffset.UtcNow
         });
@@ -226,7 +226,7 @@ public sealed class DetailsInstallFlowTests : IDisposable
             Name = "example",
             RepositoryUrl = "https://github.com/someone/example",
             InstalledPath = directory,
-            ExecutablePath = Path.Combine(directory, "gone.exe"),
+            ExecutableRelativePath = "gone.exe",
             ReleaseTag = "v1.0.0",
             InstalledAt = DateTimeOffset.UtcNow
         });
@@ -254,7 +254,7 @@ public sealed class DetailsInstallFlowTests : IDisposable
             RepositoryUrl = plan.RepositoryUrl,
             ReleaseTag = plan.ReleaseTag,
             InstalledPath = directory,
-            ExecutablePath = withExecutable ? executable : null,
+            ExecutableRelativePath = withExecutable ? Path.GetFileName(executable) : null,
             InstalledAt = DateTimeOffset.UtcNow
         };
 

@@ -13,6 +13,15 @@ public sealed record InstallationResult
     public bool WasCancelled { get; init; }
 
     /// <summary>
+    /// True when several files looked like plausible programs. The UI says so rather than
+    /// presenting a guess as a decision.
+    /// </summary>
+    public bool ExecutableIsAmbiguous { get; init; }
+
+    /// <summary>How the executable was chosen, when that is worth explaining.</summary>
+    public string? ExecutableNote { get; init; }
+
+    /// <summary>
     /// True when RepoDeck downloaded the file but deliberately did not install it,
     /// because running a system installer is the user's decision, not RepoDeck's.
     /// </summary>

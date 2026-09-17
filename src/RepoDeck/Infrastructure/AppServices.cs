@@ -41,9 +41,14 @@ public sealed class AppServices : IDisposable
 
         InstalledApps = new InstalledAppStore(Paths, Log);
         Downloads = new DownloadService(_http, Paths, Log);
-        Installer = new InstallationService(
+        var installer = new InstallationService(
             Downloads, new ExtractionService(Log), InstalledApps, Paths, Log);
+        Installer = installer;
         Launcher = new LaunchService(Paths, InstalledApps, Log);
+
+        // An installation that never promoted out of staging is not an installation;
+        // its remains should not accumulate across runs.
+        installer.CleanAbandonedStaging();
 
         Log.Info("App", $"RepoDeck starting on {PlatformInfo.CurrentDescription}. Data root: {Paths.Root}");
         Log.Info("App", Tokens.HasToken

@@ -12,6 +12,17 @@ public sealed record ExecutableSelection
     public IReadOnlyList<string> Alternatives { get; init; } = [];
     public string? Reason { get; init; }
 
+    /// <summary>
+    /// True when the choice was not clear-cut: several candidates scored close together,
+    /// or the best available one looks like a helper rather than the application.
+    /// </summary>
+    /// <remarks>
+    /// Surfaced rather than swallowed. A release containing CoolApp.exe,
+    /// CoolAppUpdater.exe, CrashReporter.exe, unins000.exe and setup.exe should not have
+    /// RepoDeck quietly commit to whichever won by a point.
+    /// </remarks>
+    public bool IsAmbiguous { get; init; }
+
     public bool Found => Chosen is not null;
 }
 
@@ -32,6 +43,12 @@ public static class ExecutableLocator
 {
     /// <summary>Archives made on Windows use this separator whatever platform reads them.</summary>
     private const char Backslash = (char)92;
+
+    /// <summary>Below this, nothing positively identified the file as the application.</summary>
+    private const int MinimumConfidentScore = 100;
+
+    /// <summary>How far ahead the winner must be before RepoDeck calls the choice clear.</summary>
+    private const int DecisiveMargin = 100;
 
     private static readonly string[] WindowsExtensions = [".exe", ".bat", ".cmd"];
 
@@ -74,13 +91,43 @@ public static class ExecutableLocator
             .ToList();
 
         var best = ranked[0];
+        var runnerUp = ranked.Count > 1 ? ranked[1].Score : int.MinValue;
+        var ambiguous = IsAmbiguous(best.Score, runnerUp);
 
         return new ExecutableSelection
         {
             Chosen = best.File.RelativePath,
             Alternatives = ranked.Skip(1).Take(8).Select(x => x.File.RelativePath).ToList(),
-            Reason = DescribeChoice(best.File, best.Score, planCandidates, repositoryName)
+            IsAmbiguous = ambiguous,
+            Reason = ambiguous
+                ? DescribeAmbiguity(best.File, best.Score)
+                : DescribeChoice(best.File, best.Score, planCandidates, repositoryName)
         };
+    }
+
+    /// <summary>
+    /// The winner is only trusted when it is clearly ahead and is not itself a helper.
+    /// A negative score means every positive signal was outweighed by a disqualifying one.
+    /// </summary>
+    private static bool IsAmbiguous(int bestScore, int runnerUpScore)
+    {
+        if (bestScore < 0) return true;
+
+        // Nothing positively identified it: no predicted name, no name match, nothing.
+        if (bestScore < MinimumConfidentScore) return true;
+
+        return runnerUpScore > int.MinValue && bestScore - runnerUpScore < DecisiveMargin;
+    }
+
+    private static string DescribeAmbiguity(CandidateFile file, int score)
+    {
+        var name = FileName(file.RelativePath);
+
+        return score < 0
+            ? $"{name} was the closest match, but it looks like a helper rather than the "
+              + "application itself. Check before running it."
+            : $"{name} is RepoDeck's best guess, but several files here look equally likely. "
+              + "Check it is the right one.";
     }
 
     private static bool IsRunnable(CandidateFile file, OsPlatform platform)

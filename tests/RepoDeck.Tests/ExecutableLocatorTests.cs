@@ -93,13 +93,15 @@ public class ExecutableLocatorTests
     }
 
     [Fact]
-    public void Only_a_disqualified_executable_is_still_offered_but_hedged()
+    public void Only_a_disqualified_executable_is_offered_but_flagged_as_ambiguous()
     {
-        // Better to offer something with a caveat than to claim there is nothing.
+        // Better to offer something with a caveat than to claim there is nothing -
+        // but it must never be presented as a confident choice.
         var selection = SelectWindows([Win("unins000.exe")], "tool");
 
         Assert.Equal("unins000.exe", selection.Chosen);
-        Assert.Contains("not confident", selection.Reason);
+        Assert.True(selection.IsAmbiguous);
+        Assert.Contains("helper", selection.Reason);
     }
 
     [Fact]
