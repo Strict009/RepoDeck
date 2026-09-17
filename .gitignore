@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Test output
+TestResults/
+*.trx
+coverage*.xml
+
+# RepoDeck must never commit credentials or local state
+*.token
+secrets.json
+appsettings.Local.json

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RepoDeck/RepoDeck.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RepoDeck.Tests/RepoDeck.Tests.csproj" />
+  </Folder>
+</Solution>

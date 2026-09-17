@@ -1,0 +1,214 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Typography -->
+    <Style Selector="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="TextBlock.display">
+        <Setter Property="FontSize" Value="28" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="36" />
+    </Style>
+
+    <Style Selector="TextBlock.h1">
+        <Setter Property="FontSize" Value="21" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="28" />
+    </Style>
+
+    <Style Selector="TextBlock.h2">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="24" />
+    </Style>
+
+    <Style Selector="TextBlock.body">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="LineHeight" Value="22" />
+    </Style>
+
+    <Style Selector="TextBlock.secondary">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="LineHeight" Value="20" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.muted">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.sectionLabel">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <!-- Cards and panels -->
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Border.card:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="Border.panel">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="22" />
+    </Style>
+
+    <!-- Small pill labels for topics, languages and status -->
+    <Style Selector="Border.chip">
+        <Setter Property="Background" Value="{DynamicResource RdChipBrush}" />
+        <Setter Property="CornerRadius" Value="11" />
+        <Setter Property="Padding" Value="9,3" />
+    </Style>
+
+    <Style Selector="Border.chip > TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+    </Style>
+
+    <Style Selector="Border.chipAccent">
+        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+    </Style>
+
+    <Style Selector="Border.chipAccent > TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Border.chipCaution">
+        <Setter Property="Background" Value="{DynamicResource RdCautionSoftBrush}" />
+    </Style>
+
+    <Style Selector="Border.chipCaution > TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdCautionBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Buttons -->
+    <Style Selector="Button.primary">
+        <Setter Property="Background" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="16,9" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="TextElement.Foreground" Value="#FFFFFF" />
+        <Setter Property="Opacity" Value="0.88" />
+    </Style>
+
+    <Style Selector="Button.secondary">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="16,9" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="Button.link">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="Opacity" Value="0.8" />
+    </Style>
+
+    <!-- Navigation rail -->
+    <Style Selector="ListBox.nav">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="10,4" />
+    </Style>
+
+    <Style Selector="ListBox.nav ListBoxItem">
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="Margin" Value="0,2" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+    </Style>
+
+    <!-- Result list: the container is invisible, the card inside does the work -->
+    <Style Selector="ListBox.cards">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.cards ListBoxItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,14" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="ListBox.cards ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="ListBox.cards ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Inputs -->
+    <Style Selector="TextBox.search">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="Padding" Value="14,11" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style Selector="CheckBox">
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+</Styles>

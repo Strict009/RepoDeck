@@ -1,0 +1,82 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:infra="using:RepoDeck.Infrastructure"
+             x:Class="RepoDeck.App"
+             RequestedThemeVariant="Default">
+
+    <Application.DataTemplates>
+        <infra:ViewLocator />
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://RepoDeck/Views/Theme.axaml" />
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="RdPageBackground">#F4F5F7</Color>
+                    <Color x:Key="RdSurface">#FFFFFF</Color>
+                    <Color x:Key="RdSurfaceAlt">#EDEFF3</Color>
+                    <Color x:Key="RdSidebar">#FFFFFF</Color>
+                    <Color x:Key="RdBorder">#DDE1E7</Color>
+                    <Color x:Key="RdTextPrimary">#16191D</Color>
+                    <Color x:Key="RdTextSecondary">#5A6270</Color>
+                    <Color x:Key="RdTextMuted">#858D9A</Color>
+                    <Color x:Key="RdAccent">#2F6FEB</Color>
+                    <Color x:Key="RdAccentSoft">#E4EDFD</Color>
+                    <Color x:Key="RdPositive">#1A7F52</Color>
+                    <Color x:Key="RdPositiveSoft">#E2F4EB</Color>
+                    <Color x:Key="RdCaution">#9A6206</Color>
+                    <Color x:Key="RdCautionSoft">#FBF0DC</Color>
+                    <Color x:Key="RdDanger">#B3261E</Color>
+                    <Color x:Key="RdDangerSoft">#FBE6E4</Color>
+                    <Color x:Key="RdChip">#EEF1F5</Color>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="RdPageBackground">#16181C</Color>
+                    <Color x:Key="RdSurface">#1E2127</Color>
+                    <Color x:Key="RdSurfaceAlt">#262A32</Color>
+                    <Color x:Key="RdSidebar">#1A1D22</Color>
+                    <Color x:Key="RdBorder">#343941</Color>
+                    <Color x:Key="RdTextPrimary">#EDEFF2</Color>
+                    <Color x:Key="RdTextSecondary">#AAB2BE</Color>
+                    <Color x:Key="RdTextMuted">#79818E</Color>
+                    <Color x:Key="RdAccent">#6E9BFF</Color>
+                    <Color x:Key="RdAccentSoft">#243250</Color>
+                    <Color x:Key="RdPositive">#5CCB94</Color>
+                    <Color x:Key="RdPositiveSoft">#1C3329</Color>
+                    <Color x:Key="RdCaution">#E5B567</Color>
+                    <Color x:Key="RdCautionSoft">#352C1B</Color>
+                    <Color x:Key="RdDanger">#F2837C</Color>
+                    <Color x:Key="RdDangerSoft">#3A2222</Color>
+                    <Color x:Key="RdChip">#2B3038</Color>
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!-- Brushes resolve against whichever theme dictionary is active. -->
+            <SolidColorBrush x:Key="RdPageBackgroundBrush" Color="{DynamicResource RdPageBackground}" />
+            <SolidColorBrush x:Key="RdSurfaceBrush" Color="{DynamicResource RdSurface}" />
+            <SolidColorBrush x:Key="RdSurfaceAltBrush" Color="{DynamicResource RdSurfaceAlt}" />
+            <SolidColorBrush x:Key="RdSidebarBrush" Color="{DynamicResource RdSidebar}" />
+            <SolidColorBrush x:Key="RdBorderBrush" Color="{DynamicResource RdBorder}" />
+            <SolidColorBrush x:Key="RdTextPrimaryBrush" Color="{DynamicResource RdTextPrimary}" />
+            <SolidColorBrush x:Key="RdTextSecondaryBrush" Color="{DynamicResource RdTextSecondary}" />
+            <SolidColorBrush x:Key="RdTextMutedBrush" Color="{DynamicResource RdTextMuted}" />
+            <SolidColorBrush x:Key="RdAccentBrush" Color="{DynamicResource RdAccent}" />
+            <SolidColorBrush x:Key="RdAccentSoftBrush" Color="{DynamicResource RdAccentSoft}" />
+            <SolidColorBrush x:Key="RdPositiveBrush" Color="{DynamicResource RdPositive}" />
+            <SolidColorBrush x:Key="RdPositiveSoftBrush" Color="{DynamicResource RdPositiveSoft}" />
+            <SolidColorBrush x:Key="RdCautionBrush" Color="{DynamicResource RdCaution}" />
+            <SolidColorBrush x:Key="RdCautionSoftBrush" Color="{DynamicResource RdCautionSoft}" />
+            <SolidColorBrush x:Key="RdDangerBrush" Color="{DynamicResource RdDanger}" />
+            <SolidColorBrush x:Key="RdDangerSoftBrush" Color="{DynamicResource RdDangerSoft}" />
+            <SolidColorBrush x:Key="RdChipBrush" Color="{DynamicResource RdChip}" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:RepoDeck.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+             x:Class="RepoDeck.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="28" Spacing="16" MaxWidth="820" HorizontalAlignment="Left">
+
+            <TextBlock Text="Settings" Classes="display" />
+
+            <Border Classes="panel">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="GITHUB ACCESS" Classes="sectionLabel" />
+                    <TextBlock Text="{Binding TokenStatus}" Classes="body" />
+                    <TextBlock Text="{Binding RateLimitText}" Classes="secondary" />
+                    <TextBlock Text="{Binding TokenInstructions}" Classes="secondary" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="panel">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="THIS COMPUTER" Classes="sectionLabel" />
+                    <TextBlock Text="{Binding PlatformText}" Classes="body" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="panel">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="WHERE REPODECK KEEPS ITS FILES" Classes="sectionLabel" />
+                    <TextBlock Text="{Binding DataFolder}" Classes="secondary" TextWrapping="Wrap" />
+                    <TextBlock Text="RepoDeck only ever writes inside this folder."
+                               Classes="muted" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="secondary" Content="Open data folder"
+                                Command="{Binding OpenDataFolderCommand}" />
+                        <Button Classes="secondary" Content="Open log folder"
+                                Command="{Binding OpenLogFolderCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

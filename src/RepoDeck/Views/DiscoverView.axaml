@@ -1,0 +1,266 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:RepoDeck.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="700"
+             x:Class="RepoDeck.Views.DiscoverView"
+             x:DataType="vm:DiscoverViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*" Margin="28,22,28,0">
+
+        <!-- Search -->
+        <StackPanel Grid.Row="0" Spacing="14">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Discover" Classes="display" />
+                <TextBlock Classes="secondary"
+                           Text="Search GitHub for projects, then let RepoDeck explain what they are." />
+            </StackPanel>
+
+            <Grid ColumnDefinitions="*,Auto,Auto" >
+                <TextBox Grid.Column="0"
+                         Classes="search"
+                         PlaceholderText="Search for something, for example: video editor, password manager, emulator"
+                         Text="{Binding SearchText}">
+                    <TextBox.KeyBindings>
+                        <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
+                    </TextBox.KeyBindings>
+                </TextBox>
+
+                <Button Grid.Column="1"
+                        Classes="primary"
+                        Margin="12,0,0,0"
+                        Content="Search"
+                        IsEnabled="{Binding !IsBusy}"
+                        Command="{Binding SearchCommand}" />
+
+                <Button Grid.Column="2"
+                        Classes="secondary"
+                        Margin="8,0,0,0"
+                        Content="Cancel"
+                        IsVisible="{Binding IsBusy}"
+                        Command="{Binding SearchCancelCommand}" />
+            </Grid>
+        </StackPanel>
+
+        <!-- Filters -->
+        <Border Grid.Row="1" Margin="0,16,0,0" Padding="0,0,0,14">
+            <StackPanel Spacing="10">
+                <WrapPanel ItemSpacing="10" LineSpacing="10">
+                    <ComboBox ItemsSource="{Binding SortOptions}"
+                              SelectedItem="{Binding SelectedSort}"
+                              MinWidth="150"
+                              ToolTip.Tip="How GitHub orders the results" />
+
+                    <ComboBox ItemsSource="{Binding LanguageOptions}"
+                              SelectedItem="{Binding SelectedLanguage}"
+                              MinWidth="150"
+                              ToolTip.Tip="Restrict results to one programming language" />
+
+                    <ComboBox ItemsSource="{Binding StarsOptions}"
+                              SelectedItem="{Binding SelectedStars}"
+                              MinWidth="150"
+                              ToolTip.Tip="Filter by how many people have starred the project" />
+
+                    <ComboBox ItemsSource="{Binding UpdatedOptions}"
+                              SelectedItem="{Binding SelectedUpdated}"
+                              MinWidth="150"
+                              ToolTip.Tip="Filter by when the project was last worked on" />
+
+                    <CheckBox Content="Hide archived"
+                              IsChecked="{Binding ExcludeArchived}"
+                              VerticalAlignment="Center"
+                              ToolTip.Tip="Archived projects are no longer maintained" />
+
+                    <CheckBox Content="Probably applications"
+                              IsChecked="{Binding OnlyLikelyApplications}"
+                              VerticalAlignment="Center"
+                              ToolTip.Tip="Hide results that look like libraries, tutorials or link collections. RepoDeck judges this from the description and tags, so it is a guess." />
+
+                    <Button Classes="link"
+                            Content="Reset filters"
+                            VerticalAlignment="Center"
+                            Command="{Binding ClearFiltersCommand}" />
+                </WrapPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="14" IsVisible="{Binding ShowResults}">
+                    <TextBlock Text="{Binding ResultSummary}" Classes="muted" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding HiddenByFilterNotice}" Classes="muted" VerticalAlignment="Center"
+                               IsVisible="{Binding HiddenByFilterNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Results and states -->
+        <Panel Grid.Row="2">
+
+            <!-- Loading -->
+            <Border IsVisible="{Binding IsBusy}" VerticalAlignment="Top" Margin="0,40,0,0">
+                <StackPanel Spacing="14" HorizontalAlignment="Center" MaxWidth="380">
+                    <ProgressBar IsIndeterminate="True" Height="4" />
+                    <TextBlock Text="Asking GitHub..." Classes="secondary" HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <!-- Error -->
+            <Border IsVisible="{Binding HasError}" VerticalAlignment="Top" Margin="0,24,0,0">
+                <Border Background="{DynamicResource RdDangerSoftBrush}"
+                        BorderBrush="{DynamicResource RdDangerBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="22"
+                        MaxWidth="640"
+                        HorizontalAlignment="Left">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="That did not work" Classes="h2"
+                                   Foreground="{DynamicResource RdDangerBrush}" />
+                        <TextBlock Text="{Binding ErrorMessage}" Classes="body" />
+                        <Button Classes="secondary" Content="Try again"
+                                HorizontalAlignment="Left"
+                                Command="{Binding RetryCommand}" />
+                    </StackPanel>
+                </Border>
+            </Border>
+
+            <!-- Welcome -->
+            <ScrollViewer IsVisible="{Binding ShowWelcome}">
+                <StackPanel Spacing="18" Margin="0,30,0,30" MaxWidth="620" HorizontalAlignment="Left">
+                    <TextBlock Text="What are you looking for?" Classes="h1" />
+                    <TextBlock Classes="body" Foreground="{DynamicResource RdTextSecondaryBrush}"
+                               Text="Type what you want the software to do, in ordinary words. RepoDeck searches GitHub and explains what it finds." />
+                    <TextBlock Text="OR TRY ONE OF THESE" Classes="sectionLabel" Margin="0,8,0,0" />
+                    <WrapPanel ItemSpacing="10" LineSpacing="10">
+                        <Button Classes="secondary" Content="Video editor"
+                                Command="{Binding SearchForCommand}" CommandParameter="video editor" />
+                        <Button Classes="secondary" Content="Password manager"
+                                Command="{Binding SearchForCommand}" CommandParameter="password manager" />
+                        <Button Classes="secondary" Content="Music player"
+                                Command="{Binding SearchForCommand}" CommandParameter="music player" />
+                        <Button Classes="secondary" Content="File backup"
+                                Command="{Binding SearchForCommand}" CommandParameter="file backup tool" />
+                        <Button Classes="secondary" Content="Note taking"
+                                Command="{Binding SearchForCommand}" CommandParameter="note taking app" />
+                        <Button Classes="secondary" Content="Game emulator"
+                                Command="{Binding SearchForCommand}" CommandParameter="game emulator" />
+                    </WrapPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Nothing found -->
+            <Border IsVisible="{Binding ShowEmptyState}" VerticalAlignment="Top" Margin="0,40,0,0">
+                <StackPanel Spacing="12" MaxWidth="520" HorizontalAlignment="Left">
+                    <TextBlock Text="Nothing matched that search" Classes="h1" />
+                    <TextBlock Classes="body" Foreground="{DynamicResource RdTextSecondaryBrush}"
+                               Text="Try fewer words, or loosen the filters. Filters for stars, language and update date can rule out a lot at once." />
+                    <Button Classes="secondary" Content="Reset filters" HorizontalAlignment="Left"
+                            Command="{Binding ClearFiltersCommand}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Results -->
+            <ScrollViewer IsVisible="{Binding ShowResults}">
+                <StackPanel Spacing="0" Margin="0,4,14,20">
+                    <ListBox Classes="cards"
+                             ItemsSource="{Binding Results}"
+                             SelectionMode="Single">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RepositoryCardViewModel">
+                                <Border Classes="card">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
+
+                                        <!-- Title and owner -->
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <TextBlock Text="{Binding Name}" Classes="h1" />
+                                                <Border Classes="chip chipCaution"
+                                                        VerticalAlignment="Center"
+                                                        IsVisible="{Binding IsArchived}">
+                                                    <TextBlock Text="Archived" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Owner}" Classes="muted" />
+                                        </StackPanel>
+
+                                        <!-- Verdict -->
+                                        <Border Grid.Row="0" Grid.Column="1"
+                                                Classes="chip chipAccent"
+                                                VerticalAlignment="Top"
+                                                ToolTip.Tip="{Binding VerdictExplanation}">
+                                            <TextBlock Text="{Binding VerdictText}" />
+                                        </Border>
+
+                                        <!-- Plain-English summary -->
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                   Text="{Binding Summary}"
+                                                   Classes="body"
+                                                   Foreground="{DynamicResource RdTextSecondaryBrush}"
+                                                   MaxLines="3"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,12,0,0" />
+
+                                        <!-- Topics -->
+                                        <ItemsControl Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                                      ItemsSource="{Binding Topics}"
+                                                      IsVisible="{Binding HasTopics}"
+                                                      Margin="0,12,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Border Classes="chip">
+                                                        <TextBlock Text="{Binding}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <!-- Facts and actions -->
+                                        <Grid Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                              ColumnDefinitions="*,Auto" Margin="0,16,0,0">
+
+                                            <WrapPanel Grid.Column="0" ItemSpacing="18" LineSpacing="6"
+                                                       VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Data="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"
+                                                          Fill="{DynamicResource RdTextMutedBrush}"
+                                                          Width="13" Height="13" Stretch="Uniform"
+                                                          VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding StarsText}" Classes="muted" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding LanguageText}" Classes="muted" />
+                                                <TextBlock Text="{Binding UpdatedText}" Classes="muted" />
+                                                <TextBlock Text="{Binding LicenseText}" Classes="muted" />
+                                            </WrapPanel>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                                <Button Classes="secondary" Content="GitHub"
+                                                        Command="{Binding OpenOnGitHubCommand}"
+                                                        ToolTip.Tip="Open this repository in your browser" />
+                                                <Button Classes="primary" Content="Details"
+                                                        Command="{Binding OpenDetailsCommand}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Button Classes="secondary"
+                            Content="Show more results"
+                            HorizontalAlignment="Center"
+                            Margin="0,6,0,0"
+                            IsVisible="{Binding CanLoadMore}"
+                            IsEnabled="{Binding !IsLoadingMore}"
+                            Command="{Binding LoadMoreCommand}" />
+
+                    <ProgressBar IsIndeterminate="True" Height="3" Margin="0,10,0,0"
+                                 IsVisible="{Binding IsLoadingMore}" />
+                </StackPanel>
+            </ScrollViewer>
+        </Panel>
+    </Grid>
+</UserControl>

@@ -1,0 +1,88 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:RepoDeck.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="820"
+        x:Class="RepoDeck.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="RepoDeck"
+        Width="1280" Height="820"
+        MinWidth="900" MinHeight="600"
+        Background="{DynamicResource RdPageBackgroundBrush}">
+
+    <Grid ColumnDefinitions="224,*">
+
+        <!-- Navigation rail -->
+        <Border Grid.Column="0"
+                Background="{DynamicResource RdSidebarBrush}"
+                BorderBrush="{DynamicResource RdBorderBrush}"
+                BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto,*,Auto">
+
+                <StackPanel Grid.Row="0" Margin="22,26,22,18" Spacing="2">
+                    <TextBlock Text="RepoDeck" FontSize="20" FontWeight="Bold" />
+                    <TextBlock Text="GitHub, made approachable" Classes="muted" />
+                </StackPanel>
+
+                <ListBox Grid.Row="1"
+                         Classes="nav"
+                         ItemsSource="{Binding NavigationItems}"
+                         SelectedItem="{Binding SelectedNavigationItem}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavigationItem">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Path Data="{Binding Icon}"
+                                      Fill="{DynamicResource RdTextSecondaryBrush}"
+                                      Width="18" Height="18"
+                                      Stretch="Uniform"
+                                      VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Title}"
+                                           FontSize="14"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel Grid.Row="2" Margin="22,14,22,18" Spacing="4">
+                    <TextBlock Text="{Binding PlatformText}" Classes="muted" />
+                    <TextBlock Text="Milestone 1 - browse and understand" Classes="muted" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Content -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
+
+            <Border Grid.Row="0"
+                    Padding="28,18,28,0"
+                    IsVisible="{Binding CanGoBack}">
+                <Button Classes="link"
+                        Command="{Binding GoBackCommand}"
+                        HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Data="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"
+                              Fill="{DynamicResource RdAccentBrush}"
+                              Width="14" Height="14" Stretch="Uniform"
+                              VerticalAlignment="Center" />
+                        <TextBlock Text="Back to results" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Border>
+
+            <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" />
+
+            <Border Grid.Row="2"
+                    Background="{DynamicResource RdSurfaceBrush}"
+                    BorderBrush="{DynamicResource RdBorderBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="28,8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding StatusText}" Classes="muted" />
+                    <TextBlock Grid.Column="1" Text="{Binding RateLimitText}" Classes="muted" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
