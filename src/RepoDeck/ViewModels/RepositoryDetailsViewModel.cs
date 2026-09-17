@@ -6,6 +6,7 @@ using RepoDeck.Models;
 using RepoDeck.Services.Analysis;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.GitHub;
+using RepoDeck.Services.Install;
 
 namespace RepoDeck.ViewModels;
 
@@ -17,17 +18,26 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
 {
     private readonly IGitHubClient _github;
     private readonly IRepositoryExplanationService _explanations;
+    private readonly IRepositoryAnalyzerService _analyzer;
+    private readonly InstallPlanner _planner;
+    private readonly MachineProfile _machine;
     private readonly IAppLog _log;
 
     public RepositoryDetailsViewModel(
         GitHubRepository repository,
         IGitHubClient github,
         IRepositoryExplanationService explanations,
+        IRepositoryAnalyzerService analyzer,
+        InstallPlanner planner,
+        MachineProfile machine,
         IAppLog log)
     {
         Repository = repository;
         _github = github;
         _explanations = explanations;
+        _analyzer = analyzer;
+        _planner = planner;
+        _machine = machine;
         _log = log;
 
         // Seed the page from what the card already knows so it is never blank.
@@ -64,11 +74,6 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
     [ObservableProperty] private bool _hasReleasesToShow;
     [ObservableProperty] private bool _hasLanguages;
     [ObservableProperty] private string _readmeNotice = "";
-
-    [ObservableProperty] private string _installationStatus = "";
-    [ObservableProperty] private string _installationDetail = "";
-    [ObservableProperty] private string _compatibilityStatus = "";
-    [ObservableProperty] private string _compatibilityDetail = "";
 
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
@@ -197,50 +202,49 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
             ? "Shown as plain text. Open it on GitHub for the formatted version."
             : "This repository has no README, so there is nothing here to read.";
 
-        ApplyInstallationAndCompatibility(details);
+        await RunAnalysisAsync(details, cancellationToken);
         RaiseMetadataChanged();
     }
 
     /// <summary>
-    /// States plainly what RepoDeck does and does not yet know. Milestone 1 does not
-    /// analyse release assets, so it must not imply that it has.
+    /// The Milestone 2 analysis pass: rank the release assets against this machine,
+    /// inspect the repository's structure, and produce an installation plan.
+    /// Nothing is downloaded and nothing is executed.
     /// </summary>
-    private void ApplyInstallationAndCompatibility(RepositoryDetails details)
+    private async Task RunAnalysisAsync(RepositoryDetails details, CancellationToken cancellationToken)
     {
-        if (!details.HasReleases)
-        {
-            InstallationStatus = "Not available";
-            InstallationDetail =
-                "This project publishes no releases, so there is nothing pre-built to download. "
-                + "Using it would mean building it from source, which RepoDeck does not do.";
-        }
-        else
-        {
-            var latest = details.LatestStableRelease ?? details.Releases[0];
-            var assets = latest.Assets.Count;
+        var progress = new Progress<AnalysisStage>(stage => AnalysisStatus = stage.ToDisplayString());
 
-            if (assets == 0)
-            {
-                InstallationStatus = "Source only";
-                InstallationDetail =
-                    $"Release {latest.TagName} contains source code but no ready-made files, "
-                    + "so it cannot be installed without building it first.";
-            }
-            else
-            {
-                InstallationStatus = "Requires inspection";
-                InstallationDetail =
-                    $"Release {latest.TagName} has {assets} attached file{(assets == 1 ? "" : "s")}. "
-                    + "RepoDeck does not yet examine these to work out which one suits your computer, "
-                    + "so installing from here is not available in this version. "
-                    + "The files are listed below exactly as GitHub reports them.";
-            }
-        }
+        try
+        {
+            AnalysisStatus = AnalysisStage.InspectingReleases.ToDisplayString();
+            var releaseAnalysis = ReleaseAnalyzer.Analyze(details.Releases, _machine);
 
-        CompatibilityStatus = "Requires inspection";
-        CompatibilityDetail =
-            "RepoDeck does not yet inspect release files or project contents, so it cannot say "
-            + "whether this runs on your computer. Nothing below should be read as a compatibility claim.";
+            var analysis = await _analyzer
+                .AnalyzeAsync(details.Repository, releaseAnalysis, progress, cancellationToken)
+                .ConfigureAwait(true);
+
+            var plan = _planner.Create(details.Repository, analysis, releaseAnalysis, _machine);
+
+            ApplyAnalysis(analysis, releaseAnalysis, plan);
+
+            _log.Info("Details", $"{details.Repository.FullName}: {analysis.ApplicationType} "
+                                 + $"({analysis.ApplicationTypeConfidence}), plan: {plan.Strategy}");
+        }
+        catch (OperationCanceledException)
+        {
+            AnalysisStatus = "";
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // The rest of the page is still useful, so a failed analysis is reported
+            // in place rather than taking the whole details view down.
+            _log.Error("Details", $"Analysis failed for {details.Repository.FullName}", ex);
+            AnalysisStatus = "";
+            AnalysisIncompleteReason = "RepoDeck could not finish analysing this repository.";
+            HasAnalysis = true;
+        }
     }
 
     // ---- Commands ---------------------------------------------------------

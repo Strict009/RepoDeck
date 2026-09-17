@@ -80,28 +80,194 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Installation -->
-                <Border Classes="panel">
+                <!-- Analysis in progress -->
+                <Border Classes="panel" IsVisible="{Binding AnalysisStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                     <StackPanel Spacing="10">
-                        <TextBlock Text="INSTALLATION" Classes="sectionLabel" />
-                        <Border Classes="chip chipCaution" HorizontalAlignment="Left">
-                            <TextBlock Text="{Binding InstallationStatus}" />
-                        </Border>
-                        <TextBlock Text="{Binding InstallationDetail}" Classes="body" />
+                        <TextBlock Text="REPODECK ANALYSIS" Classes="sectionLabel" />
+                        <ProgressBar IsIndeterminate="True" Height="4" />
+                        <TextBlock Text="{Binding AnalysisStatus}" Classes="secondary" />
                     </StackPanel>
                 </Border>
 
-                <!-- Compatibility -->
-                <Border Classes="panel">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="COMPATIBILITY" Classes="sectionLabel" />
-                        <Border Classes="chip chipCaution" HorizontalAlignment="Left">
-                            <TextBlock Text="{Binding CompatibilityStatus}" />
+                <!-- RepoDeck analysis -->
+                <Border Classes="panel" IsVisible="{Binding HasAnalysis}">
+                    <StackPanel Spacing="18">
+                        <TextBlock Text="REPODECK ANALYSIS" Classes="sectionLabel" />
+
+                        <!-- Incomplete analyses are never dressed up as confident ones -->
+                        <Border Background="{DynamicResource RdCautionSoftBrush}"
+                                CornerRadius="10" Padding="14"
+                                IsVisible="{Binding AnalysisIsIncomplete}">
+                            <TextBlock Text="{Binding AnalysisIncompleteReason}" Classes="body"
+                                       Foreground="{DynamicResource RdCautionBrush}" />
                         </Border>
-                        <TextBlock Text="{Binding CompatibilityDetail}" Classes="body" />
-                        <TextBlock Text="{Binding ThisComputerText}" Classes="muted" />
+
+                        <!-- Project -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Project" Classes="h2" />
+                            <Grid ColumnDefinitions="130,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type" Classes="muted" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding ProjectTypeText}" Classes="secondary" />
+                                    <Border Classes="chip">
+                                        <TextBlock Text="{Binding ClassificationConfidenceText}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Technology" Classes="muted" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TechnologyText}" Classes="secondary" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Platforms" Classes="muted" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PlatformsText}" Classes="secondary" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Licence" Classes="muted" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LicenseText}" Classes="secondary" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Compatibility -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Compatibility" Classes="h2" />
+                            <TextBlock Text="{Binding CompatibilityHeadline}" Classes="body"
+                                       FontWeight="SemiBold" />
+                            <ItemsControl ItemsSource="{Binding CompatibilityEvidence}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:Evidence">
+                                        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,3">
+                                            <TextBlock Text="{Binding Marker}" VerticalAlignment="Top"
+                                                       Foreground="{DynamicResource RdTextMutedBrush}" />
+                                            <TextBlock Text="{Binding Text}" Classes="secondary" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- Recommended download -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Recommended download" Classes="h2" />
+
+                            <StackPanel Spacing="8" IsVisible="{Binding HasRecommendation}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="{Binding RecommendedAssetName}" Classes="body"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding RecommendedAssetSize}" Classes="muted"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding PlanReleaseSummary}" Classes="muted" />
+                                <TextBlock Text="Why this file?" Classes="muted" Margin="0,6,0,0" />
+                                <ItemsControl ItemsSource="{Binding RecommendationReasons}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,2">
+                                                <Ellipse Width="4" Height="4" VerticalAlignment="Center"
+                                                         Fill="{DynamicResource RdTextMutedBrush}" />
+                                                <TextBlock Text="{Binding}" Classes="secondary" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding NoRecommendationReason}" Classes="body"
+                                       IsVisible="{Binding !HasRecommendation}" />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
+
+                <!-- Installation plan -->
+                <Border Classes="panel" IsVisible="{Binding HasAnalysis}">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="INSTALLATION PLAN" Classes="sectionLabel" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Classes="chip chipAccent" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PlanStrategyText}" />
+                            </Border>
+                            <TextBlock Text="{Binding PlanStepSummary}" Classes="secondary"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Reasons RepoDeck will not proceed -->
+                        <Border Background="{DynamicResource RdCautionSoftBrush}"
+                                CornerRadius="10" Padding="14"
+                                IsVisible="{Binding PlanBlockers.Count}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="RepoDeck cannot install this" Classes="h2"
+                                           Foreground="{DynamicResource RdCautionBrush}" />
+                                <ItemsControl ItemsSource="{Binding PlanBlockers}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <TextBlock Text="{Binding}" Classes="secondary" Margin="0,2" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Warnings -->
+                        <ItemsControl ItemsSource="{Binding PlanWarnings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,3">
+                                        <TextBlock Text="!" FontWeight="Bold" VerticalAlignment="Top"
+                                                   Foreground="{DynamicResource RdCautionBrush}" />
+                                        <TextBlock Text="{Binding}" Classes="secondary" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Full preview of what would happen -->
+                        <Expander Header="Installation preview" IsVisible="{Binding HasPlan}">
+                            <StackPanel Spacing="12" Margin="0,10,0,0">
+                                <TextBlock Classes="muted"
+                                           Text="Nothing below has happened. This is what RepoDeck would do if installation were available." />
+
+                                <Grid ColumnDefinitions="190,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Would download" Classes="muted" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding PlanDownloadSummary}"
+                                               Classes="secondary" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="From" Classes="muted" />
+                                    <SelectableTextBlock Grid.Row="1" Grid.Column="1" Text="{Binding RepositoryUrl}"
+                                                         Classes="secondary" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Would install into" Classes="muted" />
+                                    <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PlanDirectory}"
+                                                         Classes="secondary" />
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Extraction needed" Classes="muted" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding PlanExtractionText}"
+                                               Classes="secondary" />
+
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Administrator rights" Classes="muted" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding PlanElevationText}"
+                                               Classes="secondary" />
+                                </Grid>
+
+                                <StackPanel Spacing="6" IsVisible="{Binding ExecutableCandidates.Count}">
+                                    <TextBlock Text="Would look for" Classes="muted" />
+                                    <ItemsControl ItemsSource="{Binding ExecutableCandidates}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <TextBlock Text="{Binding}" Classes="secondary" Margin="0,1" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Classes="muted"
+                                               Text="These are expected names. RepoDeck has not downloaded anything, so it cannot yet confirm what the file contains." />
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button Classes="primary"
+                                    Content="{Binding InstallButtonText}"
+                                    IsEnabled="{Binding CanInstall}" />
+                            <TextBlock Classes="muted" VerticalAlignment="Center"
+                                       Text="RepoDeck has downloaded nothing and run nothing." />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
 
                 <!-- Things worth knowing -->
                 <Border Classes="panel">

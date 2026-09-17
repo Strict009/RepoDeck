@@ -90,7 +90,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         CancelActiveDetailsLoad();
 
         var details = new RepositoryDetailsViewModel(
-            repository, _services.GitHub, _services.Explanations, _services.Log);
+            repository,
+            _services.GitHub,
+            _services.Explanations,
+            _services.Analyzer,
+            _services.InstallPlanner,
+            _services.Machine,
+            _services.Log);
 
         _activeDetails = details;
         CurrentPage = details;
