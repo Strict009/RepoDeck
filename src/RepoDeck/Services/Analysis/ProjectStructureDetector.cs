@@ -57,7 +57,21 @@ public static partial class ProjectStructureDetector
         public List<string> LowerPaths { get; } = lowerPaths;
         public HashSet<string> Directories { get; } = directories;
 
-        public List<ProjectType> Types { get; } = [];
+        /// <summary>
+        /// Detected types with the depth of the marker file that proved each one. The
+        /// marker nearest the repository root identifies what the project actually is:
+        /// a package.json in a docs folder does not make a C++ project a Node project.
+        /// </summary>
+        private readonly List<(ProjectType Type, int Depth)> _typed = [];
+
+        public List<ProjectType> Types =>
+            _typed.OrderBy(t => t.Depth).Select(t => t.Type).Distinct().ToList();
+
+        public void AddType(ProjectType type, int depth) => _typed.Add((type, depth));
+
+        public bool HasType(ProjectType type) => _typed.Any(t => t.Type == type);
+
+        public int TypeCount => _typed.Count;
         public List<Evidence> Evidence { get; } = [];
         public List<ApplicationTypeHint> Hints { get; } = [];
         public List<string> FilesToRead { get; } = [];

@@ -4,6 +4,12 @@ namespace RepoDeck.Services.Analysis;
 
 public static partial class ProjectStructureDetector
 {
+    /// <summary>
+    /// Sort depth for concerns that describe how a project is shipped rather than what it
+    /// is. They only become the primary type when nothing else was found.
+    /// </summary>
+    private const int SupportingTypeDepth = 100;
+
     private static void DetectGameEngines(DetectionContext context)
     {
         var hasUnityMarkerFile = HasPathEnding(context.LowerPaths, "projectsettings/projectversion.txt")
@@ -13,7 +19,7 @@ public static partial class ProjectStructureDetector
 
         if (hasUnityMarkerFile || hasUnityDirectories)
         {
-            context.Types.Add(ProjectType.Unity);
+            context.AddType(ProjectType.Unity, 0);
             context.SetBuildSystem(BuildSystem.Unity);
             context.Evidence.Add(new Evidence(
                 "Has the Unity project layout: Assets and ProjectSettings folders.",
@@ -24,7 +30,7 @@ public static partial class ProjectStructureDetector
 
         if (HasFileNamed(context.LowerPaths, "project.godot"))
         {
-            context.Types.Add(ProjectType.Godot);
+            context.AddType(ProjectType.Godot, DepthOf(FindShallowest(context.Paths, "project.godot") ?? "project.godot"));
             context.SetBuildSystem(BuildSystem.Godot);
             context.Evidence.Add(new Evidence(
                 "Contains project.godot, a Godot game project.", EvidenceSource.FileStructure));
@@ -40,7 +46,8 @@ public static partial class ProjectStructureDetector
 
         if (solutions.Count == 0 && projects.Count == 0) return;
 
-        if (!context.Types.Contains(ProjectType.Unity)) context.Types.Add(ProjectType.DotNet);
+        var dotnetMarker = solutions.Count > 0 ? Shallowest(solutions) : Shallowest(projects);
+        if (!context.HasType(ProjectType.Unity)) context.AddType(ProjectType.DotNet, DepthOf(dotnetMarker));
         context.SetBuildSystem(BuildSystem.MsBuild);
 
         context.Evidence.Add(solutions.Count > 0
@@ -58,7 +65,7 @@ public static partial class ProjectStructureDetector
         var packageJson = FindShallowest(context.Paths, "package.json");
         if (packageJson is null) return;
 
-        context.Types.Add(ProjectType.Node);
+        context.AddType(ProjectType.Node, DepthOf(packageJson));
         context.SetBuildSystem(BuildSystem.Npm);
         context.Evidence.Add(new Evidence(
             "Contains package.json, a Node.js project.", EvidenceSource.FileStructure));
@@ -70,7 +77,7 @@ public static partial class ProjectStructureDetector
         var cargo = FindShallowest(context.Paths, "Cargo.toml");
         if (cargo is null) return;
 
-        context.Types.Add(ProjectType.Rust);
+        context.AddType(ProjectType.Rust, DepthOf(cargo));
         context.SetBuildSystem(BuildSystem.Cargo);
         context.Evidence.Add(new Evidence(
             "Contains Cargo.toml, a Rust project.", EvidenceSource.FileStructure));
@@ -85,7 +92,7 @@ public static partial class ProjectStructureDetector
 
         if (manifest is null) return;
 
-        context.Types.Add(ProjectType.Python);
+        context.AddType(ProjectType.Python, DepthOf(manifest));
         context.SetBuildSystem(BuildSystem.PythonPackaging);
         context.Evidence.Add(new Evidence(
             $"Contains {FileNameOf(manifest)}, a Python project.", EvidenceSource.FileStructure));
@@ -99,17 +106,18 @@ public static partial class ProjectStructureDetector
 
     private static void DetectJava(DetectionContext context)
     {
-        if (HasFileNamed(context.LowerPaths, "pom.xml"))
+        var pom = FindShallowest(context.Paths, "pom.xml");
+        if (pom is not null)
         {
-            context.Types.Add(ProjectType.Java);
+            context.AddType(ProjectType.Java, DepthOf(pom));
             context.SetBuildSystem(BuildSystem.Maven);
             context.Evidence.Add(new Evidence(
                 "Contains pom.xml, a Maven project.", EvidenceSource.FileStructure));
         }
-        else if (HasFileNamed(context.LowerPaths, "build.gradle")
-                 || HasFileNamed(context.LowerPaths, "build.gradle.kts"))
+        else if ((FindShallowest(context.Paths, "build.gradle")
+                  ?? FindShallowest(context.Paths, "build.gradle.kts")) is { } gradle)
         {
-            context.Types.Add(ProjectType.Java);
+            context.AddType(ProjectType.Java, DepthOf(gradle));
             context.SetBuildSystem(BuildSystem.Gradle);
             context.Evidence.Add(new Evidence(
                 "Contains a Gradle build script.", EvidenceSource.FileStructure));
@@ -118,16 +126,17 @@ public static partial class ProjectStructureDetector
 
     private static void DetectNative(DetectionContext context)
     {
-        if (HasFileNamed(context.LowerPaths, "cmakelists.txt"))
+        var cmake = FindShallowest(context.Paths, "CMakeLists.txt");
+        if (cmake is not null)
         {
-            context.Types.Add(ProjectType.CPlusPlus);
+            context.AddType(ProjectType.CPlusPlus, DepthOf(cmake));
             context.SetBuildSystem(BuildSystem.CMake);
             context.Evidence.Add(new Evidence(
                 "Contains CMakeLists.txt, a CMake project.", EvidenceSource.FileStructure));
         }
-        else if (HasFileNamed(context.LowerPaths, "makefile"))
+        else if (FindShallowest(context.Paths, "Makefile") is { } makefile)
         {
-            context.Types.Add(ProjectType.CPlusPlus);
+            context.AddType(ProjectType.CPlusPlus, DepthOf(makefile));
             context.SetBuildSystem(BuildSystem.Make);
             context.Evidence.Add(new Evidence("Contains a Makefile.", EvidenceSource.FileStructure));
         }
@@ -135,9 +144,10 @@ public static partial class ProjectStructureDetector
 
     private static void DetectGo(DetectionContext context)
     {
-        if (!HasFileNamed(context.LowerPaths, "go.mod")) return;
+        var goMod = FindShallowest(context.Paths, "go.mod");
+        if (goMod is null) return;
 
-        context.Types.Add(ProjectType.Go);
+        context.AddType(ProjectType.Go, DepthOf(goMod));
         context.Evidence.Add(new Evidence("Contains go.mod, a Go module.", EvidenceSource.FileStructure));
     }
 
@@ -147,7 +157,9 @@ public static partial class ProjectStructureDetector
             || HasFileNamed(context.LowerPaths, "docker-compose.yml")
             || HasFileNamed(context.LowerPaths, "compose.yml"))
         {
-            context.Types.Add(ProjectType.Docker);
+            // Containers are a packaging detail, never the primary identity of a project,
+            // so this sorts behind any real ecosystem marker.
+            context.AddType(ProjectType.Docker, SupportingTypeDepth);
             context.Evidence.Add(new Evidence(
                 "Contains Docker build or compose files.", EvidenceSource.FileStructure));
             context.Hints.Add(new ApplicationTypeHint(ApplicationType.Server, 25,
@@ -156,9 +168,9 @@ public static partial class ProjectStructureDetector
         }
 
         var scripts = WithExtension(context.Paths, ".ps1", ".sh", ".bat", ".cmd");
-        if (scripts.Count > 0 && context.Types.Count == 0)
+        if (scripts.Count > 0 && context.TypeCount == 0)
         {
-            context.Types.Add(ProjectType.Shell);
+            context.AddType(ProjectType.Shell, SupportingTypeDepth);
             var plural = scripts.Count == 1 ? "" : "s";
             context.Evidence.Add(new Evidence(
                 $"Contains {scripts.Count} shell or batch script{plural} and no other project files.",

@@ -20,6 +20,9 @@ public static partial class ProjectStructureDetector
     private static List<string> WithExtension(IEnumerable<string> paths, params string[] extensions) =>
         paths.Where(p => extensions.Any(e => p.EndsWith(e, StringComparison.OrdinalIgnoreCase))).ToList();
 
+    /// <summary>How many directories deep a path sits. A root file has depth 0.</summary>
+    private static int DepthOf(string path) => path.Count(c => c == '/');
+
     /// <summary>
     /// The copy nearest the repository root. A solution file at the top level describes
     /// the project far better than one buried in a samples folder.

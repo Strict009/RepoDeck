@@ -77,9 +77,7 @@ public class HardeningTests
     public async Task Abandoning_a_details_page_stops_its_work()
     {
         var github = new FakeGitHubClient();
-        var details = new RepositoryDetailsViewModel(
-            TestRepositories.Create(), github, new HeuristicRepositoryExplanationService(),
-            NullAppLog.Instance);
+        var details = DetailsViewModelFactory.Create(github);
 
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();

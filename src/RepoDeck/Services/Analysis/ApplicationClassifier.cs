@@ -69,14 +69,28 @@ public static class ApplicationClassifier
             return;
         }
 
-        // Something that ships installers and executables is meant to be run by people.
-        var runnable = binaries.Count(a => a.PackageType.IsRunnableSoftware());
-        if (runnable > 0)
+        // A platform-specific build is evidence of a program meant to be run. An
+        // unlabelled archive is not: a library can perfectly well ship its headers in a
+        // ZIP, and treating that as an application is how a C++ library gets called a
+        // desktop app.
+        var platformBuilds = binaries
+            .Where(a => a.Platform != OsPlatform.Unknown && a.PackageType.IsRunnableSoftware())
+            .ToList();
+
+        if (platformBuilds.Count > 0)
         {
             Add(votes, ApplicationType.DesktopApplication, 35);
             Add(votes, ApplicationType.CliTool, 25);
+            var plural = platformBuilds.Count == 1 ? "" : "s";
             evidence.Add(new Evidence(
-                $"Publishes {runnable} ready-to-run file{(runnable == 1 ? "" : "s")} in its latest release.",
+                $"Publishes {platformBuilds.Count} platform-specific build{plural} in its latest release.",
+                EvidenceSource.Release));
+        }
+        else
+        {
+            evidence.Add(Evidence.Against(
+                "Its release files are not labelled for any particular system, so they may be "
+                + "source or library files rather than a program.",
                 EvidenceSource.Release));
         }
 
