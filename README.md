@@ -25,7 +25,7 @@ You're always in control. RepoDeck doesn't silently run installers, scripts, or 
 
 Current status: RepoDeck is under active development. Searching, project analysis, compatibility checking, downloading, installation, launching, updating, and repairing supported apps are working.
 
-What works today
+## What works today
 - 🔎 Search GitHub using ordinary terms
 - 🖼️ Find project screenshots and artwork
 - 📝 Explain projects in plain English
@@ -49,7 +49,7 @@ What works today
 - 🪟 Card and Compact browsing modes
 - ⚡ Quick Look without leaving search results
 
-GitHub without the GitHub homework
+## GitHub without the GitHub homework
 
 GitHub was built primarily for developers, so finding an interesting project is often the easy part. 
 Actually figuring out how to use it can mean digging through README files, Releases pages, ZIP files, source code, platform names, and terms like win-x64.
@@ -76,7 +76,7 @@ RepoDeck takes some inspiration from the desktop software era of Winamp, LimeWir
 The interface uses dark panels, compact controls, status lights, segmented meters, squared edges, and a restrained acid-lime accent.
 Underneath the retro influence, it's still designed as a modern application with readable text, keyboard navigation, clear status labels, and accessibility in mind.
 
-Staying up to date, without the anxiety
+## Staying up to date, without the anxiety
 
 RepoDeck checks your installed apps against their GitHub releases and tells you what it found in the same plain English as everything else.
 
