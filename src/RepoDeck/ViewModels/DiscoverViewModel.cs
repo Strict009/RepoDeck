@@ -30,6 +30,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     private int _searchGeneration;
     private int _totalCount;
     private readonly IUserPreferences? _preferences;
+    private readonly MachineProfile _machine;
 
     public DiscoverViewModel(
         IGitHubClient github,
@@ -38,7 +39,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         IAppLog log,
         ImageLoader? images = null,
         IUserPreferences? preferences = null,
-        QuickLookViewModel? quickLook = null)
+        QuickLookViewModel? quickLook = null,
+        MachineProfile? machine = null)
     {
         _github = github;
         _explanations = explanations;
@@ -46,6 +48,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         _images = images;
         _log = log;
         _preferences = preferences;
+        _machine = machine ?? PlatformInfo.CurrentMachine();
 
         QuickLook = quickLook;
 
@@ -74,6 +77,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         SelectedLanguage = LanguageOption.All[0];
 
         _viewMode = preferences?.Current.ResultsView ?? ResultsViewMode.Card;
+        _browseMode = preferences?.Current.BrowseMode ?? BrowseMode.Apps;
     }
 
     /// <summary>Raised when the user asks to see a repository in detail.</summary>
@@ -102,7 +106,6 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     [ObservableProperty] private LanguageOption _selectedLanguage;
 
     [ObservableProperty] private bool _excludeArchived = true;
-    [ObservableProperty] private bool _onlyLikelyApplications;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowResults))]
@@ -261,7 +264,6 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         SelectedUpdated = UpdatedOption.All[0];
         SelectedLanguage = LanguageOption.All[0];
         ExcludeArchived = true;
-        OnlyLikelyApplications = false;
         return HasSearched ? SearchCommand.ExecuteAsync(null) : Task.CompletedTask;
     }
 
@@ -318,6 +320,49 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
     [RelayCommand]
     private void UseCompactView() => ViewMode = ResultsViewMode.Compact;
+
+    // ---- Browse mode ------------------------------------------------------
+
+    /// <summary>
+    /// Apps or Everything, remembered between runs.
+    /// </summary>
+    /// <remarks>
+    /// Apps prioritises what RepoDeck has evidence is a usable program, and sets aside only
+    /// the clearest cases - a library it is sure about, or plainly reading material.
+    /// Everything is raw GitHub discovery in GitHub's own order. A result RepoDeck merely
+    /// could not classify is shown in both, because "I could not tell" is not a verdict.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAppsMode))]
+    [NotifyPropertyChangedFor(nameof(IsEverythingMode))]
+    [NotifyPropertyChangedFor(nameof(BrowseModeExplanation))]
+    private BrowseMode _browseMode;
+
+    public bool IsAppsMode => BrowseMode == BrowseMode.Apps;
+    public bool IsEverythingMode => BrowseMode == BrowseMode.Everything;
+
+    public string BrowseModeExplanation => IsAppsMode
+        ? "Programs first. RepoDeck puts what it has evidence you can actually run at the top, "
+          + "and sets aside libraries and reading material. It is not judging quality or safety."
+        : "Everything GitHub returned, in GitHub's own order. Nothing is set aside.";
+
+    /// <summary>Results Apps mode set aside, phrased so the user can get them back.</summary>
+    [ObservableProperty] private string? _setAsideNotice;
+
+    partial void OnBrowseModeChanged(BrowseMode value)
+    {
+        _preferences?.Update(p => p with { BrowseMode = value });
+
+        // The mode changes which results are shown and in what order, so it has to rerun
+        // rather than wait for the next search.
+        if (HasSearched) _ = SearchCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand]
+    private void UseAppsMode() => BrowseMode = BrowseMode.Apps;
+
+    [RelayCommand]
+    private void UseEverythingMode() => BrowseMode = BrowseMode.Everything;
 
     // ---- Quick Look -------------------------------------------------------
 
@@ -403,23 +448,28 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         PerPage = 30
     };
 
+    /// <summary>
+    /// Turns a page of search results into cards, scoring each for relevance and, in Apps
+    /// mode, ordering by it.
+    /// </summary>
+    /// <remarks>
+    /// Every signal used here is free. The scorer sees only what the search response
+    /// already contained plus classifications computed locally from it, so ranking thirty
+    /// results costs nothing and a search can never become N+1 requests.
+    ///
+    /// Apps mode reorders and, for the clearest cases, sets aside. Everything mode leaves
+    /// GitHub's own ordering alone: GitHub knows things about text relevance that RepoDeck
+    /// cannot see, and overriding that wholesale would be arrogant.
+    /// </remarks>
     private void AppendResults(RepositorySearchResult result)
     {
-        var hidden = 0;
+        var query = SearchText?.Trim() ?? "";
+        var setAside = 0;
         var added = new List<RepositoryCardViewModel>();
 
         foreach (var repository in result.Items)
         {
             var likelihood = ApplicationLikelihoodEvaluator.Evaluate(repository);
-
-            // "Application likelihood" is a client-side filter: GitHub search cannot
-            // express it, and it costs no extra request.
-            if (OnlyLikelyApplications && !likelihood.LooksLikeApplication)
-            {
-                hidden++;
-                continue;
-            }
-
             var explanation = _explanations.ExplainFromMetadata(repository);
             var setup = SetupDifficultyEvaluator.EvaluateFromMetadata(repository, likelihood);
 
@@ -428,24 +478,62 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
             // A search result yields nothing but GitHub's generated preview card, which is
             // the repository name and description set in small type. At card size that is
-            // unreadable text pretending to be a picture, so the card uses its own designed
-            // tile instead and asks for artwork only. Quick Look reads the README and hands
-            // back a real screenshot when it finds one.
+            // unreadable text pretending to be a picture, so the card draws its own artwork
+            // instead and asks for the project's own pictures only. Quick Look reads the
+            // README and hands back a real screenshot when it finds one.
             var card = new RepositoryCardViewModel(
                 repository, explanation, likelihood, setup,
                 media.PrimaryArtwork?.Url, OnRepositoryOpenRequested, _log,
                 OpenQuickLook, OnInstallRequested);
 
-            Results.Add(card);
+            card.ApplyRelevance(RelevanceScorer.Score(
+                repository, query, card.Classification, card.Installability, _machine));
+
+            // Only the clearest cases are set aside, and only when Apps was chosen. A
+            // project RepoDeck merely could not classify is still shown: "I could not tell"
+            // is not the same as "not for you".
+            if (BrowseMode == BrowseMode.Apps && IsClearlyNotAnApplication(card))
+            {
+                setAside++;
+                continue;
+            }
+
             added.Add(card);
         }
 
-        HiddenByFilterNotice = hidden == 0
+        if (BrowseMode == BrowseMode.Apps)
+        {
+            // A stable sort: equal scores keep GitHub's order, so the reordering only ever
+            // promotes things it has a reason to promote.
+            added = added.OrderByDescending(c => c.Relevance.Score).ToList();
+        }
+
+        foreach (var card in added) Results.Add(card);
+
+        SetAsideNotice = setAside == 0
             ? null
-            : $"{hidden} result{(hidden == 1 ? "" : "s")} hidden because they do not look like applications.";
+            : $"{setAside} result{(setAside == 1 ? "" : "s")} set aside as libraries or reading material. "
+              + "Switch to Everything to see them.";
+
+        HiddenByFilterNotice = SetAsideNotice;
 
         // Pictures arrive afterwards and never hold up the results.
         StartLoadingImages(added);
+    }
+
+    /// <summary>
+    /// Whether Apps mode should set a result aside. Deliberately narrow: a library RepoDeck
+    /// is sure about, or something that is plainly reading material. Everything else stays.
+    /// </summary>
+    private static bool IsClearlyNotAnApplication(RepositoryCardViewModel card)
+    {
+        if (card.Classification.Kind == ProjectKind.Library
+            && card.Classification.Confidence is Confidence.Likely or Confidence.Confirmed)
+        {
+            return true;
+        }
+
+        return card.Relevance.Score <= 30;
     }
 
     /// <summary>

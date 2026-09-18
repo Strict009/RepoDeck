@@ -68,6 +68,33 @@ public class MediaRankerTests
         Assert.True(classified.IsExcluded, alt);
     }
 
+    [Theory]
+    [InlineData("https://raw.githubusercontent.com/a/b/master/art/google_play_badge.png")]
+    [InlineData("https://raw.githubusercontent.com/a/b/master/art/googleplay.png")]
+    [InlineData("https://example.invalid/assets/get_it_on_f_droid.png")]
+    [InlineData("https://example.invalid/assets/app%20store%20badge.png")]
+    [InlineData("https://developer.android.com/images/brand/en_generic_rgb_wo_60.png")]
+    [InlineData("https://developer.android.com/images/brand/en_app_rgb_wo_45.png")]
+    public void A_store_badge_is_recognised_whichever_separators_it_uses(string url)
+    {
+        // A Play Store badge saved as "google_play_badge.png" slipped past a word list
+        // written with hyphens and became a project's hero image.
+        Assert.True(MediaRanker.Classify(Readme(url)).IsExcluded, url);
+    }
+
+    [Fact]
+    public void A_vendor_badge_in_a_brand_folder_is_not_the_projects_logo()
+    {
+        // Google serves its Play badge from developer.android.com/images/brand/ under a
+        // filename that says nothing about stores. The word "brand" in the path made it
+        // look like the project's own logo, and it filled the card.
+        var classified = MediaRanker.Classify(
+            Readme("https://developer.android.com/images/brand/en_generic_rgb_wo_60.png"));
+
+        Assert.True(classified.IsExcluded);
+        Assert.NotEqual(MediaKind.Logo, classified.Kind);
+    }
+
     [Fact]
     public void A_store_badge_never_becomes_a_cards_artwork()
     {

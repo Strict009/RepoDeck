@@ -49,6 +49,7 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
         _log = log;
 
         _installability = InstallabilityEvaluator.FromMetadata(repository, likelihood, setup);
+        _classification = ProjectKindClassifier.Classify(repository);
     }
 
     public GitHubRepository Repository { get; }
@@ -164,8 +165,49 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     public bool ShowImage => Image is not null;
     public bool ShowFallback => Image is null;
 
-    /// <summary>The letter shown on the fallback tile.</summary>
+    /// <summary>The letter shown when RepoDeck cannot even guess at a kind.</summary>
     public string FallbackInitial => FriendlyNaming.Initial(Repository.Name);
+
+    // ---- What kind of thing this is ---------------------------------------
+
+    /// <summary>
+    /// Starts from metadata and is refined once the analyzer has looked inside. Drives the
+    /// generated artwork and feeds the relevance layer; it is not a quality judgement.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Kind))]
+    [NotifyPropertyChangedFor(nameof(KindLabel))]
+    [NotifyPropertyChangedFor(nameof(KindExplanation))]
+    private ProjectClassification _classification;
+
+    public ProjectKind Kind => Classification.Kind;
+    public string KindLabel => Classification.Label;
+
+    public string KindExplanation => Classification.Reasons.Count == 0
+        ? "RepoDeck could not tell what kind of project this is."
+        : Classification.Label + ". " + string.Join(" ", Classification.Reasons);
+
+    /// <summary>
+    /// The artwork is RepoDeck's own, so the card says so rather than letting a drawn
+    /// mark be mistaken for the project's own logo.
+    /// </summary>
+    public string FallbackCaption => Classification.Kind == ProjectKind.Unknown
+        ? "No picture available"
+        : Classification.Label;
+
+    // ---- Relevance --------------------------------------------------------
+
+    /// <summary>
+    /// How likely this is to be what the user meant. Never shown as a number and never
+    /// described as a rating - it orders results and nothing else.
+    /// </summary>
+    [ObservableProperty] private Relevance _relevance = Relevance.Neutral;
+
+    public void ApplyRelevance(Relevance relevance) => Relevance = relevance;
+
+    /// <summary>Applies a classification refined by a deeper look.</summary>
+    public void ApplyRefinedClassification(ProjectClassification classification) =>
+        Classification = classification;
 
     /// <summary>
     /// A stable colour derived from the name, so a project looks the same every time and

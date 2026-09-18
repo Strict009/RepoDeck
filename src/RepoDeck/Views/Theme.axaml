@@ -582,6 +582,46 @@
         <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
     </Style>
 
+    <!-- ==================== Picture strip ==================== -->
+    <!--
+        Thumbnails that choose which picture the panel shows. A ListBox rather than a row
+        of buttons, so arrow keys move between them and the selected one is obvious.
+    -->
+    <Style Selector="ListBox.thumbs">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.thumbs ListBoxItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,6,6" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="ListBox.thumbs ListBoxItem /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+    </Style>
+
+    <Style Selector="ListBox.thumbs ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+    </Style>
+
+    <!-- The picture on show is outlined, not merely tinted: at 74px a tint is invisible. -->
+    <Style Selector="ListBox.thumbs ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <Style Selector="ListBox.thumbs ListBoxItem:focus-visible /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentHoverBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
     <!-- ==================== Compact rows ==================== -->
     <Style Selector="ListBox.rows">
         <Setter Property="Background" Value="Transparent" />

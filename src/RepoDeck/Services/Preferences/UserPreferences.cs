@@ -14,6 +14,26 @@ public enum ResultsViewMode
     Compact
 }
 
+/// <summary>
+/// Which results a search shows.
+/// </summary>
+/// <remarks>
+/// Apps prioritises projects RepoDeck has evidence are usable programs. Everything is raw
+/// GitHub discovery, unreordered beyond what GitHub itself returned.
+///
+/// Uncertain results are never hidden unless Apps was explicitly chosen: "RepoDeck could
+/// not tell what this is" is not the same as "this is not for you", and a mode the user
+/// did not pick must not quietly decide it is.
+/// </remarks>
+public enum BrowseMode
+{
+    /// <summary>Programs first. The default, for someone looking for software to use.</summary>
+    Apps,
+
+    /// <summary>Everything GitHub returned, in GitHub's own order.</summary>
+    Everything
+}
+
 /// <summary>The small set of choices RepoDeck remembers between runs.</summary>
 /// <remarks>
 /// Deliberately tiny. This is for interface preferences only: nothing here affects what
@@ -27,6 +47,9 @@ public sealed record PreferencesSnapshot
 
     /// <summary>Whether the Quick Look panel opens when a result is selected.</summary>
     public bool QuickLookEnabled { get; init; } = true;
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public BrowseMode BrowseMode { get; init; } = BrowseMode.Apps;
 }
 
 public interface IUserPreferences

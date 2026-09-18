@@ -59,7 +59,7 @@ public sealed class RepositoryMediaService : IRepositoryMediaService
 
         _log.Info("Media", $"{repository.FullName}: {candidates.Count} image candidates, "
                            + $"{media.Candidates.Count} kept"
-                           + (media.Primary is null ? "" : $", showing {media.Primary.Kind}"));
+                           + (media.Primary is null ? "" : $", showing {media.Primary.Kind}: {media.Primary.Url}"));
 
         return media;
     }

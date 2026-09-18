@@ -15,10 +15,34 @@
 
         <!-- ==================== Search ==================== -->
         <StackPanel Grid.Row="0" Spacing="14">
-            <StackPanel Spacing="2">
-                <TextBlock Text="Discover" Classes="display" />
-                <TextBlock Text="Find something useful" Classes="secondary" />
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Discover" Classes="display" />
+                    <TextBlock Text="Find something useful" Classes="secondary" />
+                </StackPanel>
+
+                <!--
+                    Apps or Everything. A mode rather than a checkbox: "Programs only"
+                    sounded like a filter that throws things away, and this is a choice
+                    about what kind of browsing is happening.
+                -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0"
+                            VerticalAlignment="Bottom"
+                            ToolTip.Tip="{Binding BrowseModeExplanation}">
+                    <TextBlock Text="SHOW" Classes="microLabel" VerticalAlignment="Center"
+                               Margin="0,0,10,0" />
+                    <Button Classes="segment"
+                            Classes.segmentActive="{Binding IsAppsMode}"
+                            MinWidth="96"
+                            Content="APPS"
+                            Command="{Binding UseAppsModeCommand}" />
+                    <Button Classes="segment"
+                            Classes.segmentActive="{Binding IsEverythingMode}"
+                            MinWidth="118"
+                            Content="EVERYTHING"
+                            Command="{Binding UseEverythingModeCommand}" />
+                </StackPanel>
+            </Grid>
 
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBox Grid.Column="0"
@@ -49,7 +73,8 @@
             </Grid>
 
             <TextBlock Classes="muted"
-                       Text="Try &quot;edit videos&quot;, &quot;send files&quot;, &quot;music player&quot;, &quot;retro games&quot;..." />
+                       Text="{Binding BrowseModeExplanation}" TextWrapping="Wrap" MaxWidth="820"
+                       HorizontalAlignment="Left" />
         </StackPanel>
 
         <!-- ==================== Filters ==================== -->
@@ -80,11 +105,6 @@
                               IsChecked="{Binding ExcludeArchived}"
                               VerticalAlignment="Center"
                               ToolTip.Tip="Hide projects the authors have stopped maintaining" />
-
-                    <CheckBox Content="Programs only"
-                              IsChecked="{Binding OnlyLikelyApplications}"
-                              VerticalAlignment="Center"
-                              ToolTip.Tip="Hide results that look like building blocks for developers rather than programs. RepoDeck judges this from the description and tags, so it is a guess." />
 
                     <Button Classes="link" Content="RESET"
                             VerticalAlignment="Center"

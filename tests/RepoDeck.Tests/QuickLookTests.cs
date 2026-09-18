@@ -285,3 +285,201 @@ public class QuickLookTests : IDisposable
         Assert.Empty(_store.GetAll());
     }
 }
+
+/// <summary>
+/// The cancellation half of the contract. Selecting along a row of results has to abandon
+/// work rather than accumulate it, and abandoned work must leave nothing behind.
+/// </summary>
+public class QuickLookCancellationTests : IDisposable
+{
+    private readonly string _root = Path.Combine(
+        Path.GetTempPath(), "repodeck-ql-cancel-" + Guid.NewGuid().ToString("N"));
+
+    private readonly FakeGitHubClient _github = new();
+    private readonly AppPaths _paths;
+    private readonly InstalledAppStore _store;
+
+    public QuickLookCancellationTests()
+    {
+        _paths = new AppPaths(_root);
+        _paths.EnsureCreated();
+        _store = new InstalledAppStore(_paths, NullAppLog.Instance);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
+        }
+        catch (IOException)
+        {
+            // A temp directory that outlives the test is not worth failing over.
+        }
+    }
+
+    private QuickLookViewModel Create() =>
+        new(_github,
+            new HeuristicRepositoryExplanationService(),
+            new RepositoryAnalyzerService(_github, NullAppLog.Instance),
+            new InstallPlanner(_paths),
+            new RepositoryMediaService(NullAppLog.Instance),
+            _store,
+            new LaunchService(_paths, _store, NullAppLog.Instance),
+            MachineProfile.For(OsPlatform.Windows, CpuArchitecture.X64),
+            NullAppLog.Instance);
+
+    private static RepositoryCardViewModel Card(string name = "tool")
+    {
+        var repository = TestRepositories.Create(name);
+        var explanations = new HeuristicRepositoryExplanationService();
+        var likelihood = ApplicationLikelihoodEvaluator.Evaluate(repository);
+
+        return new RepositoryCardViewModel(
+            repository,
+            explanations.ExplainFromMetadata(repository),
+            likelihood,
+            SetupDifficultyEvaluator.EvaluateFromMetadata(repository, likelihood),
+            imageUrl: null,
+            openDetails: _ => { },
+            log: NullAppLog.Instance);
+    }
+
+    [Fact]
+    public async Task Selecting_a_new_result_abandons_the_request_the_old_one_was_waiting_on()
+    {
+        var gate = new TaskCompletionSource();
+        _github.ReadmeGate = gate;
+
+        var panel = Create();
+        var abandoned = panel.ShowAsync(Card("first"));
+
+        // The second selection cancels the first, which unwinds without being released.
+        _github.ReadmeGate = null;
+        await panel.ShowAsync(Card("second"));
+
+        await abandoned.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal("Second", panel.Title);
+        gate.TrySetResult();
+    }
+
+    [Fact]
+    public async Task Closing_the_panel_abandons_the_look_in_flight()
+    {
+        var gate = new TaskCompletionSource();
+        _github.ReadmeGate = gate;
+
+        var panel = Create();
+        var inFlight = panel.ShowAsync(Card());
+
+        panel.CloseCommand.Execute(null);
+
+        // Nothing releases the gate: the only way this completes is cancellation.
+        await inFlight.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.False(panel.IsOpen);
+        Assert.False(panel.IsLoading);
+        gate.TrySetResult();
+    }
+
+    [Fact]
+    public async Task A_cancelled_look_is_not_reported_to_the_user_as_a_failure()
+    {
+        // Moving on is not an error, and a panel that flashed "that did not work" every
+        // time the user changed their mind would be worse than useless.
+        var gate = new TaskCompletionSource();
+        _github.ReadmeGate = gate;
+
+        var panel = Create();
+        var abandoned = panel.ShowAsync(Card("first"));
+
+        _github.ReadmeGate = null;
+        await panel.ShowAsync(Card("second"));
+        await abandoned.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.False(panel.HasError);
+        Assert.Null(panel.ErrorMessage);
+        gate.TrySetResult();
+    }
+
+    [Fact]
+    public async Task Selecting_several_results_quickly_leaves_the_last_one_showing()
+    {
+        // Arrowing down a list of results is the ordinary case, not an edge case.
+        var panel = Create();
+
+        for (var i = 0; i < 8; i++)
+        {
+            _ = panel.ShowAsync(Card("project-" + i));
+        }
+
+        await panel.ShowAsync(Card("project-last"));
+
+        Assert.Equal("Project Last", panel.Title);
+        Assert.False(panel.IsLoading);
+        Assert.False(panel.HasError);
+    }
+
+    [Fact]
+    public async Task An_abandoned_look_does_not_leave_its_pictures_in_the_panel()
+    {
+        // The screenshot strip belongs to whatever is selected now, not to whatever was
+        // selected when a slow analysis started.
+        var handedOff = new TaskCompletionSource();
+        _github.TreeGate = handedOff;
+
+        var panel = Create();
+        var abandoned = panel.ShowAsync(Card("first"));
+
+        _github.TreeGate = null;
+        await panel.ShowAsync(Card("second"));
+
+        var countAfterSecond = panel.Gallery.Count;
+
+        handedOff.SetResult();
+        await abandoned.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(countAfterSecond, panel.Gallery.Count);
+    }
+
+    [Fact]
+    public async Task An_abandoned_look_does_not_write_its_verdict_into_the_wrong_card()
+    {
+        var handedOff = new TaskCompletionSource();
+        _github.TreeGate = handedOff;
+
+        var first = Card("first");
+        var second = Card("second");
+
+        var panel = Create();
+        var abandoned = panel.ShowAsync(first);
+
+        _github.TreeGate = null;
+        await panel.ShowAsync(second);
+
+        // The card the user moved away from keeps the answer it had, not a late one.
+        var firstVerdict = first.Installability;
+
+        handedOff.SetResult();
+        await abandoned.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(firstVerdict.State, first.Installability.State);
+        Assert.Same(second, panel.Card);
+    }
+
+    [Fact]
+    public async Task Reopening_the_same_card_starts_a_fresh_look_rather_than_reusing_a_stale_one()
+    {
+        var panel = Create();
+        var card = Card();
+
+        await panel.ShowAsync(card);
+        var firstCallCount = _github.ReadmeCallCount;
+
+        await panel.ShowAsync(card);
+
+        Assert.True(_github.ReadmeCallCount > firstCallCount);
+        Assert.True(panel.IsOpen);
+    }
+}

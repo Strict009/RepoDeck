@@ -109,12 +109,19 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     [ObservableProperty] private string _subtitle = "";
 
     // ---- Media ------------------------------------------------------------
+
+    /// <summary>Every picture worth showing, best first. The hero is one of these.</summary>
+    public ObservableCollection<MediaTileViewModel> Gallery { get; } = [];
+
+    /// <summary>
+    /// The large image. Always a member of <see cref="Gallery"/>, so promoting a thumbnail
+    /// swaps a reference and never fetches anything again.
+    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowHero))]
     [NotifyPropertyChangedFor(nameof(ShowHeroFallback))]
+    [NotifyPropertyChangedFor(nameof(HeroCaption))]
     private MediaTileViewModel? _hero;
-
-    public ObservableCollection<MediaTileViewModel> Screenshots { get; } = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowScreenshotStrip))]
@@ -124,8 +131,28 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     public bool ShowHero => Hero is { IsLoaded: true };
     public bool ShowHeroFallback => !ShowHero;
 
+    /// <summary>Alt text from the README, when the project gave one.</summary>
+    public string? HeroCaption => Hero?.Description;
+
     public string FallbackInitial => Card is null ? "?" : Card.FallbackInitial;
     public Avalonia.Media.IBrush? FallbackBrush => Card?.FallbackBrush;
+
+    /// <summary>Drives the drawn artwork when there is no picture to show.</summary>
+    public ProjectKind FallbackKind => Card?.Kind ?? ProjectKind.Unknown;
+    public string FallbackCaption => Card?.FallbackCaption ?? "No picture available";
+
+    /// <summary>
+    /// Promotes a thumbnail to the hero. Costs nothing: the tile already holds its bitmap.
+    /// </summary>
+    [RelayCommand]
+    private void SelectHero(MediaTileViewModel? tile)
+    {
+        if (tile is null || ReferenceEquals(tile, Hero)) return;
+
+        foreach (var candidate in Gallery) candidate.IsSelected = ReferenceEquals(candidate, tile);
+
+        Hero = tile;
+    }
 
     // ---- The plain-English answers ---------------------------------------
     [ObservableProperty] private string _whatItIs = "";
@@ -174,6 +201,27 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     public bool ShowInstallAction => Action == QuickLookAction.Install;
     public bool ShowRunAction => Action == QuickLookAction.Run;
 
+    // ---- The reasoning, folded away --------------------------------------
+
+    /// <summary>
+    /// Everything behind the four answers above: which download was chosen and why, what
+    /// architecture it is built for, what the release contained, what kind of project this
+    /// looks like, and what RepoDeck could not establish.
+    /// </summary>
+    /// <remarks>
+    /// This exists because the evidence was previously spread across the panel as bullet
+    /// lists under each answer, which pushed the thing a newcomer actually needs - name,
+    /// purpose, does it run here, what does it cost, and the button - below the fold.
+    /// Nothing was removed; it moved behind one disclosure, grouped by the question it
+    /// answers, and every line that was shown before is still shown here.
+    /// </remarks>
+    public ObservableCollection<EvidenceGroup> Reasoning { get; } = [];
+
+    [ObservableProperty] private bool _reasoningExpanded;
+
+    [RelayCommand]
+    private void ToggleReasoning() => ReasoningExpanded = !ReasoningExpanded;
+
     // ---- Technical details, folded away ----------------------------------
     public ObservableCollection<TechnicalFact> TechnicalDetails { get; } = [];
 
@@ -215,10 +263,11 @@ public sealed partial class QuickLookViewModel : ViewModelBase
         Action = QuickLookAction.Details;
         _plan = null;
 
-        Screenshots.Clear();
+        Gallery.Clear();
         HasScreenshots = false;
         Hero = null;
 
+        Reasoning.Clear();
         TechnicalDetails.Clear();
         OnPropertyChanged(nameof(FallbackInitial));
         OnPropertyChanged(nameof(FallbackBrush));
@@ -369,22 +418,28 @@ public sealed partial class QuickLookViewModel : ViewModelBase
 
         var setup = SetupDifficultyEvaluator.Evaluate(analysis, releases, plan);
         SetupLabel = setup.Label;
-        SetupSummary = setup.Reasons.Count == 0
-            ? setup.Summary
-            : setup.Summary + " " + string.Join(" ", setup.Reasons.Take(2));
+
+        // One sentence at the top. The evidence behind it moved into the reasoning panel.
+        SetupSummary = setup.Summary;
 
         ApplyCompatibility(analysis, plan);
 
         Installability = InstallabilityEvaluator.FromPlan(plan, analysis, releases, _machine);
 
-        // The card in the grid gets the authoritative answer too, so the grid stops
+        // The card in the grid gets the authoritative answers too, so the grid stops
         // saying "Unknown" about something the user has just had explained to them.
         card.ApplyAnalysedInstallability(Installability);
+
+        var classification = ProjectKindClassifier.Refine(card.Classification, analysis.ApplicationType);
+        card.ApplyRefinedClassification(classification);
+        OnPropertyChanged(nameof(FallbackKind));
+        OnPropertyChanged(nameof(FallbackCaption));
 
         DownloadSizeText = plan.AssetSize > 0 ? Humanize.FileSize(plan.AssetSize) : "";
 
         Action = ResolveAction(card, plan);
 
+        BuildReasoning(setup, classification, analysis, releases, plan);
         BuildTechnicalDetails(details, analysis, releases, plan);
     }
 
@@ -444,6 +499,79 @@ public sealed partial class QuickLookViewModel : ViewModelBase
             : QuickLookAction.Details;
     }
 
+    /// <summary>
+    /// Gathers everything behind the four answers, grouped by the question it answers.
+    /// </summary>
+    /// <remarks>
+    /// Nothing is dropped. Filenames, architectures, release contents and the analyzer's
+    /// own uncertainties all live here, one disclosure away, so the top of the panel can
+    /// be the five things a newcomer needs and the button.
+    /// </remarks>
+    private void BuildReasoning(
+        SetupAssessment setup,
+        ProjectClassification classification,
+        RepositoryAnalysis analysis,
+        ReleaseAnalysis releases,
+        InstallPlan plan)
+    {
+        Reasoning.Clear();
+
+        Add("What kind of project is this?", [
+            classification.Label + ".",
+            .. classification.Reasons
+        ]);
+
+        Add("Will it work on this PC?", [
+            .. analysis.Evidence.Where(e => e.Supports).Select(e => e.Text),
+            .. releases.Recommended is { } asset
+                ? new[]
+                {
+                    $"The chosen download is {asset.Name}.",
+                    $"It is built for {asset.Platform.DisplayName()} {asset.Architecture.DisplayName()}."
+                }
+                : [],
+            .. releases.Recommended?.Reasons ?? []
+        ]);
+
+        Add("How much setup?", setup.Reasons);
+
+        Add("Can RepoDeck install it?", [
+            .. Installability.Reasons,
+            .. plan.Warnings,
+            .. plan.BlockingIssues
+        ]);
+
+        Add("What is in the release?", releases.HasRelease
+            ?
+            [
+                $"Release {releases.Release!.TagName} has {releases.SoftwareAssets.Count} "
+                + $"download{(releases.SoftwareAssets.Count == 1 ? "" : "s")}.",
+                .. releases.SoftwareAssets.Take(6).Select(a =>
+                    $"{a.Name} - {a.Platform.DisplayName()} {a.Architecture.DisplayName()}, "
+                    + $"{Humanize.FileSize(a.Size)}."),
+                .. releases.NoRecommendationReason is { Length: > 0 } why ? new[] { why } : []
+            ]
+            : ["This project publishes no releases."]);
+
+        Add("What could RepoDeck not work out?", [
+            .. analysis.Unknowns,
+            .. analysis.Warnings,
+            .. analysis.IncompleteReason is { Length: > 0 } incomplete ? new[] { incomplete } : []
+        ]);
+
+        void Add(string question, IEnumerable<string> points)
+        {
+            var kept = points
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(8)
+                .ToList();
+
+            if (kept.Count > 0) Reasoning.Add(new EvidenceGroup(question, kept));
+        }
+    }
+
     private void BuildTechnicalDetails(
         RepositoryDetails details, RepositoryAnalysis analysis, ReleaseAnalysis releases, InstallPlan plan)
     {
@@ -484,35 +612,48 @@ public sealed partial class QuickLookViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Builds the gallery. Every picture worth showing becomes a tile; the first is the
+    /// hero and the rest are the strip, and selecting one promotes it.
+    /// </summary>
+    /// <remarks>
+    /// Each tile owns its bitmap for the life of the panel, so promoting a thumbnail to
+    /// the hero swaps a reference rather than fetching anything. The image loader caches
+    /// in memory as well, so even a genuinely new request would not hit the network twice -
+    /// but the point here is that selection costs nothing at all.
+    /// </remarks>
     private void ApplyMedia(RepositoryCardViewModel card, RepositoryMedia media, CancellationToken token)
     {
         if (_images is null) return;
 
-        // The hero shows the best image of any kind: this panel is wide enough that even
+        // The gallery uses the best image of any kind: this panel is wide enough that even
         // GitHub's generated card is legible here, which it is not at card size.
-        if (media.Primary is { } primary)
+        var candidates = media.Gallery.Count > 0
+            ? media.Gallery
+            : media.Primary is { } only ? [only] : (IReadOnlyList<MediaCandidate>)[];
+
+        foreach (var candidate in candidates.Take(6))
         {
-            var hero = new MediaTileViewModel(primary.Url, primary.Description);
-            hero.PropertyChanged += (_, e) =>
+            var tile = new MediaTileViewModel(candidate.Url, candidate.Description);
+
+            tile.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName != nameof(MediaTileViewModel.IsLoaded)) return;
+                if (!ReferenceEquals(tile, Hero)) return;
 
                 OnPropertyChanged(nameof(ShowHero));
                 OnPropertyChanged(nameof(ShowHeroFallback));
             };
 
-            Hero = hero;
-            _ = hero.LoadAsync(_images, token);
-        }
-
-        foreach (var candidate in media.Gallery.Skip(1).Take(4))
-        {
-            var tile = new MediaTileViewModel(candidate.Url, candidate.Description);
-            Screenshots.Add(tile);
+            Gallery.Add(tile);
             _ = tile.LoadAsync(_images, token);
         }
 
-        HasScreenshots = Screenshots.Count > 0;
+        if (Gallery.Count > 0) SelectHero(Gallery[0]);
+
+        // One picture is a hero, not a gallery: a strip of one thumbnail below the image
+        // it duplicates is furniture.
+        HasScreenshots = Gallery.Count > 1;
 
         // Real artwork found here is worth putting back on the card in the grid.
         if (media.PrimaryArtwork is { } artwork)
@@ -574,3 +715,16 @@ public enum QuickLookAction
 
 /// <summary>One row in the folded-away technical section.</summary>
 public sealed record TechnicalFact(string Label, string Value);
+
+/// <summary>
+/// A question RepoDeck answered, and the evidence it answered it from.
+/// </summary>
+/// <remarks>
+/// Grouped by question rather than presented as one flat list, because "none of the files
+/// in release v1.7 suit Windows x64" and "it looks like a music player" answer different
+/// things and reading them in sequence makes neither clearer.
+/// </remarks>
+public sealed record EvidenceGroup(string Question, IReadOnlyList<string> Points)
+{
+    public bool HasPoints => Points.Count > 0;
+}

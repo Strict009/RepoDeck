@@ -436,12 +436,153 @@ A search result carries no README and no file listing, so cards start with their
 tile. When Quick Look reads the README it often finds a real screenshot, and hands it back
 to the card - so the grid improves as someone explores it rather than staying generic.
 
+### What Quick Look shows first
+
+The top of the panel is what somebody deciding actually needs: the name, one sentence
+saying what it is for, whether it works on this PC, how much setup it needs, what the
+download costs, and the button. Nothing else.
+
+Everything RepoDeck reasoned from - which download it chose, what architecture that is
+built for, what the release contained, what it could not establish - sits behind one
+disclosure headed **Why does RepoDeck think this?**, grouped by the question it answers.
+
+Nothing was removed to make room. The evidence used to be strewn across the panel as
+bullet lists under each answer, which pushed the five things a newcomer needs below the
+fold. It moved; it did not shrink.
+
+### The picture strip
+
+Every image worth showing becomes a tile in `Gallery`. The first is the hero and the rest
+are the strip, and selecting one promotes it. Each tile owns its bitmap for the life of
+the panel, so promoting a thumbnail swaps a reference - it never fetches anything again.
+The image loader also caches in memory, so even a genuinely new request would not hit the
+network twice, but the point is that selection costs nothing at all.
+
+The strip is a `ListBox` with `SelectedItem` bound to the hero rather than a row of
+buttons, which gives arrow-key movement and a visible focus ring for free. The selected
+thumbnail is outlined rather than tinted: at 74 pixels a background tint is invisible.
+
+One picture is a hero, not a gallery - the strip only appears when there are at least two.
+
+### Artwork for projects with no pictures
+
+A coloured square with a letter in it says only "this is a thing", and a page of them says
+"RepoDeck found nothing". `KindArtwork` draws a plain geometric mark for the kind of thing
+the project appears to be: a window for a desktop application, a prompt for a command-line
+tool, a controller for a game, a level meter for audio, a film frame for video, a cog for
+a utility, angle brackets for a developer tool, stacked plates for a library.
+
+It is RepoDeck's own artwork and must never be mistaken for the project's. Nothing here
+invents a screenshot, a logo or a brand: the marks are generic shapes, identical for every
+project of a kind, and a chip captions them with the kind rather than presenting them as
+the project's own. Where the kind is unknown it falls back to the initial, because
+guessing a picture would be worse than admitting there isn't one.
+
+### Rejecting other people's badges
+
+Store and platform buttons are rejected alongside build badges and sponsor buttons, and
+this took three passes to get right against real READMEs:
+
+- `f-droid.org/badge/get-it-on.png` - matched by host.
+- `art/google_play_badge.png` - missed at first, because the word list was written with
+  hyphens and the file used underscores. Separators are now normalised before matching.
+- `developer.android.com/images/brand/en_generic_rgb_wo_60.png` - missed twice. It is
+  Google's Play badge, served from a vendor domain, under a filename that says nothing
+  about stores, in a folder called `/brand/` - so it was classified as the *project's own
+  logo* and filled the card. Now matched by host and by the vendor filenames, which do not
+  change.
+
+This is a blocklist, and a novel badge host will get through. The failure is visible
+rather than silent: a card shows somebody else's logo, which is obvious on sight.
+
 ### Vocabulary
 
-"projects found", not "matching repositories". "Programs only", not "probably
-applications". GitHub's own words - repository, release asset, tag, fork - live under
-Technical Details, where anyone who wants them can find them and nobody else has to read
-them.
+"projects found", not "matching repositories". "Nothing found", not "No repositories
+matched". APPS and EVERYTHING as a browsing mode, not a "Programs only" checkbox - a
+checkbox reads as a filter that throws things away, and this is a choice about what kind
+of browsing is happening.
+
+GitHub's own words - repository, release asset, tag, fork - live under Technical Details,
+where anyone who wants them can find them and nobody else has to read them.
+
+## Classification and relevance
+
+Two local, deterministic layers sit between GitHub's search results and the grid. Neither
+of them costs a request, and neither is a judgement about quality, trust or safety.
+
+### What kind of thing is this?
+
+`ProjectKindClassifier` answers with one of nine kinds - desktop application, command-line
+tool, game or emulator, audio, video, utility, developer tool, library, or unknown - from
+a search result's name, description, tags and language.
+
+Evidence is scored rather than matched first-wins, because a project called
+"video-player" tagged `library` is a library that handles video, and the order its words
+happen to appear in should not decide that. Tags weigh more than words, since tags are
+chosen deliberately and a description is prose. A near-tie says so ("it could also be a
+library") rather than picking a winner and keeping quiet.
+
+Single words are matched as whole words. Substring matching found "rom" inside "from" and
+classified a command-line search tool as an emulator.
+
+Reading material - anything tagged `awesome`, `curated`, `tutorial`, `roadmap` and the
+like - is given no kind at all. Calling a list of video tools a video program would be
+worse than admitting RepoDeck does not know.
+
+The analyzer refines this once it has looked inside, and its answer wins where it has
+one - except that finding "a desktop application" *confirms* rather than replaces a
+subject like audio or video. "Desktop application" is a shape; "audio" is what the program
+is for, and the second is more useful to somebody browsing.
+
+### How likely is this to be what you meant?
+
+`RelevanceScorer` answers one question and no others: given what the user typed, how
+likely is this result to be the thing they were looking for?
+
+It is **not** a quality rating, **not** a trust or safety rating, and **not** a popularity
+rating. Stars are deliberately not an input, and there is a test that asserts an obscure
+project and a famous one with the same name and description score identically. A wildly
+popular library is still the wrong answer for somebody who typed "music player", and
+treating popularity as relevance is how a search stops surfacing the small useful thing
+that does exactly what was asked.
+
+The signals are: how much of the query the name matches (exact, every word, some), whether
+the tags match it, what kind of thing the project is, whether RepoDeck has a plan to
+install it here, whether it is archived, and whether it looks like reading material.
+
+Everything it reads is already in the search response or computed locally from it, so
+ranking thirty results costs nothing. A test asserts that a thirty-result search makes
+exactly one request and no repository, README, release or tree requests at all: the
+signals must never grow into an N+1 fetch.
+
+The baseline is 50 and adjustments are bounded, so a result can be pushed around but never
+buried. GitHub's own ordering encodes text relevance RepoDeck cannot see, and overriding
+it wholesale would be arrogant.
+
+Every adjustment records a reason. The score itself is never displayed - a person seeing
+"87" beside a project would read it as a verdict on the software, which is exactly what it
+is not.
+
+### Apps and Everything
+
+`Apps` orders by relevance and sets aside only the clearest cases: a library RepoDeck is
+`Likely` or `Confirmed` about, or something scoring 30 or below. `Everything` leaves
+GitHub's order alone and sets nothing aside.
+
+A result RepoDeck merely could not classify is shown in both. "I could not tell what this
+is" is not the same as "this is not for you", and a mode the user did not explicitly pick
+must not quietly decide it is. When Apps does set something aside it says how many and how
+to get them back.
+
+This replaced a "Programs only" checkbox, which read as a filter that throws things away
+rather than a choice about what kind of browsing is happening. The choice is remembered.
+
+### The limits of this
+
+The classifier and the scorer both work from a one-line description and a handful of tags.
+They are wrong sometimes, and the interface is built so that being wrong is cheap: the
+ordering shifts, nothing is hidden that RepoDeck is not sure about, and every verdict can
+be opened up and read.
 
 ## Caching and rate limits
 

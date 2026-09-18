@@ -31,8 +31,21 @@ public static class MediaRanker
     private static readonly string[] StoreHosts =
     [
         "f-droid.org", "fdroid.gitlab.io", "play.google.com", "apps.apple.com",
-        "developer.apple.com", "microsoft.com/store", "snapcraft.io", "flathub.org",
-        "get.microsoft.com", "aur.archlinux.org", "repology.org", "packagecloud.io"
+        "developer.apple.com", "developer.android.com", "microsoft.com/store",
+        "snapcraft.io", "flathub.org", "get.microsoft.com", "aur.archlinux.org",
+        "repology.org", "packagecloud.io", "linkmaker.itunes.apple.com",
+        "tools.applemediaservices.com", "images.microsoft.com/store"
+    ];
+
+    /// <summary>
+    /// Badge filenames that say nothing about a store in themselves. Google serves its
+    /// Play badge from developer.android.com as "en_generic_rgb_wo_60.png", in a folder
+    /// called /brand/ - so it was classified as the project's own logo and became a card's
+    /// artwork. Vendors do not rename these, so matching them by name is durable.
+    /// </summary>
+    private static readonly string[] StoreBadgeFilenames =
+    [
+        "en-generic-rgb", "generic-rgb-wo", "badge-web-generic", "en-badge-web"
     ];
 
     /// <summary>Filename fragments that mark a store button wherever it is hosted.</summary>
@@ -174,16 +187,23 @@ public static class MediaRanker
 
     private static bool LooksLikeBadge(string url, string description)
     {
+        // Separators are normalised before matching words. A Play Store badge saved as
+        // "google_play_badge.png" slipped past a list written with hyphens and ended up as
+        // a project's hero image.
+        var normalisedUrl = Normalise(url);
+        var normalisedDescription = Normalise(description);
+
         if (BadgeHosts.Any(h => url.Contains(h, StringComparison.OrdinalIgnoreCase))) return true;
         if (SponsorHosts.Any(h => url.Contains(h, StringComparison.OrdinalIgnoreCase))) return true;
         if (StoreHosts.Any(h => url.Contains(h, StringComparison.OrdinalIgnoreCase))) return true;
-        if (StoreWords.Any(w => url.Contains(w, StringComparison.Ordinal))) return true;
+        if (StoreWords.Any(w => normalisedUrl.Contains(Normalise(w), StringComparison.Ordinal))) return true;
+        if (StoreBadgeFilenames.Any(f => normalisedUrl.Contains(f, StringComparison.Ordinal))) return true;
 
-        if (StoreWords.Any(w => description.Contains(w, StringComparison.Ordinal))) return true;
+        if (StoreWords.Any(w => normalisedDescription.Contains(Normalise(w), StringComparison.Ordinal))) return true;
         if (description.Contains("get it on", StringComparison.Ordinal)) return true;
         if (description.Contains("available on", StringComparison.Ordinal)) return true;
         if (description.Contains("download on the", StringComparison.Ordinal)) return true;
-        if (BadgeWords.Any(w => url.Contains(w, StringComparison.Ordinal))) return true;
+        if (BadgeWords.Any(w => Normalise(url).Contains(Normalise(w), StringComparison.Ordinal))) return true;
 
         // GitHub's own workflow status images.
         if (url.Contains("/actions/workflows/", StringComparison.Ordinal)) return true;
@@ -196,6 +216,15 @@ public static class MediaRanker
         return description.Contains("badge", StringComparison.Ordinal)
                || description.Contains("build status", StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Collapses the separators projects use interchangeably, so one spelling in a word
+    /// list covers "google-play", "google_play" and "googleplay".
+    /// </summary>
+    private static string Normalise(string value) =>
+        value.Replace("_", "-", StringComparison.Ordinal)
+             .Replace("%20", "-", StringComparison.Ordinal)
+             .Replace(" ", "-", StringComparison.Ordinal);
 
     private static bool HasImageExtension(string url)
     {

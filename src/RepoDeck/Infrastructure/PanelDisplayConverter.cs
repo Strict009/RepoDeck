@@ -21,10 +21,15 @@ namespace RepoDeck.Infrastructure;
 public sealed class PanelDisplayConverter : IValueConverter
 {
     /// <summary>
-    /// The narrowest content width worth docking a panel beside. Below this, a 380px
-    /// panel leaves too little room for even one column of cards.
+    /// The narrowest content width worth docking a panel beside.
     /// </summary>
-    public const double MinimumDockedContentWidth = 940;
+    /// <remarks>
+    /// A 380px panel plus a 300px card plus its gutters is about 720. The threshold sits
+    /// above that so a docked panel always leaves a comfortable column rather than a
+    /// barely-legal one, and below it the panel covers the results instead - which keeps
+    /// the grid intact underneath rather than crushing it to 270px.
+    /// </remarks>
+    public const double MinimumDockedContentWidth = 880;
 
     public static PanelDisplayConverter Instance { get; } = new();
 

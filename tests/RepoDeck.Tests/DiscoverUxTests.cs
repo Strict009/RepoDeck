@@ -28,6 +28,7 @@ public class DiscoverUxTests
 
     [Theory]
     [InlineData(1600, 3)]
+    [InlineData(1400, 3)]
     [InlineData(1280, 3)]
     [InlineData(1000, 3)]
     [InlineData(950, 3)]
@@ -145,6 +146,9 @@ public class DiscoverUxTests
         };
 
         var vm = Discover(github);
+
+        // Everything mode, so nothing is set aside and every shape of card is examined.
+        vm.UseEverythingModeCommand.Execute(null);
         vm.SearchText = "anything";
         await vm.SearchCommand.ExecuteAsync(null);
 
@@ -414,5 +418,52 @@ public class CardActionTests
         var card = Card();
 
         Assert.Equal("https://github.com/someone/tool", card.Repository.HtmlUrl);
+    }
+}
+
+/// <summary>
+/// Whether the side panel sits beside the results or over them.
+/// </summary>
+public class PanelDockingTests
+{
+    [Theory]
+    [InlineData(1400)]
+    [InlineData(1000)]
+    [InlineData(880)]
+    public void A_window_with_room_for_both_docks_the_panel(double width)
+    {
+        Assert.True(PanelDisplayConverter.ShouldDock(width));
+        Assert.Equal(1, PanelDisplayConverter.PanelColumn(width));
+        Assert.Equal(1, PanelDisplayConverter.PanelColumnSpan(width));
+    }
+
+    [Theory]
+    [InlineData(879)]
+    [InlineData(700)]
+    [InlineData(420)]
+    public void A_window_without_room_overlays_rather_than_crushing_the_results(double width)
+    {
+        // Docking on a narrow window left the results about 270px wide, which is not a
+        // result. Covering them keeps the grid intact underneath.
+        Assert.False(PanelDisplayConverter.ShouldDock(width));
+        Assert.Equal(0, PanelDisplayConverter.PanelColumn(width));
+        Assert.Equal(2, PanelDisplayConverter.PanelColumnSpan(width));
+    }
+
+    [Fact]
+    public void A_docked_panel_always_leaves_room_for_a_whole_card()
+    {
+        // The threshold is only defensible if this holds.
+        const double panel = 380;
+        const double card = 300;
+
+        Assert.True(PanelDisplayConverter.MinimumDockedContentWidth - panel >= card);
+    }
+
+    [Fact]
+    public void An_unmeasured_panel_docks_rather_than_covering_everything()
+    {
+        Assert.True(PanelDisplayConverter.ShouldDock(double.NaN));
+        Assert.True(PanelDisplayConverter.ShouldDock(double.PositiveInfinity));
     }
 }

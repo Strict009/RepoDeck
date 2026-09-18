@@ -24,6 +24,10 @@ what it is for, whether it runs on your computer, and what RepoDeck can do about
 Selecting one opens a side panel with the full answer without losing your place in the
 search. A denser Compact view is a click away for anyone who prefers a list.
 
+Show APPS to put programs RepoDeck has evidence you can run at the top, or EVERYTHING for
+raw GitHub discovery. Projects with no pictures of their own get artwork RepoDeck draws
+for the kind of thing they appear to be - never an invented screenshot or logo.
+
 ## Requirements
 
 - .NET 10 SDK

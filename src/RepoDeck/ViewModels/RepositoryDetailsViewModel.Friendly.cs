@@ -195,6 +195,14 @@ public sealed partial class MediaTileViewModel : ViewModelBase
 
     public bool IsLoaded => Image is not null;
 
+    /// <summary>True for the thumbnail currently promoted to the hero.</summary>
+    [ObservableProperty] private bool _isSelected;
+
+    /// <summary>What a screen reader and a tooltip should say about this thumbnail.</summary>
+    public string AccessibleName => string.IsNullOrWhiteSpace(Description)
+        ? "Picture from the project"
+        : Description!;
+
     public async Task LoadAsync(ImageLoader loader, CancellationToken cancellationToken)
     {
         try
