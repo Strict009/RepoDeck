@@ -1,4 +1,4 @@
-RepoDeck
+## RepoDeck
 
 GitHub has a ridiculous amount of great free software. RepoDeck makes it easier to actually use it.
 RepoDeck is a desktop app for finding, understanding, installing, and managing software from GitHub, even if you've never used Git before and have no idea what a repository, release, or build is.
