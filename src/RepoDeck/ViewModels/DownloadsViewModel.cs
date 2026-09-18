@@ -21,11 +21,20 @@ public sealed partial class DownloadsViewModel : ViewModelBase
     private readonly IInstallationService _installer;
     private readonly IAppLog _log;
 
-    public DownloadsViewModel(IInstalledAppStore store, IInstallationService installer, IAppLog log)
+    private readonly ITransferRegistry _transfers;
+
+    public DownloadsViewModel(
+        IInstalledAppStore store,
+        IInstallationService installer,
+        IAppLog log,
+        ITransferRegistry? transfers = null)
     {
         _store = store;
         _installer = installer;
         _log = log;
+        _transfers = transfers ?? NullTransferRegistry.Instance;
+
+        _transfers.Changed += RefreshTransfers;
 
         Refresh();
     }
@@ -42,11 +51,82 @@ public sealed partial class DownloadsViewModel : ViewModelBase
     private string? _message;
 
     public bool HasMessage => !string.IsNullOrEmpty(Message);
-    public bool ShowEmptyState => !HasDownloads;
+    public bool ShowEmptyState => !HasDownloads && !HasActive && !HasFinished;
     public bool ShowList => HasDownloads;
+
+    // ---- Live transfers ---------------------------------------------------
+
+    /// <summary>
+    /// What RepoDeck is fetching now, or recently tried to.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the completed list below because they answer different questions.
+    /// This one is "what is happening"; the list below is "what did RepoDeck end up with
+    /// that it could not install". Mixing them would make neither legible.
+    /// </remarks>
+    public ObservableCollection<TransferViewModel> Active { get; } = [];
+
+    public ObservableCollection<TransferViewModel> Finished { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowActive))]
+    private bool _hasActive;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFinished))]
+    private bool _hasFinished;
+
+    public bool ShowActive => HasActive;
+    public bool ShowFinished => HasFinished;
+
+    public bool ShowAnything => HasActive || HasFinished || HasDownloads;
+
+    private void RefreshTransfers()
+    {
+        Active.Clear();
+        Finished.Clear();
+
+        foreach (var record in _transfers.All())
+        {
+            var item = new TransferViewModel(record, ForgetTransfer);
+
+            if (record.IsActive) Active.Add(item);
+            else Finished.Add(item);
+        }
+
+        HasActive = Active.Count > 0;
+        HasFinished = Finished.Count > 0;
+
+        OnPropertyChanged(nameof(ShowAnything));
+        OnPropertyChanged(nameof(ShowEmptyState));
+    }
+
+    private void ForgetTransfer(TransferViewModel item)
+    {
+        _transfers.Forget(item.Id);
+        RefreshTransfers();
+    }
+
+    /// <summary>Forgets every finished record. Anything still running is left alone.</summary>
+    [RelayCommand]
+    private void ClearFinished()
+    {
+        var removed = _transfers.ClearFinished();
+
+        Message = removed switch
+        {
+            0 => null,
+            1 => "Cleared one record.",
+            _ => $"Cleared {removed} records."
+        };
+
+        RefreshTransfers();
+    }
 
     public void Refresh()
     {
+        RefreshTransfers();
+
         Downloads.Clear();
 
         var downloaded = _store.GetAll()

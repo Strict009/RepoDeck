@@ -101,6 +101,14 @@
                 </Border>
 
                 <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Classes="star"
+                            Classes.starOn="{Binding IsFavorite}"
+                            Content="{Binding FavoriteGlyph}"
+                            VerticalAlignment="Center"
+                            Command="{Binding ToggleFavoriteCommand}"
+                            ToolTip.Tip="{Binding FavoriteTooltip}"
+                            AutomationProperties.Name="{Binding FavoriteTooltip}" />
+
                     <Button Classes="secondary" Content="GITHUB"
                             Command="{Binding OpenOnGitHubCommand}" />
                     <Button Classes="secondary" Content="WEBSITE"

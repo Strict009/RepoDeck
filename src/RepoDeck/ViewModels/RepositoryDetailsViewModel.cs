@@ -28,6 +28,7 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
     private readonly LaunchService _launcher;
     private readonly MachineProfile _machine;
     private readonly IAppLog _log;
+    private readonly Services.Favorites.IFavoritesStore? _favorites;
 
     public RepositoryDetailsViewModel(
         GitHubRepository repository,
@@ -41,8 +42,11 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
         IRepositoryMediaService mediaService,
         MachineProfile machine,
         IAppLog log,
-        ImageLoader? images = null)
+        ImageLoader? images = null,
+        Services.Favorites.IFavoritesStore? favorites = null)
     {
+        _favorites = favorites;
+        _isFavorite = favorites?.IsFavorite(repository.OwnerLogin, repository.Name) ?? false;
         Repository = repository;
         _github = github;
         _explanations = explanations;
@@ -287,6 +291,34 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
     }
 
     // ---- Commands ---------------------------------------------------------
+
+    // ---- Favourite --------------------------------------------------------
+
+    /// <summary>
+    /// Whether the user asked RepoDeck to remember this. A bookmark, not a rating, and
+    /// independent of whether it is installed.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FavoriteTooltip))]
+    [NotifyPropertyChangedFor(nameof(FavoriteGlyph))]
+    private bool _isFavorite;
+
+    public string FavoriteTooltip => IsFavorite
+        ? "Remove this from your favourites"
+        : "Remember this for later";
+    /// <summary>
+    /// A filled star when saved, a hollow one when not. The shape carries the state on
+    /// its own, so it does not depend on noticing a colour change.
+    /// </summary>
+    public string FavoriteGlyph => IsFavorite ? "\u2605" : "\u2606";
+
+    [RelayCommand]
+    private void ToggleFavorite()
+    {
+        if (_favorites is null) return;
+
+        IsFavorite = _favorites.Toggle(Repository);
+    }
 
     [RelayCommand]
     private void OpenOnGitHub() => SystemBrowser.OpenUrl(Repository.HtmlUrl, _log);

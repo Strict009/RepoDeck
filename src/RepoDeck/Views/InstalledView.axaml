@@ -3,18 +3,47 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:RepoDeck.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+             xmlns:controls="using:RepoDeck.Controls"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="RepoDeck.Views.InstalledView"
              x:DataType="vm:InstalledViewModel">
 
+    <!--
+        The library. Each row answers, in this order: what is it, what version have I got,
+        is there a newer one, is it still intact, and what can I do about any of that.
+    -->
     <Grid RowDefinitions="Auto,*" Margin="28,22,28,0">
 
-        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,18">
-            <TextBlock Text="Installed" Classes="display" />
-            <TextBlock Classes="secondary"
-                       Text="Programs RepoDeck installed and can start for you" />
+        <StackPanel Grid.Row="0" Spacing="10" Margin="0,0,0,18">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Installed" Classes="display" />
+                    <TextBlock Classes="secondary"
+                               Text="Programs RepoDeck installed and can start for you" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                            VerticalAlignment="Bottom">
+                    <Button Classes="secondary" Content="CHECK FOR UPDATES"
+                            IsVisible="{Binding ShowCheckAllButton}"
+                            Command="{Binding CheckAllForUpdatesCommand}"
+                            ToolTip.Tip="Ask GitHub whether any of these have a newer release" />
+
+                    <Button Classes="secondary" Content="STOP"
+                            IsVisible="{Binding IsCheckingAll}"
+                            Command="{Binding CheckAllForUpdatesCancelCommand}" />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsCheckingAll}">
+                <ProgressBar IsIndeterminate="True" Height="4" Width="180"
+                             VerticalAlignment="Center" />
+                <TextBlock Text="Asking GitHub, one at a time..." Classes="muted"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+
             <TextBlock Text="{Binding Message}" Classes="muted"
-                       IsVisible="{Binding HasMessage}" Margin="0,6,0,0" />
+                       IsVisible="{Binding HasMessage}" TextWrapping="Wrap" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Spacing="12" MaxWidth="560" HorizontalAlignment="Left"
@@ -25,17 +54,35 @@
                        Text="Find something on the Discover page. RepoDeck shows you exactly what it will download and where it will put it before anything happens." />
         </StackPanel>
 
-        <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowList}">
+        <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowList}"
+                      HorizontalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{Binding Applications}" Margin="0,0,14,20">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:InstalledAppViewModel">
-                        <Border Classes="card" Margin="0,0,0,14">
+                        <Border Classes="card" Padding="0" Margin="0,0,0,14" ClipToBounds="True">
                             <StackPanel Spacing="0">
 
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Grid.Column="0" Spacing="2">
+                                <!-- ==================== Identity ==================== -->
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,16,16,0">
+
+                                    <Border Grid.Column="0" Width="56" Height="56"
+                                            ClipToBounds="True"
+                                            CornerRadius="{DynamicResource RdRadiusSmall}"
+                                            Margin="0,0,14,0"
+                                            ToolTip.Tip="{Binding VersionText}">
+                                        <Panel>
+                                            <Border Background="{Binding FallbackBrush}" />
+                                            <controls:KindArtwork Kind="{Binding Kind}"
+                                                                  Initial="{Binding FallbackInitial}"
+                                                                  Accent="{DynamicResource RdOnAccentBrush}"
+                                                                  MarkScale="0.58"
+                                                                  Opacity="0.85" />
+                                        </Panel>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="{Binding Name}" Classes="h1" />
+                                            <TextBlock Text="{Binding FriendlyName}" Classes="h1" />
                                             <Border Classes="chip" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding VersionText}" />
                                             </Border>
@@ -44,12 +91,23 @@
                                                 <TextBlock Text="{Binding StatusText}" />
                                             </Border>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding Owner}" Classes="muted" />
+
+                                        <WrapPanel ItemSpacing="16" LineSpacing="3">
+                                            <TextBlock Text="{Binding Owner}" Classes="muted" />
+                                            <TextBlock Text="{Binding InstalledText}" Classes="muted" />
+                                            <TextBlock Text="{Binding UpdatedText}" Classes="muted"
+                                                       IsVisible="{Binding HasBeenUpdated}" />
+                                            <TextBlock Text="{Binding LastRunText}" Classes="muted" />
+                                            <TextBlock Text="{Binding SizeText}" Classes="muted" />
+                                            <TextBlock Text="{Binding PlatformText}" Classes="muted"
+                                                       IsVisible="{Binding HasPlatformText}" />
+                                        </WrapPanel>
                                     </StackPanel>
 
-                                    <Button Grid.Column="1" Classes="primary"
-                                            VerticalAlignment="Top"
+                                    <Button Grid.Column="2" Classes="primary"
+                                            VerticalAlignment="Center"
                                             IsEnabled="{Binding CanRun}"
+                                            IsVisible="{Binding !IsBusy}"
                                             Command="{Binding RunCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <TextBlock Text="&#x25B6;" VerticalAlignment="Center" />
@@ -58,18 +116,259 @@
                                     </Button>
                                 </Grid>
 
-                                <WrapPanel ItemSpacing="18" LineSpacing="6" Margin="0,12,0,0">
-                                    <TextBlock Text="{Binding InstalledText}" Classes="muted" />
-                                    <TextBlock Text="{Binding PlatformText}" Classes="muted"
-                                               IsVisible="{Binding HasPlatformText}" />
-                                    <TextBlock Text="{Binding SizeText}" Classes="muted" />
-                                    <TextBlock Text="{Binding LastRunText}" Classes="muted" />
-                                    <TextBlock Text="{Binding UpdateStatusText}" Classes="muted" />
-                                </WrapPanel>
+                                <!-- ==================== Update state ==================== -->
+                                <Border Classes="inset" Margin="16,14,16,0" Padding="12,10"
+                                        IsVisible="{Binding !IsBusy}">
+                                    <StackPanel Spacing="9">
+
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <!-- Never colour alone: the word is always there. -->
+                                            <Ellipse Grid.Column="0" Classes="led"
+                                                     Classes.ledOn="{Binding IsUpToDate}"
+                                                     Classes.ledWarn="{Binding HasUpdate}"
+                                                     Classes.ledOff="{Binding IsUpdateUnknown}"
+                                                     VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                                            <StackPanel Grid.Column="1" Spacing="1">
+                                                <TextBlock Text="{Binding UpdateLabel}" Classes="body" />
+                                                <TextBlock Text="{Binding UpdateExplanation}" Classes="muted"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                                                <ProgressBar IsIndeterminate="True" Width="80" Height="4"
+                                                            VerticalAlignment="Center"
+                                                            IsVisible="{Binding IsCheckingForUpdates}" />
+
+                                                <Button Classes="quiet" Content="CHECK"
+                                                        IsVisible="{Binding ShowCheckButton}"
+                                                        Command="{Binding CheckForUpdatesCommand}"
+                                                        ToolTip.Tip="Ask GitHub whether there is a newer release" />
+
+                                                <Button Classes="primary" Content="UPDATE"
+                                                        IsVisible="{Binding CanUpdate}"
+                                                        Command="{Binding BeginUpdateCommand}" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- What the update is, before deciding -->
+                                        <Border Background="{DynamicResource RdSurfaceAltBrush}"
+                                                CornerRadius="{DynamicResource RdRadiusSmall}"
+                                                Padding="11"
+                                                IsVisible="{Binding ShowUpdateDetail}">
+                                            <StackPanel Spacing="7">
+                                                <WrapPanel ItemSpacing="24" LineSpacing="6">
+                                                    <StackPanel Spacing="1">
+                                                        <TextBlock Text="YOU HAVE" Classes="microLabel" />
+                                                        <TextBlock Text="{Binding VersionText}" Classes="body" />
+                                                    </StackPanel>
+                                                    <StackPanel Spacing="1">
+                                                        <TextBlock Text="AVAILABLE" Classes="microLabel" />
+                                                        <TextBlock Text="{Binding AvailableVersionText}"
+                                                                   Classes="body"
+                                                                   Foreground="{DynamicResource RdAccentBrush}" />
+                                                    </StackPanel>
+                                                    <StackPanel Spacing="1" IsVisible="{Binding HasUpdateSize}">
+                                                        <TextBlock Text="DOWNLOAD" Classes="microLabel" />
+                                                        <TextBlock Text="{Binding UpdateSizeText}" Classes="body" />
+                                                    </StackPanel>
+                                                    <StackPanel Spacing="1">
+                                                        <TextBlock Text="RELEASED" Classes="microLabel" />
+                                                        <TextBlock Text="{Binding UpdateReleasedText}" Classes="body" />
+                                                    </StackPanel>
+                                                </WrapPanel>
+
+                                                <!--
+                                                    Release notes are untrusted remote text. Shown as
+                                                    plain, read-only text and never rendered as markup,
+                                                    so nothing in them can become a link or an image.
+                                                -->
+                                                <Expander Header="WHAT CHANGED"
+                                                          IsVisible="{Binding HasReleaseNotes}">
+                                                    <SelectableTextBlock Text="{Binding ReleaseNotes}"
+                                                                         FontSize="12"
+                                                                         TextWrapping="Wrap"
+                                                                         Margin="0,8,0,0"
+                                                                         Foreground="{DynamicResource RdTextSecondaryBrush}" />
+                                                </Expander>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Damaged installation -->
+                                        <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding IsDamaged}">
+                                            <Ellipse Grid.Column="0" Classes="led ledBad"
+                                                     VerticalAlignment="Center" Margin="0,0,10,0" />
+                                            <StackPanel Grid.Column="1" Spacing="1">
+                                                <TextBlock Text="SOMETHING IS WRONG" Classes="microLabel"
+                                                           Foreground="{DynamicResource RdDangerBrush}" />
+                                                <TextBlock Text="{Binding HealthSummary}" Classes="secondary"
+                                                           TextWrapping="Wrap" />
+
+                                                <!-- Naming the problems, because "2 things are wrong" is not a thing a person can act on. -->
+                                                <ItemsControl ItemsSource="{Binding HealthExplanations}"
+                                                              IsVisible="{Binding HasSeveralProblems}"
+                                                              Margin="0,3,0,0">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="x:String">
+                                                            <TextBlock Text="{Binding}" Classes="muted"
+                                                                       TextWrapping="Wrap" Margin="0,0,0,2" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Classes="secondary" Content="REPAIR"
+                                                    IsVisible="{Binding CanRepair}"
+                                                    Command="{Binding BeginRepairCommand}"
+                                                    ToolTip.Tip="Fetch the same version again and put it back" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- ==================== Close it first ==================== -->
+                                <Border Background="{DynamicResource RdCautionSoftBrush}"
+                                        BorderBrush="{DynamicResource RdCautionBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="{DynamicResource RdRadiusSmall}"
+                                        Margin="16,12,16,0" Padding="12"
+                                        IsVisible="{Binding ShowCloseAndRetry}">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                                        <TextBlock Grid.Column="0" Text="{Binding BlockedMessage}"
+                                                   Classes="body" TextWrapping="Wrap"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Classes="primary" Content="RETRY"
+                                                Command="{Binding RetryUpdateCommand}" />
+                                        <Button Grid.Column="2" Classes="quiet" Content="NOT NOW"
+                                                Command="{Binding DismissBlockedMessageCommand}" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- ==================== Confirmations ==================== -->
+                                <Border Classes="panel"
+                                        BorderBrush="{DynamicResource RdAccentBrush}"
+                                        Margin="16,14,16,0"
+                                        IsVisible="{Binding IsConfirmingUpdate}">
+                                    <StackPanel Spacing="14">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="READY TO UPDATE" Classes="microLabel"
+                                                       Foreground="{DynamicResource RdAccentBrush}" />
+                                            <TextBlock Text="{Binding FriendlyName}" Classes="h1" />
+                                            <TextBlock Text="{Binding UpdatePlan.TransitionText}" Classes="h2"
+                                                       Foreground="{DynamicResource RdTextSecondaryBrush}" />
+                                        </StackPanel>
+
+                                        <WrapPanel ItemSpacing="32" LineSpacing="10">
+                                            <StackPanel Spacing="1">
+                                                <TextBlock Text="DOWNLOAD" Classes="microLabel" />
+                                                <TextBlock Text="{Binding UpdateSizeText}" Classes="h2" />
+                                                <TextBlock Text="{Binding UpdatePlan.AssetName}" Classes="muted" />
+                                            </StackPanel>
+                                        </WrapPanel>
+
+                                        <Border Classes="inset">
+                                            <StackPanel Spacing="7">
+                                                <TextBlock Text="HOW REPODECK DOES THIS" Classes="microLabel"
+                                                           Foreground="{DynamicResource RdAccentBrush}" />
+                                                <TextBlock Classes="secondary" TextWrapping="Wrap"
+                                                           Text="It downloads the new version and unpacks it somewhere separate first, so your working copy is untouched while anything can still go wrong." />
+                                                <TextBlock Classes="secondary" TextWrapping="Wrap"
+                                                           Text="Only when the new version is ready does it put your current copy aside and swap the new one in - and it keeps the old copy until the new one is checked and working." />
+                                                <TextBlock Classes="secondary" TextWrapping="Wrap"
+                                                           Text="If anything fails at any point, RepoDeck puts your previous version back." />
+                                                <TextBlock Classes="muted" TextWrapping="Wrap"
+                                                           Text="RepoDeck will not run anything it downloads, and will not ask for administrator access." />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <StackPanel Orientation="Horizontal" Spacing="10"
+                                                    HorizontalAlignment="Right">
+                                            <Button Classes="secondary" Content="CANCEL" MinWidth="110"
+                                                    Command="{Binding CancelUpdateCommand}" />
+                                            <Button Classes="primary" Content="UPDATE" MinWidth="130"
+                                                    MinHeight="40"
+                                                    Command="{Binding ConfirmUpdateCommand}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="panel" Margin="16,14,16,0"
+                                        IsVisible="{Binding IsConfirmingRepair}">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Text="REPAIR THIS INSTALLATION" Classes="microLabel"
+                                                   Foreground="{DynamicResource RdCautionBrush}" />
+                                        <TextBlock Text="{Binding HealthSummary}" Classes="body"
+                                                   TextWrapping="Wrap" />
+
+                                        <ItemsControl ItemsSource="{Binding HealthExplanations}"
+                                                      IsVisible="{Binding HasSeveralProblems}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <TextBlock Text="{Binding}" Classes="secondary"
+                                                               TextWrapping="Wrap" Margin="0,0,0,3"
+                                                               Foreground="{DynamicResource RdTextSecondaryBrush}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <TextBlock Classes="secondary" TextWrapping="Wrap"
+                                                   Text="RepoDeck will download the same version you already have and put it back, using the same safe swap an update uses. It will not fetch a newer version." />
+
+                                        <StackPanel Orientation="Horizontal" Spacing="10"
+                                                    HorizontalAlignment="Right">
+                                            <Button Classes="secondary" Content="CANCEL"
+                                                    Command="{Binding CancelRepairCommand}" />
+                                            <Button Classes="primary" Content="REPAIR IT"
+                                                    Command="{Binding ConfirmRepairCommand}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- ==================== Working ==================== -->
+                                <Border Classes="inset" Margin="16,14,16,0"
+                                        IsVisible="{Binding IsBusy}">
+                                    <StackPanel Spacing="12" DataContext="{Binding Activity}"
+                                                x:DataType="vm:InstallActivityViewModel">
+                                        <ItemsControl ItemsSource="{Binding Stages}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:InstallStageViewModel">
+                                                    <Grid ColumnDefinitions="Auto,100,*,Auto" Margin="0,0,0,8"
+                                                          ToolTip.Tip="{Binding Description}">
+                                                        <Ellipse Grid.Column="0" Classes="led"
+                                                                 Classes.ledOn="{Binding IsDone}"
+                                                                 Classes.ledWarn="{Binding IsActive}"
+                                                                 Classes.ledOff="{Binding IsWaiting}"
+                                                                 VerticalAlignment="Center"
+                                                                 Margin="0,0,10,0" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Label}"
+                                                                   Classes="microLabel"
+                                                                   VerticalAlignment="Center" />
+                                                        <controls:SegmentedMeter Grid.Column="2" Height="12"
+                                                                                 SegmentCount="18"
+                                                                                 Value="{Binding Percent}"
+                                                                                 VerticalAlignment="Center"
+                                                                                 OnBrush="{DynamicResource RdAccentBrush}"
+                                                                                 OffBrush="{DynamicResource RdPanelInsetBrush}" />
+                                                        <TextBlock Grid.Column="3" Text="{Binding StateText}"
+                                                                   Classes="muted" Width="72"
+                                                                   TextAlignment="Right"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="12,0,0,0" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <StackPanel Orientation="Horizontal" Spacing="14">
+                                            <TextBlock Text="{Binding Summary}" Classes="secondary" />
+                                            <TextBlock Text="{Binding BytesText}" Classes="muted"
+                                                       IsVisible="{Binding HasBytes}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
 
                                 <!-- Several files looked like the program: the user decides -->
                                 <Border Background="{DynamicResource RdCautionSoftBrush}"
-                                        CornerRadius="10" Padding="14" Margin="0,14,0,0"
+                                        CornerRadius="{DynamicResource RdRadiusSmall}"
+                                        Margin="16,14,16,0" Padding="14"
                                         IsVisible="{Binding NeedsExecutableChoice}">
                                     <StackPanel Spacing="10">
                                         <TextBlock Text="{Binding AmbiguityMessage}" Classes="body"
@@ -86,19 +385,27 @@
                                     </StackPanel>
                                 </Border>
 
-                                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,14,0,0">
-                                    <Button Classes="secondary" Content="OPEN FOLDER"
-                                            Command="{Binding OpenFolderCommand}" />
-                                    <Button Classes="secondary" Content="GITHUB"
-                                            Command="{Binding ViewRepositoryCommand}" />
-                                    <Button Classes="danger" Content="REMOVE"
-                                            IsVisible="{Binding ShowUninstallButton}"
-                                            Command="{Binding BeginUninstallCommand}" />
-                                </StackPanel>
+                                <!-- ==================== Managing it ==================== -->
+                                <Border BorderBrush="{DynamicResource RdBorderBrush}"
+                                        BorderThickness="0,1,0,0"
+                                        Background="{DynamicResource RdSurfaceAltBrush}"
+                                        Margin="0,16,0,0" Padding="16,10">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button Classes="secondary" Content="OPEN FOLDER"
+                                                Command="{Binding OpenFolderCommand}" />
+                                        <Button Classes="quiet" Content="SOURCE"
+                                                Command="{Binding ViewRepositoryCommand}"
+                                                ToolTip.Tip="Open this project's page on GitHub" />
+                                        <Button Classes="danger" Content="REMOVE"
+                                                IsVisible="{Binding ShowUninstallButton}"
+                                                Command="{Binding BeginUninstallCommand}" />
+                                    </StackPanel>
+                                </Border>
 
                                 <!-- Removing an application is never one click -->
                                 <Border Background="{DynamicResource RdDangerSoftBrush}"
-                                        CornerRadius="10" Padding="14" Margin="0,12,0,0"
+                                        CornerRadius="{DynamicResource RdRadiusSmall}"
+                                        Margin="16,12,16,16" Padding="14"
                                         IsVisible="{Binding IsConfirmingUninstall}">
                                     <StackPanel Spacing="10">
                                         <TextBlock Classes="body"

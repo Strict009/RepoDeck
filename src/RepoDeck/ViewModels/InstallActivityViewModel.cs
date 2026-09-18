@@ -21,9 +21,7 @@ namespace RepoDeck.ViewModels;
 public sealed partial class InstallActivityViewModel : ViewModelBase
 {
     public InstallActivityViewModel()
-    {
-        Stages =
-        [
+        : this(
             new InstallStageViewModel(InstallationStage.Downloading, "DOWNLOAD",
                 "Fetching the release file from GitHub."),
             new InstallStageViewModel(InstallationStage.Verifying, "VERIFY",
@@ -31,8 +29,59 @@ public sealed partial class InstallActivityViewModel : ViewModelBase
             new InstallStageViewModel(InstallationStage.Extracting, "EXTRACT",
                 "Unpacking it into RepoDeck's own folder. Nothing is run."),
             new InstallStageViewModel(InstallationStage.Registering, "REGISTER",
-                "Finding the program and adding it to your Installed list.")
-        ];
+                "Finding the program and adding it to your Installed list."))
+    {
+    }
+
+    private InstallActivityViewModel(params InstallStageViewModel[] stages)
+    {
+        Stages = [.. stages];
+    }
+
+    /// <summary>
+    /// The same four-meter display, worded for an update.
+    /// </summary>
+    /// <remarks>
+    /// PREPARE and REPLACE rather than EXTRACT and REGISTER, because what matters to
+    /// somebody watching an update is that the new version is being got ready and then
+    /// that it is being swapped in. The mechanism underneath is the same, and so is this
+    /// class: a second progress display would be a second place for it to drift.
+    /// </remarks>
+    public static InstallActivityViewModel ForUpdate() => new(
+        new InstallStageViewModel(InstallationStage.Downloading, "DOWNLOAD",
+            "Fetching the new version from GitHub."),
+        new InstallStageViewModel(InstallationStage.Verifying, "VERIFY",
+            "Checking the file arrived complete and is what it claimed to be."),
+        new InstallStageViewModel(InstallationStage.Extracting, "PREPARE",
+            "Unpacking the new version somewhere separate. Your copy is untouched."),
+        new InstallStageViewModel(InstallationStage.Registering, "REPLACE",
+            "Putting your copy aside and swapping the new one in."));
+
+    /// <summary>Applies an update report by mapping it onto the same four stages.</summary>
+    public void Apply(UpdateProgress progress)
+    {
+        Apply(new InstallationProgress
+        {
+            Stage = progress.Stage switch
+            {
+                UpdateStage.Downloading => InstallationStage.Downloading,
+                UpdateStage.Verifying => InstallationStage.Verifying,
+                UpdateStage.Preparing => InstallationStage.Extracting,
+                UpdateStage.Replacing => InstallationStage.Registering,
+                UpdateStage.Finished => InstallationStage.Finished,
+
+                // A rollback is a failure being recovered from, not a fifth stage: the
+                // meters stop where they stopped rather than inventing progress.
+                UpdateStage.RollingBack or UpdateStage.Failed => InstallationStage.Failed,
+                UpdateStage.Cancelled => InstallationStage.Cancelled,
+                _ => InstallationStage.NotStarted
+            },
+            Download = progress.Download,
+            Detail = progress.Detail
+        });
+
+        // The word underneath says what is really happening, including rolling back.
+        Summary = progress.Describe();
     }
 
     public ObservableCollection<InstallStageViewModel> Stages { get; }

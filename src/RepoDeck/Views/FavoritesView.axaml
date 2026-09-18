@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:RepoDeck.ViewModels"
+             xmlns:controls="using:RepoDeck.Controls"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+             x:Class="RepoDeck.Views.FavoritesView"
+             x:DataType="vm:FavoritesViewModel">
+
+    <!--
+        Things the user asked RepoDeck to remember. Separate from Installed on purpose: a
+        favourite may be installed, uninstalled, or never installed, and removing an
+        application does not remove the bookmark.
+    -->
+    <Grid RowDefinitions="Auto,*" Margin="28,22,28,0">
+
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,18">
+            <TextBlock Text="Favorites" Classes="display" />
+            <TextBlock Classes="secondary"
+                       Text="Projects you asked RepoDeck to remember" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Spacing="12" MaxWidth="560" HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    IsVisible="{Binding ShowEmptyState}">
+            <TextBlock Text="Nothing saved yet" Classes="h1" />
+            <TextBlock Classes="body" Foreground="{DynamicResource RdTextSecondaryBrush}"
+                       Text="Press the star on any result to keep it here. Saving something does not install it, and removing an application does not lose the bookmark." />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowList}"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Items}" Margin="0,0,14,20">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FavoriteViewModel">
+                        <Border Classes="card" Padding="16" Margin="0,0,0,12">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                                <Border Grid.Column="0" Width="52" Height="52"
+                                        ClipToBounds="True"
+                                        CornerRadius="{DynamicResource RdRadiusSmall}"
+                                        Margin="0,0,14,0">
+                                    <Panel>
+                                        <Border Background="{Binding FallbackBrush}" />
+                                        <controls:KindArtwork Kind="{Binding Kind}"
+                                                              Initial="{Binding FallbackInitial}"
+                                                              Accent="{DynamicResource RdOnAccentBrush}"
+                                                              MarkScale="0.58"
+                                                              Opacity="0.85" />
+                                    </Panel>
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="{Binding FriendlyName}" Classes="h1" />
+
+                                        <!-- A fact about the machine, not a judgement. -->
+                                        <Border Classes="chip"
+                                                Classes.chipAccent="{Binding IsInstalled}"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding InstalledText}" />
+                                        </Border>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding Description}" Classes="secondary"
+                                               TextWrapping="Wrap" MaxLines="2"
+                                               TextTrimming="CharacterEllipsis" />
+
+                                    <WrapPanel ItemSpacing="16" LineSpacing="3">
+                                        <TextBlock Text="{Binding MetadataLine}" Classes="muted" />
+                                        <TextBlock Text="{Binding AddedText}" Classes="muted" />
+                                    </WrapPanel>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <Button Classes="quiet" Content="SOURCE"
+                                            Command="{Binding OpenOnGitHubCommand}"
+                                            ToolTip.Tip="Open this project's page on GitHub" />
+                                    <Button Classes="quiet" Content="FORGET"
+                                            Command="{Binding ForgetCommand}"
+                                            ToolTip.Tip="Remove it from your favourites. Nothing is uninstalled." />
+                                    <Button Classes="primary" Content="OPEN"
+                                            Command="{Binding OpenCommand}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

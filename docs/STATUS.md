@@ -1,138 +1,234 @@
 # RepoDeck status
 
-_Last updated: 2026-09-17_
+_Last updated: 2026-09-18_
 
 ## Current milestone
 
-**Finishing the experience.** Complete and verified, with one gap noted below. Stopping
-here for review before Milestone 4.
+**Milestone 4 - Library and lifecycle management.** Complete, with the gaps listed under
+Known problems.
 
-Onboarding, real browsing, a Why? beside every verdict, a confirmation worth the name, and
-an installation you can watch happen.
+Software installed through RepoDeck now stays understandable afterwards: you can see
+whether it is current, read what an update would change, take it with rollback protection,
+put a damaged installation back, or remove it - without knowing what a GitHub release is.
 
 ## Completed
 
-### First-run onboarding
+### Reading a version
 
-- A welcome takes the whole window on a first run: what RepoDeck can do, what it will
-  never do, and the one thing it has to admit - that it cannot tell anyone whether
-  software is safe, and nothing it shows is a recommendation.
-- The four "will never" promises are the Milestone 3 boundaries in the second person, and
-  a test holds them to it. If the installer stops keeping one, the welcome becomes a lie
-  on the first screen and the suite says so.
-- Then one question - Apps or Everything - with a sensible default already chosen.
-- Skipping is allowed, gives the same defaults, and the welcome does not come back.
+`ReleaseVersion` parses the tag spellings RepoDeck can be sure about - an optional `v`, two
+to four dotted numbers, an optional suffix - and refuses the rest. Two comparisons, used
+for different things:
 
-### Categories and collections
+- `CompareTo` is a total order for sorting. It always answers.
+- `CompareOrNull` answers **only when RepoDeck can defend the answer**, and returns null
+  otherwise. Every user-facing decision goes through this one.
 
-- Nine categories: Utilities, Media, Games & Emulation, Graphics, File Tools, Networking,
-  Privacy, Productivity, Developer Tools.
-- Six collections: Popular on GitHub, Recently updated, Portable apps, No installation
-  needed, Small & useful, and Weird & useful.
-- All of them are searches; collections also set the sort and filters, because "recently
-  updated" is a question about ordering rather than subject.
-- Each description says what it actually asks GitHub for. "Popular on GitHub" says
-  outright that it is GitHub's own number and not a recommendation, and a test asserts no
-  collection describes itself as best, top, trusted or safe.
+The distinction exists because semantic versioning says any suffix marks a pre-release, so
+`1.0.0` outranks `1.0.0-anything`. Real projects do not read the specification. Suffixes
+that genuinely mean unfinished - `alpha`, `beta`, `rc`, `preview`, `nightly` and nine more -
+keep the semver rule, and pre-release labels are ordered the way the specification says,
+numerically where the identifier is a number, so `beta.10` beats `beta.9`. Any other suffix
+is treated as the project's own business, carrying no ordering information at all.
 
-### Why? everywhere
+### Checking for updates
 
-- A **WHY?** button sits beside every verdict in Quick Look. Pressing it opens the
-  reasoning at the group that answers that question, highlighted.
-- The questions the buttons point at are constants shared with the code that builds the
-  groups, so a button can never point at a question nothing answers.
-- Every group leads with the verdict itself, so a WHY? that opened an empty panel is
-  impossible even when the analysis found nothing else to say.
+`UpdateChecker.Evaluate` is pure and takes the release list, the machine and the time, so
+every awkward shape of release list is testable without a network. It is conservative in
+five specific ways:
 
-### The confirmation
+- Stable releases only, unless the installed version is itself a pre-release.
+- Drafts are never considered.
+- Both tags must parse, or the answer is `Unknown` with the reason.
+- A newer release with no asset for this machine becomes `ManualUpdateRequired` - a link,
+  not a button that cannot work.
+- Releases RepoDeck cannot show are newer are not candidates. When the only thing on offer
+  is one of those, the answer is `Unknown` and it says which two tags it could not order.
 
-- The name, version, exact file and size, and whose project it is.
-- **What RepoDeck will do**, numbered and in order, built from the plan.
-- **What RepoDeck will not do**, ruled out by name: run an installer or script, ask for
-  administrator access, change a Windows setting, or start the program until asked.
-- The full destination path.
-- Tests assert nothing in the "will" list describes running anything, and nothing anywhere
-  in it claims the software is safe.
+Where several releases are genuinely newer, the highest numbers win. Where the numbers tie
+and only the suffix differs, the **publication date** decides, because that is evidence
+rather than a guess about naming.
 
-### Installing, as four stages
+Nothing is written. An answer about a remote release goes stale, and a stale answer stored
+in the manifest as fact would be worse than no answer.
 
-- DOWNLOAD, VERIFY, EXTRACT, REGISTER shown together from the start, each with a status
-  light, a segmented meter and a word.
-- Only Download has a real percentage. The others report happening and then done, rather
-  than animating through a number RepoDeck does not have.
-- Reaching a later stage marks earlier ones done; a failure marks nothing done that was
-  not done.
+### Updating, transactionally
 
-### Smaller things
+`UpdateService` runs one sequence and never writes into a live installation:
 
-- Compact rows use the drawn kind mark rather than a letter. At 40px a waveform or a
-  window reads as a silhouette where a letter says nothing.
-- `Humanize.FileSizePrecise` for live byte counters, so a download does not sit on "18 MB"
-  and then jump.
+    download -> verify -> assemble in staging -> validate the staged copy
+              -> move the live copy aside -> promote -> validate in place -> remove backup
+
+The old directory is *moved* to `Apps/.rollback/<guid>`, not deleted, and stays there until
+the promoted copy has been validated where it now lives. Any failure after the move puts it
+back. `UpdateResult` distinguishes "failed and your previous version is back" from "failed
+and the installation is damaged", because those are different sentences for the user.
+
+A staged copy that turns out to contain nothing runnable fails **before** the live copy is
+touched at all.
+
+### Repair
+
+Repair builds an `UpdatePlan` targeting the release **already recorded** and runs the
+identical transaction. It inherits every protection including rollback, and it cannot
+quietly become an upgrade. It is deliberately not surgery: RepoDeck does not work out which
+file is missing and fetch that one, because reasoning about a half-broken directory is
+reasoning in the situation where reasoning is least reliable.
+
+`InstallationHealthChecker` reports five problems - missing directory, missing executable,
+empty directory, inconsistent record, missing owned entries - and the panel names them
+rather than only counting them. An inconsistent *record* is not repairable by fetching
+files, so RepoDeck says so instead of offering a button that cannot help.
+
+### Not interrupting a running program
+
+`RunningApplicationDetector` matches by executable name and then by `MainModule.FileName`
+inside the installation root. It is asked **before anything is downloaded**, so somebody
+with the program open is told to close it rather than finding out after waiting for 57 MB.
+Nothing is ever force-killed. Failure to determine the answer counts as "not running",
+because the transaction is already safe against being wrong.
+
+### Uninstall hardening
+
+`ApplicationManifest` is data on disk and is therefore treated as untrusted. Before removing
+anything, RepoDeck re-derives containment and refuses a path that is outside the managed
+root, is the managed root, or is one of the reserved `.staging` / `.rollback` folders - even
+if the file has been edited by hand. A refused uninstall **keeps the record**, so a manifest
+RepoDeck would not act on never disappears silently.
+
+### The library page
+
+Each row answers, in order: what is it, what version have I got, is there a newer one, is it
+still intact, and what can I do about any of that. Release notes are shown as plain,
+read-only text and never rendered as markup, so nothing in them can become a link or an
+image.
+
+Update-all checks **sequentially, not in parallel**, to protect the rate limit.
+
+### Downloads, Favorites and activity
+
+- **Downloads** lists what RepoDeck fetched but would not install, in three sections. It has
+  no Run button and never will: the page exists *because* RepoDeck declined to run something.
+- **Favorites** are independent of what is installed. A favourite can be installed,
+  uninstalled, or never installed, and removing an application does not lose the bookmark.
+  The star is a filled or hollow shape, not a colour.
+- **What RepoDeck has done** on the Settings page: the lifecycle history in plain English,
+  capped at 400 entries, with no paths, stack traces or anything from a token. Clearing it
+  affects nothing that is installed.
+
+### Security boundary - unchanged
+
+Milestone 4 adds no execution of installers, no source builds, no scripts, no elevation, no
+PATH changes, no package-manager calls and no automatic pre-release installation. Downloaded
+content remains untrusted. The update confirmation says this on screen before anything runs.
 
 ## Defects found and fixed by this work
 
-1. **The analysis line read "Preparing installation plan..." above a finished plan.**
-   `Progress<T>` marshals through the synchronisation context, so a report could be
-   delivered after the analysis had finished and the last one won. An existing test
-   asserted the status was cleared and passed, because in tests there is no synchronisation
-   context to delay the report. Guarded with a flag.
-2. **The "Will it work on this PC?" evidence group could be missing**, which would have
-   made that WHY? button open nothing. Every group a button points at now leads with the
-   verdict itself.
+Six of these were found by running the application, not by reading it.
+
+1. **RepoDeck offered `v0.0.3` as an update to `v0.0.3-release.4`** - a downgrade, with the
+   word "update" on the button. Correct semantic versioning, wrong answer: `release.4` is
+   the project's build number. Fixed by recognising only real pre-release words and refusing
+   to order anything else; `CompareOrNull` and fifteen tests now hold the line.
+2. **The DOWNLOAD size was blank in the update panel.** It was bound to the plan, which is
+   not built until the user asks to update - so the panel asking them to decide showed an
+   empty field. The size is now recorded on the check result, where it was already known.
+3. **Offered the older of two equal-numbered releases.** Semver ranks an alphanumeric
+   identifier above a numeric one, so `release.3-patch.1` beat `release.4`. The publication
+   date now settles ties.
+4. **"Everything is up to date" printed above a row saying "Can't determine."** The summary
+   counted updates and ignored everything else. It now says what the rows support.
+5. **The star looked identical whether saved or not.** An explicit `TextBlock` inside the
+   button picked up the global text style, so the button's foreground never reached it, and
+   the state depended on a colour that was not being applied anyway. It is now a filled or
+   hollow star.
+6. **A repair recorded that it had updated.** Repair runs the update transaction on purpose,
+   and was inheriting the transaction's account of itself: the history read "Updated to
+   v0.0.3-release.4" next to "Repaired". Update-shaped events are now suppressed for a
+   repair.
+7. **The repair panel said "2 things are wrong" without saying what.** The explanations
+   existed and were never displayed.
+8. **The activity history was recorded all milestone and shown nowhere.**
+9. **Repair always failed on this machine.** `MachineProfile` was not reaching the executable
+   locator, so `Platform = Unknown` rejected `.exe`. Found by a test before it shipped;
+   `Locate` now falls back to the machine profile.
+10. **A rollback test could pass without restoring anything.** If `Directory.Move` failed,
+    the backup was never taken and the assertion was vacuous. Rewritten around a service that
+    locks a file *in staging*, so the backup is definitely taken first; both new tests were
+    confirmed to fail when the restore branch is disabled.
 
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - **798 passed, 0 failed** (up from 746; 52 new tests).
-- **Driven on screen**: the first-run welcome and its second step, finishing into the
-  landing page with all nine categories and six collections, the WHY? button opening and
-  highlighting the compatibility evidence, and the full confirmation panel for a real
-  project including both lists and the destination path.
-- The preferences file was deleted first so the first run was genuinely a first run.
+- `dotnet test` - **979 passed, 0 failed** (up from 798; 181 new tests).
+- Every new guard was confirmed to **fail without its fix**, not merely to pass with it.
+
+**Driven on screen, against real GitHub and a real installation:**
+
+- Update check - the false positive, then the corrected `Unknown`, then a genuine update.
+- A **real update transaction**: 57 MB fetched, staged, promoted and validated; the manifest
+  advanced, `installedAt` preserved, `updatedAt` set, `.staging` and `.rollback` left empty.
+- **Repair, twice**, from a deliberately damaged installation - executable and a directory
+  deleted. Both restored the installation byte-for-byte at the same version.
+- The library, the update confirmation, the repair confirmation, Downloads, Favorites
+  (empty, then populated, then persisted across a restart), and the activity list.
+
+The rolled-back version number used to make an update genuinely available was a controlled
+edit to the manifest, noted here so the result is not mistaken for an unprompted upgrade.
 
 ## Known problems
 
-1. **The four-stage install display has not been photographed against a live download.**
-   Its logic is covered by eleven tests - stage ordering, completion, failure, the byte
-   counter, and that no stage invents a percentage - and the view compiles against it with
-   compiled bindings, but I have not watched it run. Doing so meant either downloading
-   114 MB of somebody else's software onto this machine unasked, or removing an
-   application the user already had installed, and neither seemed mine to do. It is the
-   one thing in this milestone I cannot say I have seen working.
-2. **RepoDeck cannot yet find itself.** Searching for "RepoDeck" and having it correctly
-   report "works on this PC / ready to install" needs a public GitHub release to exist
-   first. Worth doing as an end-to-end test of the whole product the moment there is one.
-3. **Badge rejection is a blocklist.** A novel store or vendor badge host will get through.
-4. **Quick Look costs GitHub requests.** Selecting a result spends a README request, a
-   releases request and a file listing. Arrowing quickly down thirty results will exhaust
-   an unauthenticated allowance. There is no debounce yet.
-5. **Relevance works from a one-line description and a handful of tags.** It is wrong
-   sometimes. Being wrong is cheap: ordering shifts, nothing uncertain is hidden, and every
-   verdict can be opened and read.
-6. **Collections are searches, not curation.** "Weird & useful" will return some rubbish.
-   That is inherent to doing this without a hand-maintained catalogue, and the descriptions
-   say so.
-7. **Compact view has no column headers and cannot be sorted.**
-8. **Light theme is complete but untested in practice.** Every judgement was made in Dark.
-9. **Image decoding has no automated test.** It needs Avalonia's render platform, which is
-   unreliable under xunit.
-10. **No disk cache for images**; they are cached in memory for the session only.
-11. Earlier weaknesses remain: update checking is unimplemented, Favorites deferred.
+1. **The update progress display was not photographed.** The transaction completed in about
+   three seconds, so DOWNLOAD/VERIFY/PREPARE/REPLACE never stayed on screen long enough to
+   capture. Its logic is tested; I have not watched it.
+2. **Downloads was only seen empty.** Producing a populated page live means downloading
+   something RepoDeck refuses to install. The three sections are covered by tests.
+3. **Uninstall refusal was not exercised live.** The traversal and reserved-folder refusals
+   are covered by tests that hand-edit a manifest, but I did not remove the user's installed
+   application to watch it happen.
+4. **Rollback has not been forced live.** It is covered by tests that fail when the restore
+   branch is disabled, but I did not sabotage a real update mid-promotion.
+5. **`Unknown` is a dead end.** When RepoDeck cannot order two tags it explains why and
+   stops. It does not offer "install this anyway", which would be the honest escape hatch for
+   somebody who knows their project's naming better than RepoDeck does.
+6. **Pre-release suffix recognition is a word list.** A project using an unusual word for a
+   beta gets `Unknown` rather than an offer. That is the safe direction to be wrong in, but
+   it is still a list.
+7. **Update checking costs one request per application**, sequentially. A large library on an
+   unauthenticated allowance will be slow, and there is no scheduling or background check.
+8. **No checksum verification against a publisher-provided checksum asset.** RepoDeck records
+   the hash of what it downloaded; it does not compare it to a hash the project published.
+9. **Transfers are in memory only**, so the Downloads page starts empty each run. This is
+   deliberate - an "active download" cannot survive the process performing it - but it means
+   a failed download is forgotten on restart.
+10. Earlier weaknesses remain: badge rejection is a blocklist; Quick Look costs requests with
+    no debounce; relevance works from a one-line description; collections are searches rather
+    than curation; compact view cannot be sorted; the light theme is untested in practice;
+    image decoding has no automated test and no disk cache.
 
 ## Next task
 
-**Milestone 4 - Lifecycle and updates.** Not started.
+Not started, and deliberately outside Milestone 4's boundary:
 
-1. Version comparison across the tag spellings real projects use.
-2. Check update per application, and update-all, reusing the existing plan pipeline.
-3. Verify downloads against a publisher-provided checksum asset when one is published.
-4. A real Downloads history, beyond the current preserved-assets list.
-5. Favorites, or a decision to drop them.
+1. Checksum verification against a published checksum asset.
+2. A background or scheduled update check, rather than only on request.
+3. RepoDeck finding itself - still needs a public release to exist.
+4. An explicit "install this anyway" for the `Unknown` case.
 
-Source builds remain out of scope.
+Source builds and installer execution remain out of scope.
 
 ## Earlier milestones
+
+### Finishing the experience
+
+Onboarding took the whole window on a first run and stated the four things RepoDeck will
+never do, with a test holding the installer to them. Nine categories and six collections,
+all of them searches, each describing what it actually asks GitHub for. A **WHY?** button
+beside every verdict, pointing at constants shared with the code that builds the reasoning.
+A confirmation listing what RepoDeck will do, what it will not do, and the destination path.
+Installing shown as four stages, only one of which has a real percentage.
+
+Two defects were found by running it: a stale progress report overwriting a finished plan,
+and a WHY? button that could point at an evidence group that did not exist.
 
 ### Discover and Quick Look polish
 

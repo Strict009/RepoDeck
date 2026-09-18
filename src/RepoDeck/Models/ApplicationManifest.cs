@@ -121,6 +121,14 @@ public sealed record ApplicationManifest
 
     // ---- History ----------------------------------------------------------
     public DateTimeOffset InstalledAt { get; init; }
+
+    /// <summary>
+    /// When this was last replaced by a newer release. Null for an installation that has
+    /// never been updated, which is why it is separate from <see cref="InstalledAt"/>:
+    /// "installed three months ago, updated on Tuesday" is two different facts.
+    /// </summary>
+    public DateTimeOffset? UpdatedAt { get; init; }
+
     public DateTimeOffset? LastRunAt { get; init; }
     public int RunCount { get; init; }
 

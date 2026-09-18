@@ -318,6 +318,9 @@ public sealed partial class QuickLookViewModel : ViewModelBase
         OnPropertyChanged(nameof(FallbackBrush));
         OnPropertyChanged(nameof(ShowHero));
         OnPropertyChanged(nameof(ShowHeroFallback));
+        OnPropertyChanged(nameof(IsFavorite));
+        OnPropertyChanged(nameof(FavoriteTooltip));
+        OnPropertyChanged(nameof(FavoriteGlyph));
 
         var token = _work!.Token;
         return LoadAsync(card, generation, token);
@@ -368,6 +371,27 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     private void OpenOnGitHub()
     {
         if (Card is not null) SystemBrowser.OpenUrl(Card.Repository.HtmlUrl, _log);
+    }
+
+    /// <summary>
+    /// The star, shared with the card it came from so both always agree.
+    /// </summary>
+    public bool IsFavorite => Card?.IsFavorite ?? false;
+
+    public string FavoriteTooltip => Card?.FavoriteTooltip ?? "Remember this for later";
+
+    public string FavoriteGlyph => Card?.FavoriteGlyph ?? "\u2606";
+
+    [RelayCommand]
+    private void ToggleFavorite()
+    {
+        if (Card is null) return;
+
+        Card.ToggleFavoriteCommand.Execute(null);
+
+        OnPropertyChanged(nameof(IsFavorite));
+        OnPropertyChanged(nameof(FavoriteTooltip));
+        OnPropertyChanged(nameof(FavoriteGlyph));
     }
 
     [RelayCommand]

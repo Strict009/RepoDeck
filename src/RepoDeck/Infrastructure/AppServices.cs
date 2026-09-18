@@ -6,7 +6,10 @@ using RepoDeck.Services.Media;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.GitHub;
 using RepoDeck.Services.Install;
+using RepoDeck.Services.Favorites;
+using RepoDeck.Services.History;
 using RepoDeck.Services.Preferences;
+using RepoDeck.Services.Update;
 
 namespace RepoDeck.Infrastructure;
 
@@ -43,17 +46,34 @@ public sealed class AppServices : IDisposable
 
         InstalledApps = new InstalledAppStore(Paths, Log);
         Downloads = new DownloadService(_http, Paths, Log);
+        Transfers = new TransferRegistry();
+        Preferences = new UserPreferences(Paths, Log);
+        Favorites = new FavoritesStore(Paths, Log);
+        History = new LifecycleHistory(Paths, Log);
+
         var installer = new InstallationService(
-            Downloads, new ExtractionService(Log), InstalledApps, Paths, Log);
+            Downloads, new ExtractionService(Log), InstalledApps, Paths, Log,
+            transfers: Transfers, history: History);
+
         Installer = installer;
-        Launcher = new LaunchService(Paths, InstalledApps, Log);
+        Launcher = new LaunchService(Paths, InstalledApps, Log, History);
         Media = new RepositoryMediaService(Log);
         Images = new ImageLoader(Log);
-        Preferences = new UserPreferences(Paths, Log);
+
+        RunningApplications = new RunningApplicationDetector(Log);
+        HealthChecker = new InstallationHealthChecker(Paths, Log);
+        UpdateChecker = new UpdateChecker(GitHub, Machine, Log);
+
+        var updater = new UpdateService(
+            Downloads, new ExtractionService(Log), InstalledApps, RunningApplications,
+            History, Machine, Paths, Log, transfers: Transfers);
+
+        Updater = updater;
 
         // An installation that never promoted out of staging is not an installation;
         // its remains should not accumulate across runs.
         installer.CleanAbandonedStaging();
+        updater.CleanAbandonedRollbacks();
 
         Log.Info("App", $"RepoDeck starting on {PlatformInfo.CurrentDescription}. Data root: {Paths.Root}");
         Log.Info("App", Tokens.HasToken
@@ -83,6 +103,20 @@ public sealed class AppServices : IDisposable
 
     /// <summary>Interface preferences only. Nothing here affects what RepoDeck installs.</summary>
     public IUserPreferences Preferences { get; }
+
+    /// <summary>Projects the user asked RepoDeck to remember. Independent of what is installed.</summary>
+    public IFavoritesStore Favorites { get; }
+
+    /// <summary>What RepoDeck has done, in plain English, for the user to read.</summary>
+    public ILifecycleHistory History { get; }
+
+    /// <summary>What RepoDeck is fetching right now, or recently tried to. In memory only.</summary>
+    public ITransferRegistry Transfers { get; }
+
+    public IRunningApplicationDetector RunningApplications { get; }
+    public IInstallationHealthChecker HealthChecker { get; }
+    public IUpdateChecker UpdateChecker { get; }
+    public IUpdateService Updater { get; }
 
     private static HttpClient CreateHttpClient()
     {

@@ -670,6 +670,158 @@ own number, not a recommendation", because the label alone could easily be read 
 "RepoDeck recommends", which it is not and must never become. A test asserts that no
 collection describes itself with words like "best", "top", "trusted" or "safe".
 
+## Lifecycle and updates (Milestone 4)
+
+Milestone 3 ended when something was installed. Milestone 4 is about what happens
+afterwards, and it reuses the decide/do split rather than inventing a second one: an
+`UpdatePlan` and a `RepairPlan` are written down and shown before anything is executed,
+exactly as an `InstallPlan` is.
+
+### Two comparisons, on purpose
+
+`ReleaseVersion` exposes both `CompareTo` and `CompareOrNull`, and the difference is the
+whole point.
+
+`CompareTo` is a total order. It exists so a list of releases can be sorted, and it always
+produces an answer. `CompareOrNull` returns `int?`, and null means **RepoDeck cannot defend
+an answer**. Every decision the user sees goes through `CompareOrNull`; sorting goes through
+`CompareTo`; the two are never swapped.
+
+This came out of a live defect. Semantic versioning says any suffix marks a pre-release, so
+`1.0.0` outranks `1.0.0-anything` - which made RepoDeck offer `v0.0.3` as an update to
+somebody running `v0.0.3-release.4`. That is a downgrade with the word "update" on the
+button, and it is the single worst thing an update checker can do.
+
+The resolution is to be honest about which suffixes carry meaning. A short list of words -
+`alpha`, `beta`, `rc`, `pre`, `preview`, `dev`, `nightly`, `snapshot`, `canary`, `insider`,
+`experimental`, `test`, `unstable`, `early` - really do mean unfinished, and for those the
+semver rule applies, including its identifier-by-identifier ordering so that `beta.10` beats
+`beta.9` rather than losing to it alphabetically. Any other suffix is the project's own
+business. Two versions whose numbers are equal and whose suffixes differ in an unrecognised
+way cannot be ordered, and RepoDeck says so.
+
+The failure mode this creates - `Unknown` where a human could have answered - is the one
+worth having. Being slow to notice an update is an annoyance; offering an older version as
+a newer one destroys the reason to use RepoDeck at all.
+
+### Choosing which release to offer
+
+When several releases are genuinely newer, the highest numeric version wins. When the
+numbers tie and only the suffix differs, the **publication date** decides.
+
+That rule replaced `MaxBy` over the total order, which had picked `v0.0.3-release.3-patch.1`
+over `v0.0.3-release.4` because semver ranks an alphanumeric identifier above a numeric one.
+The date is evidence about what the project shipped last. The suffix is a naming convention
+RepoDeck has no standing to interpret.
+
+### The update transaction
+
+    download -> verify -> assemble in staging -> validate the staged copy
+              -> move the live copy aside -> promote -> validate in place -> remove backup
+
+A live installation is never written into. The new version is fully assembled and validated
+in `Apps/.staging/<guid>` before the existing one is touched at all, so a bad download, a
+corrupt archive or an archive containing nothing runnable fails while the working copy is
+still working.
+
+Only then is the live directory **moved** - not deleted - to `Apps/.rollback/<guid>`, and it
+stays there until the promoted copy has been validated in its final location. Any failure
+after the move restores it.
+
+`UpdateResult` therefore has to distinguish three outcomes rather than two: it succeeded, it
+failed and the previous version is back, or it failed and the installation is damaged. Those
+are three different sentences for the user, and collapsing them into "it didn't work" would
+lose the one piece of information that tells them whether they still have working software.
+
+`CleanAbandonedRollbacks` runs at startup alongside `CleanAbandonedStaging`, for the case
+where the process died mid-transaction.
+
+### Repair is the update transaction
+
+`RepairAsync` builds an `UpdatePlan` whose target is **the release already recorded in the
+manifest**, and runs the ordinary update path.
+
+This is a deliberate choice against the obvious alternative of fetching only the missing
+files. Repair happens when a directory is in an unknown state, which is exactly the
+situation in which incremental reasoning is least trustworthy - working out *which* file is
+missing requires trusting the record that has already proved unreliable. Reinstalling the
+recorded release through the transaction that already has rollback is both simpler and
+safer.
+
+Because the target is the recorded release, a repair can never quietly become an upgrade.
+
+One thing repair must *not* inherit is the transaction's account of itself. `UpdatePlan`
+carries an `IsRepair` flag, and the update-shaped history events are suppressed when it is
+set, because a history reading "Updated to v0.0.3" after somebody pressed REPAIR describes
+something that did not happen.
+
+### Health is narrow
+
+`InstallationHealthChecker` reports five problems and nothing else: a missing directory, a
+missing executable, an empty directory, an inconsistent record, missing owned entries. A
+health check that cried wolf would be worse than none, so it only reports things it can
+observe directly.
+
+`IsRepairable` excludes `InconsistentRecord`, because a record that disagrees with itself is
+not fixed by fetching files - it is fixed by removing the record, which is the user's
+decision rather than RepoDeck's.
+
+### Asking before downloading
+
+`RunningApplicationDetector` is consulted **before** the download starts, not before the
+swap. Somebody with the program open should be told to close it immediately, not after
+waiting for 57 MB.
+
+It matches on executable name and then confirms via `MainModule.FileName` inside the
+installation root, so an unrelated program with the same name elsewhere is not mistaken for
+this one. Failure to determine an answer counts as "not running": the transaction is already
+safe against being wrong, and a detector that blocked on uncertainty would block constantly.
+
+Nothing is ever force-killed. RepoDeck asks.
+
+### The manifest is untrusted input
+
+An `ApplicationManifest` is JSON on disk, which means it can be edited, corrupted or
+replaced. Uninstall therefore re-derives containment at the point of use rather than
+trusting the recorded path: `ArchivePathGuard.IsInside` against the managed root, plus
+explicit refusal of the root itself and of the reserved `.staging` and `.rollback` folders.
+
+A refused uninstall **keeps the record**. Dropping it would be the worse failure - a
+manifest RepoDeck will not act on would vanish silently, leaving files on disk that nothing
+knows about.
+
+### Release notes are remote text
+
+Update release notes are shown in a `SelectableTextBlock` as plain text, truncated, never
+rendered as markup. Nothing in them can become a link, an image or a request.
+
+### Transfers are in memory, history is on disk
+
+These are different things and are stored differently.
+
+`TransferRegistry` tracks what is being fetched right now. It is in memory only and
+deliberately so: an "active download" cannot survive the process performing it, and
+persisting it would produce records that lie after a crash. What outlives a run is the
+manifest the download produced, or nothing.
+
+`LifecycleHistory` is what RepoDeck has done, and that does belong on disk. It is a
+user-facing record rather than a log - the log file already exists and is the right place
+for stack traces, request URLs and byte counts. Consequently it holds no tokens, no
+authentication headers, no paths beyond the managed root and no exception detail; a failure
+records that it failed and the sentence the user was already shown. Capped at 400 entries
+and trimmed on write.
+
+### Favorites are not installations
+
+A favourite is a bookmark. It can be installed, uninstalled, or never installed, and
+removing an application does not remove the bookmark. Keeping them in a separate store is
+what makes that true by construction rather than by care.
+
+### Update-all is sequential
+
+Checking runs one application at a time. Parallel checks would be faster and would exhaust
+an unauthenticated rate allowance on a library of any size.
+
 ## Caching and rate limits
 
 `ResponseCache` is an in-memory TTL cache keyed by request URI: 5 minutes for searches,
@@ -690,7 +842,12 @@ Every network call is `async` and takes a `CancellationToken`. The Discover sear
 `[RelayCommand(IncludeCancelCommand = true)]`, which is what backs the Cancel button.
 The UI thread is never blocked.
 
-## What Milestone 3 deliberately does not do
+`Progress<T>` marshals through the synchronisation context, which means a report can
+arrive after the work that produced it has finished. Anywhere that matters, a flag or a
+generation counter guards the final state, because the last report to arrive is not
+necessarily the most recent one.
+
+## What RepoDeck deliberately does not do
 
 No source builds, and no running of installers. RepoDeck installs precompiled release
 assets into its own folder and launches them on request; a Windows installer or a Linux
@@ -698,5 +855,10 @@ package is fetched and handed to the user, because running one needs elevation a
 their decision. No command found in a README is ever run, no PATH is modified, no runtime
 is installed, and no system setting is touched.
 
-Update checking is not implemented. The Installed page says so rather than offering a
-button that appears to work.
+Milestone 4 changed none of that. It adds no execution of installers, no scripts, no
+elevation, no package-manager calls and no automatic pre-release installation. Downloaded
+content remains untrusted, and the update confirmation says so on screen before anything
+runs.
+
+The Downloads page will never gain a Run button. It exists precisely because RepoDeck
+declined to run something.

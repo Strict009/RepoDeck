@@ -42,6 +42,52 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <!--
+                What RepoDeck has done. Written for somebody to read, not to diagnose: no
+                paths, no stack traces, and nothing from a token ever reaches this list.
+            -->
+            <Border Classes="panel">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3">
+                            <TextBlock Text="WHAT REPODECK HAS DONE" Classes="sectionLabel" />
+                            <TextBlock Text="{Binding ActivitySummary}" Classes="muted"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Button Grid.Column="1" Classes="quiet" Content="CLEAR"
+                                VerticalAlignment="Top"
+                                IsVisible="{Binding HasActivity}"
+                                Command="{Binding ClearActivityCommand}"
+                                ToolTip.Tip="Forget this list. Nothing installed is affected." />
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding Activity}" IsVisible="{Binding HasActivity}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ActivityEntryViewModel">
+                                <Grid ColumnDefinitions="96,*,Auto" Margin="0,0,0,7">
+                                    <TextBlock Grid.Column="0" Text="{Binding KindText}"
+                                               Classes="microLabel"
+                                               Classes.failure="{Binding IsFailure}"
+                                               Classes.noteworthy="{Binding IsNoteworthy}"
+                                               VerticalAlignment="Top" Margin="0,2,10,0" />
+
+                                    <StackPanel Grid.Column="1" Spacing="1">
+                                        <TextBlock Text="{Binding Name}" Classes="body" />
+                                        <TextBlock Text="{Binding Summary}" Classes="secondary"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Column="2" Text="{Binding WhenText}"
+                                               Classes="muted" VerticalAlignment="Top"
+                                               Margin="14,2,0,0" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

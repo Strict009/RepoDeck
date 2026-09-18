@@ -31,12 +31,19 @@ public sealed class LaunchService
     private readonly IAppLog _log;
     private readonly TimeProvider _time;
 
+    private readonly History.ILifecycleHistory _history;
+
     public LaunchService(
-        AppPaths paths, IInstalledAppStore store, IAppLog log, TimeProvider? timeProvider = null)
+        AppPaths paths,
+        IInstalledAppStore store,
+        IAppLog log,
+        History.ILifecycleHistory? history = null,
+        TimeProvider? timeProvider = null)
     {
         _paths = paths;
         _store = store;
         _log = log;
+        _history = history ?? History.NullLifecycleHistory.Instance;
         _time = timeProvider ?? TimeProvider.System;
     }
 
@@ -157,6 +164,8 @@ public sealed class LaunchService
                 LastRunAt = _time.GetUtcNow(),
                 RunCount = manifest.RunCount + 1
             });
+
+            _history.Record(LifecycleEvent.Launched(manifest));
         }
         catch (Exception ex)
         {

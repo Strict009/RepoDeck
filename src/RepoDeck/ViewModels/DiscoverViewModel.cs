@@ -5,6 +5,7 @@ using RepoDeck.Infrastructure;
 using RepoDeck.Models;
 using RepoDeck.Services.Analysis;
 using RepoDeck.Services.Explanation;
+using RepoDeck.Services.Favorites;
 using RepoDeck.Services.GitHub;
 using RepoDeck.Services.Media;
 using RepoDeck.Services.Preferences;
@@ -31,6 +32,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     private int _totalCount;
     private readonly IUserPreferences? _preferences;
     private readonly MachineProfile _machine;
+    private readonly IFavoritesStore? _favorites;
 
     public DiscoverViewModel(
         IGitHubClient github,
@@ -40,7 +42,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         ImageLoader? images = null,
         IUserPreferences? preferences = null,
         QuickLookViewModel? quickLook = null,
-        MachineProfile? machine = null)
+        MachineProfile? machine = null,
+        IFavoritesStore? favorites = null)
     {
         _github = github;
         _explanations = explanations;
@@ -49,6 +52,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         _log = log;
         _preferences = preferences;
         _machine = machine ?? PlatformInfo.CurrentMachine();
+        _favorites = favorites;
 
         QuickLook = quickLook;
 
@@ -428,6 +432,12 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     /// <summary>Whether the panel is showing.</summary>
     public bool IsQuickLookOpen => QuickLook?.IsOpen ?? false;
 
+    /// <summary>
+    /// Stars or unstars a project. Returns the resulting state so the card can show it.
+    /// </summary>
+    private bool ToggleFavorite(RepositoryCardViewModel card) =>
+        _favorites?.Toggle(card.Repository) ?? card.IsFavorite;
+
     /// <summary>Opens Quick Look for a card that was activated rather than selected.</summary>
     private void OpenQuickLook(RepositoryCardViewModel card)
     {
@@ -513,7 +523,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
             var card = new RepositoryCardViewModel(
                 repository, explanation, likelihood, setup,
                 media.PrimaryArtwork?.Url, OnRepositoryOpenRequested, _log,
-                OpenQuickLook, OnInstallRequested);
+                OpenQuickLook, OnInstallRequested, ToggleFavorite,
+                _favorites?.IsFavorite(repository.OwnerLogin, repository.Name) ?? false);
 
             card.ApplyRelevance(RelevanceScorer.Score(
                 repository, query, card.Classification, card.Installability, _machine));

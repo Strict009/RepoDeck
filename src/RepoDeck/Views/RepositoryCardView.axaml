@@ -35,13 +35,22 @@
                                VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis" MaxLines="1" />
 
-                    <Border Grid.Column="2"
-                            Classes="chip chipCaution"
-                            IsVisible="{Binding IsArchived}"
-                            VerticalAlignment="Center"
-                            ToolTip.Tip="The authors have stopped maintaining this project.">
-                        <TextBlock Text="ABANDONED" />
-                    </Border>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <Border Classes="chip chipCaution"
+                                IsVisible="{Binding IsArchived}"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="The authors have stopped maintaining this project.">
+                            <TextBlock Text="ABANDONED" />
+                        </Border>
+
+                        <!-- A bookmark, not a rating. Independent of whether it is installed. -->
+                        <Button Classes="star"
+                                Classes.starOn="{Binding IsFavorite}"
+                                Content="{Binding FavoriteGlyph}"
+                                Command="{Binding ToggleFavoriteCommand}"
+                                ToolTip.Tip="{Binding FavoriteTooltip}"
+                                AutomationProperties.Name="{Binding FavoriteTooltip}" />
+                    </StackPanel>
                 </Grid>
             </Border>
 

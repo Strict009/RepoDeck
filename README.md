@@ -30,6 +30,11 @@ by having to know it first.
 RepoDeck's own folder. Anything it cannot install confidently is downloaded and handed to
 you with the reason stated.
 
+**Keeps it working afterwards.** It tells you when something you installed has a newer
+version, shows you what that version is before you agree to anything, and swaps it in
+safely — your old copy is kept until the new one is proved to work. If an installation gets
+damaged, it can put it back.
+
 ## What works today
 
 | | |
@@ -39,12 +44,29 @@ you with the reason stated.
 | Compatibility checking | Yes |
 | Installing portable builds and single executables | Yes |
 | Running what it installed | Yes |
+| Update checking | Yes |
+| Updating, with rollback if it goes wrong | Yes |
+| Repairing a damaged installation | Yes |
 | Removing what it installed | Yes |
 | Windows installers and Linux packages | Downloaded and handed to you, never run |
 | Building from source | No, and not planned |
-| Update checking | Not yet |
 
 Windows x64 and Linux x64.
+
+## Updating, without the usual anxiety
+
+RepoDeck only offers an update it can actually show is newer. Projects name their releases
+however they like, and when two names cannot be honestly compared, RepoDeck says it does not
+know rather than guessing — because guessing wrong means offering you an older version with
+the word "update" on the button.
+
+When you do update, your working copy is never written into. The new version is downloaded,
+unpacked somewhere separate and checked first. Only once it is ready is your current copy
+moved aside — and it is kept until the new one has been checked in place. If anything fails
+at any point, your previous version goes back.
+
+Nothing is force-closed. If the program is running, RepoDeck says so before it downloads
+anything, rather than after.
 
 ## How it keeps you in control
 

@@ -36,10 +36,19 @@
                                    TextTrimming="CharacterEllipsis" MaxLines="1" />
                     </StackPanel>
 
-                    <Button Grid.Column="1" Classes="quiet" Content="CLOSE"
-                            VerticalAlignment="Top"
-                            Command="{Binding CloseCommand}"
-                            ToolTip.Tip="Close this panel" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                VerticalAlignment="Top">
+                        <Button Classes="star"
+                                Classes.starOn="{Binding IsFavorite}"
+                                Content="{Binding FavoriteGlyph}"
+                                Command="{Binding ToggleFavoriteCommand}"
+                                ToolTip.Tip="{Binding FavoriteTooltip}"
+                                AutomationProperties.Name="{Binding FavoriteTooltip}" />
+
+                        <Button Classes="quiet" Content="CLOSE"
+                                Command="{Binding CloseCommand}"
+                                ToolTip.Tip="Close this panel" />
+                    </StackPanel>
                 </Grid>
             </Border>
 

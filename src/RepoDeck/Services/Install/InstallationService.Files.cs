@@ -26,9 +26,33 @@ public sealed partial class InstallationService
         }
     }
 
+    /// <summary>
+    /// Removes an installation, having first established that the path in the manifest is
+    /// somewhere RepoDeck is actually allowed to delete.
+    /// </summary>
+    /// <remarks>
+    /// The manifest is a JSON file on the user's disk. Something other than RepoDeck can
+    /// edit it - a mistake, a broken sync, or somebody who thinks pointing it at a system folder
+    /// would be funny - so its contents are treated as a claim to be checked rather than a
+    /// fact to be acted on. Every path is resolved and re-tested against the managed root
+    /// at the moment of use, and a record that fails is refused and left alone rather than
+    /// quietly dropped: deleting the record of an installation RepoDeck would not touch
+    /// would lose the evidence that something is wrong.
+    /// </remarks>
     private bool RemoveInstallation(ApplicationManifest manifest)
     {
-        var directory = Path.GetFullPath(manifest.InstalledPath);
+        string directory;
+
+        try
+        {
+            directory = Path.GetFullPath(manifest.InstalledPath);
+        }
+        catch (Exception ex)
+        {
+            _log.Error("Install",
+                $"Refused to uninstall {manifest.Id}: its recorded path is unusable ({ex.Message}).");
+            return false;
+        }
 
         if (!ArchivePathGuard.IsInside(_paths.Apps, directory))
         {
@@ -38,11 +62,45 @@ public sealed partial class InstallationService
             return false;
         }
 
+        // The managed root itself is not an application, and neither are the folders
+        // RepoDeck uses for its own working copies.
+        if (IsManagedRootOrReserved(directory))
+        {
+            _log.Error("Install",
+                $"Refused to uninstall {manifest.Id}: {directory} is one of RepoDeck's own folders.");
+            return false;
+        }
+
         if (Directory.Exists(directory)) DeleteManagedDirectory(directory);
 
         _store.Remove(manifest.Owner, manifest.Name);
+        _history.Record(LifecycleEvent.Uninstalled(manifest));
         _log.Info("Install", $"Uninstalled {manifest.Id}");
         return true;
+    }
+
+    /// <summary>
+    /// True for the Apps folder itself and for RepoDeck's working directories inside it.
+    /// An installation is always a folder beneath Apps, never Apps and never staging.
+    /// </summary>
+    private bool IsManagedRootOrReserved(string directory)
+    {
+        var apps = Path.GetFullPath(_paths.Apps).TrimEnd(Path.DirectorySeparatorChar);
+        var candidate = directory.TrimEnd(Path.DirectorySeparatorChar);
+
+        if (string.Equals(apps, candidate, StringComparison.OrdinalIgnoreCase)) return true;
+
+        string[] reserved = [StagingFolderName, ".rollback"];
+
+        foreach (var name in reserved)
+        {
+            var root = Path.GetFullPath(Path.Combine(apps, name)).TrimEnd(Path.DirectorySeparatorChar);
+
+            if (string.Equals(root, candidate, StringComparison.OrdinalIgnoreCase)) return true;
+            if (ArchivePathGuard.IsInside(root, candidate)) return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -67,6 +125,7 @@ public sealed partial class InstallationService
         }
 
         _store.Remove(manifest.Owner, manifest.Name);
+        _history.Record(LifecycleEvent.Uninstalled(manifest));
         _log.Info("Install", $"Forgot the downloaded file for {manifest.Id}");
         return true;
     }

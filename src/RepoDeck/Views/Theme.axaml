@@ -68,6 +68,15 @@
         <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
     </Style>
 
+    <!-- The word already says what happened; these only make it easier to find. -->
+    <Style Selector="TextBlock.microLabel.failure">
+        <Setter Property="Foreground" Value="{DynamicResource RdDangerBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.microLabel.noteworthy">
+        <Setter Property="Foreground" Value="{DynamicResource RdCautionBrush}" />
+    </Style>
+
     <Style Selector="TextBlock.accent">
         <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
     </Style>
@@ -587,6 +596,38 @@
         <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,0" />
         <Setter Property="Padding" Value="10" />
+    </Style>
+
+    <!-- ==================== Favourite ==================== -->
+    <!--
+        A bookmark, never a rating. Filled when remembered, outlined when not, and
+        described in words for anything that cannot see either.
+    -->
+    <Style Selector="Button.star">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.star /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Button.star:pointerover /template/ ContentPresenter">
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.starOn">
+        <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.starOn /template/ ContentPresenter">
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource RdAccentBrush}" />
     </Style>
 
     <!-- ==================== Segmented switch ==================== -->

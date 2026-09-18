@@ -16,6 +16,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly QuickLookViewModel _quickLook;
     private readonly InstalledViewModel _installed;
     private readonly DownloadsViewModel _downloads;
+    private readonly FavoritesViewModel _favorites;
     private readonly IUiDispatcher _dispatcher;
     private RepositoryDetailsViewModel? _activeDetails;
 
@@ -37,26 +38,28 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         _discover = new DiscoverViewModel(
             services.GitHub, services.Explanations, services.Media, services.Log, services.Images,
-            services.Preferences, _quickLook);
+            services.Preferences, _quickLook, services.Machine, services.Favorites);
 
         _discover.RepositoryOpenRequested += ShowRepositoryDetails;
         _discover.RepositoryInstallRequested += repository => ShowRepositoryDetails(repository, offerInstall: true);
 
         _installed = new InstalledViewModel(
-            services.InstalledApps, services.Installer, services.Launcher, services.Log);
+            services.InstalledApps, services.Installer, services.Launcher, services.Log,
+            services.UpdateChecker, services.Updater, services.HealthChecker,
+            services.History, services.Machine, services.Paths);
+
+        _favorites = new FavoritesViewModel(
+            services.Favorites, services.InstalledApps, services.Log, ShowRepositoryDetails);
 
         _downloads = new DownloadsViewModel(
-            services.InstalledApps, services.Installer, services.Log);
+            services.InstalledApps, services.Installer, services.Log, services.Transfers);
 
         NavigationItems =
         [
             new NavigationItem("Discover", NavigationIcons.Discover, _discover),
             new NavigationItem("Installed", NavigationIcons.Installed, _installed),
             new NavigationItem("Downloads", NavigationIcons.Downloads, _downloads),
-            new NavigationItem("Favorites", NavigationIcons.Favorites, new PlaceholderViewModel(
-                "Favorites",
-                "Repositories you save for later will appear here, whether or not you install them.",
-                "Planned for Milestone 2")),
+            new NavigationItem("Favorites", NavigationIcons.Favorites, _favorites),
             new NavigationItem("Settings", NavigationIcons.Settings, new SettingsViewModel(services, _dispatcher))
         ];
 
@@ -121,6 +124,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         // The library may have changed while the user was elsewhere in the application.
         if (ReferenceEquals(value.Page, _installed)) _installed.Refresh();
         if (ReferenceEquals(value.Page, _downloads)) _downloads.Refresh();
+        if (ReferenceEquals(value.Page, _favorites)) _favorites.Refresh();
 
         CurrentPage = value.Page;
         CanGoBack = false;
@@ -162,7 +166,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             _services.Media,
             _services.Machine,
             _services.Log,
-            _services.Images);
+            _services.Images,
+            _services.Favorites);
 
         details.OfferInstallWhenReady = offerInstall;
 

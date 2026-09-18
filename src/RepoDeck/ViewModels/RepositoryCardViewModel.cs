@@ -25,6 +25,7 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     private readonly Action<GitHubRepository> _openDetails;
     private readonly Action<RepositoryCardViewModel>? _quickLook;
     private readonly Action<RepositoryCardViewModel>? _requestInstall;
+    private readonly Func<RepositoryCardViewModel, bool>? _toggleFavorite;
     private readonly IAppLog _log;
 
     public RepositoryCardViewModel(
@@ -36,8 +37,12 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
         Action<GitHubRepository> openDetails,
         IAppLog log,
         Action<RepositoryCardViewModel>? quickLook = null,
-        Action<RepositoryCardViewModel>? requestInstall = null)
+        Action<RepositoryCardViewModel>? requestInstall = null,
+        Func<RepositoryCardViewModel, bool>? toggleFavorite = null,
+        bool isFavorite = false)
     {
+        _toggleFavorite = toggleFavorite;
+        _isFavorite = isFavorite;
         Repository = repository;
         Explanation = explanation;
         Likelihood = likelihood;
@@ -208,6 +213,29 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     /// <summary>Applies a classification refined by a deeper look.</summary>
     public void ApplyRefinedClassification(ProjectClassification classification) =>
         Classification = classification;
+
+    // ---- Favourite --------------------------------------------------------
+
+    /// <summary>
+    /// Whether the user asked RepoDeck to remember this. Entirely independent of whether
+    /// it is installed: a favourite may be installed, uninstalled, or never installed.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FavoriteTooltip))]
+    [NotifyPropertyChangedFor(nameof(FavoriteGlyph))]
+    private bool _isFavorite;
+
+    public string FavoriteTooltip => IsFavorite
+        ? "Remove this from your favourites"
+        : "Remember this for later";
+    /// <summary>
+    /// A filled star when saved, a hollow one when not. The shape carries the state on
+    /// its own, so it does not depend on noticing a colour change.
+    /// </summary>
+    public string FavoriteGlyph => IsFavorite ? "\u2605" : "\u2606";
+
+    [RelayCommand]
+    private void ToggleFavorite() => IsFavorite = _toggleFavorite?.Invoke(this) ?? IsFavorite;
 
     /// <summary>
     /// A stable colour derived from the name, so a project looks the same every time and
