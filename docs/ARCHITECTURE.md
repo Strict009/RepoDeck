@@ -790,6 +790,21 @@ A refused uninstall **keeps the record**. Dropping it would be the worse failure
 manifest RepoDeck will not act on would vanish silently, leaving files on disk that nothing
 knows about.
 
+The same rule applies when the deletion itself does not work, and that case had to be
+learned the hard way. A live uninstall reported success, dropped the record and wrote
+"Removed it." into the history while 69 MB was still sitting on disk: the recursive delete
+had returned without throwing and removed nothing. On Windows that can happen when another
+process holds a handle to something inside - a scanner reading a freshly written
+executable, a second copy of RepoDeck, a file browser with the folder open.
+
+So the delete is verified rather than assumed. RepoDeck checks the directory is actually
+gone, retries briefly for the pending case, and if files survive it keeps the record,
+records nothing in the history and reports failure. Keeping the record is also what makes
+a second attempt possible at all.
+
+The suite had proved RepoDeck would not delete the wrong thing and had never once proved
+that it deletes the right thing. It does now.
+
 ### Release notes are remote text
 
 Update release notes are shown in a `SelectableTextBlock` as plain text, truncated, never

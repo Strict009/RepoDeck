@@ -646,3 +646,303 @@ public class RepairHistoryTests
         public event Action? Changed { add { } remove { } }
     }
 }
+
+/// <summary>
+/// That a legitimate uninstall actually removes the files.
+/// </summary>
+/// <remarks>
+/// The rest of the uninstall suite proves RepoDeck will not delete the wrong thing. None
+/// of it proved RepoDeck deletes the right thing, and a live removal left 69 MB on disk
+/// while reporting success and dropping the record - the exact outcome the refusal tests
+/// were written to make impossible, arrived at from the other direction.
+/// </remarks>
+public class UninstallRemovesFilesTests : IDisposable
+{
+    private readonly string _root = Path.Combine(
+        Path.GetTempPath(), "repodeck-uninstall-" + Guid.NewGuid().ToString("N"));
+
+    private readonly AppPaths _paths;
+    private readonly InstalledAppStore _store;
+    private readonly InstallationService _installer;
+
+    public UninstallRemovesFilesTests()
+    {
+        _paths = new AppPaths(_root);
+        _paths.EnsureCreated();
+        _store = new InstalledAppStore(_paths, NullAppLog.Instance);
+
+        _installer = new InstallationService(
+            new ScriptedDownloadService(),
+            new ExtractionService(NullAppLog.Instance),
+            _store,
+            _paths,
+            NullAppLog.Instance);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Not worth failing a test over.
+        }
+    }
+
+    /// <summary>An installation shaped like a real one: files, subdirectories, nesting.</summary>
+    private string AnInstallation(string name = "someone__tool")
+    {
+        var directory = Path.Combine(_paths.Apps, name);
+
+        Directory.CreateDirectory(Path.Combine(directory, "plugins", "nested"));
+        Directory.CreateDirectory(Path.Combine(directory, "licenses"));
+
+        File.WriteAllText(Path.Combine(directory, "tool.exe"), "a program");
+        File.WriteAllText(Path.Combine(directory, "LICENSE.txt"), "a licence");
+        File.WriteAllText(Path.Combine(directory, "licenses", "Apache-2.0.txt"), "a licence");
+        File.WriteAllText(Path.Combine(directory, "plugins", "nested", "thing.dll"), "a plugin");
+
+        return directory;
+    }
+
+    private ApplicationManifest Installed(string path) => new()
+    {
+        Owner = "someone",
+        Name = "tool",
+        RepositoryUrl = "https://github.com/someone/tool",
+        State = InstallationState.Installed,
+        InstalledPath = path,
+        ExecutableRelativePath = "tool.exe",
+        Strategy = InstallStrategy.PortableArchive,
+        OwnedEntries = ["tool.exe", "LICENSE.txt", "licenses", "plugins"]
+    };
+
+    [Fact]
+    public async Task Uninstalling_deletes_the_directory()
+    {
+        var directory = AnInstallation();
+
+        var removed = await _installer.UninstallAsync(Installed(directory));
+
+        Assert.True(removed);
+        Assert.False(Directory.Exists(directory));
+    }
+
+    [Fact]
+    public async Task Uninstalling_leaves_nothing_behind_inside_it()
+    {
+        var directory = AnInstallation();
+
+        await _installer.UninstallAsync(Installed(directory));
+
+        // Reporting success while 69 MB survives is worse than reporting failure.
+        Assert.Empty(Directory.Exists(directory)
+            ? Directory.GetFileSystemEntries(directory, "*", SearchOption.AllDirectories)
+            : []);
+    }
+
+    [Fact]
+    public async Task Uninstalling_removes_the_record()
+    {
+        var directory = AnInstallation();
+        var manifest = Installed(directory);
+
+        _store.Save(manifest);
+        Assert.NotEmpty(_store.GetAll());
+
+        await _installer.UninstallAsync(manifest);
+
+        Assert.Empty(_store.GetAll());
+    }
+
+    [Fact]
+    public async Task Other_installations_are_untouched()
+    {
+        var mine = AnInstallation();
+        var theirs = AnInstallation("somebody__else");
+
+        await _installer.UninstallAsync(Installed(mine));
+
+        Assert.False(Directory.Exists(mine));
+        Assert.True(File.Exists(Path.Combine(theirs, "tool.exe")));
+    }
+
+    [Fact]
+    public async Task The_managed_root_survives()
+    {
+        var directory = AnInstallation();
+
+        await _installer.UninstallAsync(Installed(directory));
+
+        Assert.True(Directory.Exists(_paths.Apps));
+    }
+
+    [Fact]
+    public async Task A_directory_that_is_already_gone_still_clears_the_record()
+    {
+        // Somebody deleted it by hand. The record is still RepoDeck's to clean up.
+        var directory = Path.Combine(_paths.Apps, "someone__tool");
+        var manifest = Installed(directory);
+
+        _store.Save(manifest);
+
+        var removed = await _installer.UninstallAsync(manifest);
+
+        Assert.True(removed);
+        Assert.Empty(_store.GetAll());
+    }
+}
+
+/// <summary>
+/// What happens when the files genuinely will not go.
+/// </summary>
+/// <remarks>
+/// The rule these pin: if the files are still there, it is not uninstalled, the record
+/// stays, and nothing is written to the history claiming otherwise. The record is the
+/// only remaining evidence that something needs attention, and keeping it is what makes
+/// a second attempt possible.
+///
+/// These do NOT reproduce the live defect that prompted them. There, a recursive delete
+/// returned without throwing and left 69 MB on disk; a locked file throws, which the code
+/// already handled. The silent-success case could not be constructed here, which is why
+/// DeleteManagedDirectory now verifies the directory is gone rather than assuming it.
+/// </remarks>
+public class UninstallThatCannotDeleteTests : IDisposable
+{
+    private readonly string _root = Path.Combine(
+        Path.GetTempPath(), "repodeck-locked-" + Guid.NewGuid().ToString("N"));
+
+    private readonly AppPaths _paths;
+    private readonly InstalledAppStore _store;
+    private readonly InstallationService _installer;
+
+    public UninstallThatCannotDeleteTests()
+    {
+        _paths = new AppPaths(_root);
+        _paths.EnsureCreated();
+        _store = new InstalledAppStore(_paths, NullAppLog.Instance);
+
+        _installer = new InstallationService(
+            new ScriptedDownloadService(),
+            new ExtractionService(NullAppLog.Instance),
+            _store,
+            _paths,
+            NullAppLog.Instance);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Expected on Windows if a handle is somehow still open.
+        }
+    }
+
+    private ApplicationManifest Installed(string path) => new()
+    {
+        Owner = "someone",
+        Name = "tool",
+        RepositoryUrl = "https://github.com/someone/tool",
+        State = InstallationState.Installed,
+        InstalledPath = path,
+        ExecutableRelativePath = "tool.exe",
+        Strategy = InstallStrategy.PortableArchive
+    };
+
+    [Fact]
+    public async Task A_locked_file_keeps_the_record_and_reports_failure()
+    {
+        var directory = Path.Combine(_paths.Apps, "someone__tool");
+        Directory.CreateDirectory(directory);
+
+        var locked = Path.Combine(directory, "tool.exe");
+        File.WriteAllText(locked, "a program");
+
+        var manifest = Installed(directory);
+        _store.Save(manifest);
+
+        // An open handle with no sharing is what a scanner or a second copy of RepoDeck
+        // looks like from here.
+        await using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var removed = await _installer.UninstallAsync(manifest);
+
+            Assert.False(removed);
+            Assert.True(Directory.Exists(directory));
+
+            // The record is the only thing left that knows these files exist.
+            Assert.NotEmpty(_store.GetAll());
+        }
+    }
+
+    [Fact]
+    public async Task Once_the_lock_is_gone_the_same_uninstall_works()
+    {
+        var directory = Path.Combine(_paths.Apps, "someone__tool");
+        Directory.CreateDirectory(directory);
+
+        var locked = Path.Combine(directory, "tool.exe");
+        File.WriteAllText(locked, "a program");
+
+        var manifest = Installed(directory);
+        _store.Save(manifest);
+
+        await using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.False(await _installer.UninstallAsync(manifest));
+        }
+
+        // Keeping the record is what makes a second attempt possible at all.
+        Assert.True(await _installer.UninstallAsync(manifest));
+        Assert.False(Directory.Exists(directory));
+        Assert.Empty(_store.GetAll());
+    }
+
+    [Fact]
+    public async Task A_failed_uninstall_is_not_recorded_as_a_removal()
+    {
+        var directory = Path.Combine(_paths.Apps, "someone__tool");
+        Directory.CreateDirectory(directory);
+
+        var locked = Path.Combine(directory, "tool.exe");
+        File.WriteAllText(locked, "a program");
+
+        var history = new CountingHistory();
+
+        var installer = new InstallationService(
+            new ScriptedDownloadService(),
+            new ExtractionService(NullAppLog.Instance),
+            _store,
+            _paths,
+            NullAppLog.Instance,
+            history: history);
+
+        await using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await installer.UninstallAsync(Installed(directory));
+        }
+
+        Assert.DoesNotContain(history.Events, e => e.Kind == LifecycleEventKind.Uninstalled);
+    }
+
+    private sealed class CountingHistory : ILifecycleHistory
+    {
+        public List<LifecycleEvent> Events { get; } = [];
+
+        public void Record(LifecycleEvent entry) => Events.Add(entry);
+        public IReadOnlyList<LifecycleEvent> All() => Events;
+        public IReadOnlyList<LifecycleEvent> Recent(int count) => Events.Take(count).ToList();
+
+        public IReadOnlyList<LifecycleEvent> For(string applicationId) =>
+            Events.Where(e => e.ApplicationId == applicationId).ToList();
+
+        public int Clear() { var n = Events.Count; Events.Clear(); return n; }
+        public event Action? Changed { add { } remove { } }
+    }
+}

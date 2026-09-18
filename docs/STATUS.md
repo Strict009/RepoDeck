@@ -123,35 +123,44 @@ content remains untrusted. The update confirmation says this on screen before an
 
 ## Defects found and fixed by this work
 
-Six of these were found by running the application, not by reading it.
+Seven of these were found by running the application, not by reading it.
 
-1. **RepoDeck offered `v0.0.3` as an update to `v0.0.3-release.4`** - a downgrade, with the
+1. **Uninstall reported success while leaving 69 MB on disk.** The recursive delete was
+   trusted rather than checked: it returned without throwing, nothing was removed, and
+   RepoDeck went on to drop the record and write "Removed it." into the history. The user
+   was left with files that nothing was tracking any more - the exact outcome the
+   refused-path rules exist to prevent, arrived at from the other direction. The delete is
+   now verified, retried briefly for the Windows pending-delete case, and a failure keeps
+   the record and reports failure. Found by removing a real installation; the suite had
+   proved RepoDeck would not delete the wrong thing and had never proved that it deletes
+   the right thing.
+2. **RepoDeck offered `v0.0.3` as an update to `v0.0.3-release.4`** - a downgrade, with the
    word "update" on the button. Correct semantic versioning, wrong answer: `release.4` is
    the project's build number. Fixed by recognising only real pre-release words and refusing
    to order anything else; `CompareOrNull` and fifteen tests now hold the line.
-2. **The DOWNLOAD size was blank in the update panel.** It was bound to the plan, which is
+3. **The DOWNLOAD size was blank in the update panel.** It was bound to the plan, which is
    not built until the user asks to update - so the panel asking them to decide showed an
    empty field. The size is now recorded on the check result, where it was already known.
-3. **Offered the older of two equal-numbered releases.** Semver ranks an alphanumeric
+4. **Offered the older of two equal-numbered releases.** Semver ranks an alphanumeric
    identifier above a numeric one, so `release.3-patch.1` beat `release.4`. The publication
    date now settles ties.
-4. **"Everything is up to date" printed above a row saying "Can't determine."** The summary
+5. **"Everything is up to date" printed above a row saying "Can't determine."** The summary
    counted updates and ignored everything else. It now says what the rows support.
-5. **The star looked identical whether saved or not.** An explicit `TextBlock` inside the
+6. **The star looked identical whether saved or not.** An explicit `TextBlock` inside the
    button picked up the global text style, so the button's foreground never reached it, and
    the state depended on a colour that was not being applied anyway. It is now a filled or
    hollow star.
-6. **A repair recorded that it had updated.** Repair runs the update transaction on purpose,
+7. **A repair recorded that it had updated.** Repair runs the update transaction on purpose,
    and was inheriting the transaction's account of itself: the history read "Updated to
    v0.0.3-release.4" next to "Repaired". Update-shaped events are now suppressed for a
    repair.
-7. **The repair panel said "2 things are wrong" without saying what.** The explanations
+8. **The repair panel said "2 things are wrong" without saying what.** The explanations
    existed and were never displayed.
-8. **The activity history was recorded all milestone and shown nowhere.**
-9. **Repair always failed on this machine.** `MachineProfile` was not reaching the executable
+9. **The activity history was recorded all milestone and shown nowhere.**
+10. **Repair always failed on this machine.** `MachineProfile` was not reaching the executable
    locator, so `Platform = Unknown` rejected `.exe`. Found by a test before it shipped;
    `Locate` now falls back to the machine profile.
-10. **A rollback test could pass without restoring anything.** If `Directory.Move` failed,
+11. **A rollback test could pass without restoring anything.** If `Directory.Move` failed,
     the backup was never taken and the assertion was vacuous. Rewritten around a service that
     locks a file *in staging*, so the backup is definitely taken first; both new tests were
     confirmed to fail when the restore branch is disabled.
@@ -159,7 +168,7 @@ Six of these were found by running the application, not by reading it.
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - **979 passed, 0 failed** (up from 798; 181 new tests).
+- `dotnet test` - **988 passed, 0 failed** (up from 798; 190 new tests).
 - Every new guard was confirmed to **fail without its fix**, not merely to pass with it.
 
 **Driven on screen, against real GitHub and a real installation:**
@@ -169,6 +178,8 @@ Six of these were found by running the application, not by reading it.
   advanced, `installedAt` preserved, `updatedAt` set, `.staging` and `.rollback` left empty.
 - **Repair, twice**, from a deliberately damaged installation - executable and a directory
   deleted. Both restored the installation byte-for-byte at the same version.
+- **Uninstall and reinstall of a real application**, which is how the delete defect above
+  was found. The second time, with the fix in place, the folder was genuinely gone.
 - The library, the update confirmation, the repair confirmation, Downloads, Favorites
   (empty, then populated, then persisted across a restart), and the activity list.
 
@@ -182,25 +193,29 @@ edit to the manifest, noted here so the result is not mistaken for an unprompted
    capture. Its logic is tested; I have not watched it.
 2. **Downloads was only seen empty.** Producing a populated page live means downloading
    something RepoDeck refuses to install. The three sections are covered by tests.
-3. **Uninstall refusal was not exercised live.** The traversal and reserved-folder refusals
-   are covered by tests that hand-edit a manifest, but I did not remove the user's installed
-   application to watch it happen.
-4. **Rollback has not been forced live.** It is covered by tests that fail when the restore
+3. **The uninstall *refusal* paths were not exercised live.** An ordinary uninstall was,
+   and found a real defect. The traversal and reserved-folder refusals are still only
+   covered by tests that hand-edit a manifest.
+4. **The silent-delete condition could not be reproduced in a test.** A locked file throws,
+   which the code already handled; what happened live was a recursive delete returning
+   successfully having removed nothing. The verification step exists because that was
+   observed, not because it could be written down as a test.
+5. **Rollback has not been forced live.** It is covered by tests that fail when the restore
    branch is disabled, but I did not sabotage a real update mid-promotion.
-5. **`Unknown` is a dead end.** When RepoDeck cannot order two tags it explains why and
+6. **`Unknown` is a dead end.** When RepoDeck cannot order two tags it explains why and
    stops. It does not offer "install this anyway", which would be the honest escape hatch for
    somebody who knows their project's naming better than RepoDeck does.
-6. **Pre-release suffix recognition is a word list.** A project using an unusual word for a
+7. **Pre-release suffix recognition is a word list.** A project using an unusual word for a
    beta gets `Unknown` rather than an offer. That is the safe direction to be wrong in, but
    it is still a list.
-7. **Update checking costs one request per application**, sequentially. A large library on an
+8. **Update checking costs one request per application**, sequentially. A large library on an
    unauthenticated allowance will be slow, and there is no scheduling or background check.
-8. **No checksum verification against a publisher-provided checksum asset.** RepoDeck records
+9. **No checksum verification against a publisher-provided checksum asset.** RepoDeck records
    the hash of what it downloaded; it does not compare it to a hash the project published.
-9. **Transfers are in memory only**, so the Downloads page starts empty each run. This is
+10. **Transfers are in memory only**, so the Downloads page starts empty each run. This is
    deliberate - an "active download" cannot survive the process performing it - but it means
    a failed download is forgotten on restart.
-10. Earlier weaknesses remain: badge rejection is a blocklist; Quick Look costs requests with
+11. Earlier weaknesses remain: badge rejection is a blocklist; Quick Look costs requests with
     no debounce; relevance works from a one-line description; collections are searches rather
     than curation; compact view cannot be sorted; the light theme is untested in practice;
     image decoding has no automated test and no disk cache.

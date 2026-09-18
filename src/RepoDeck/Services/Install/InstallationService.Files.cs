@@ -8,6 +8,10 @@ public sealed partial class InstallationService
     /// <summary>A guard against a pathological archive turning executable discovery into a crawl.</summary>
     private const int MaxScannedFiles = 20_000;
 
+    /// <summary>Enough to outlast a scanner holding a handle, not enough to hang the page.</summary>
+    private const int DeleteAttempts = 3;
+    private const int DeleteRetryDelayMs = 250;
+
     public Task<bool> UninstallAsync(
         ApplicationManifest manifest, CancellationToken cancellationToken = default)
     {
@@ -71,7 +75,17 @@ public sealed partial class InstallationService
             return false;
         }
 
-        if (Directory.Exists(directory)) DeleteManagedDirectory(directory);
+        if (Directory.Exists(directory) && !DeleteManagedDirectory(directory))
+        {
+            // Same rule as a refused path: the record stays. An application whose files
+            // are still on disk is not uninstalled, and dropping the record here would
+            // leave the user with files nothing knows about and no way to try again.
+            _log.Error("Install",
+                $"Could not uninstall {manifest.Id}: {directory} could not be removed. "
+                + "The record has been kept.");
+
+            return false;
+        }
 
         _store.Remove(manifest.Owner, manifest.Name);
         _history.Record(LifecycleEvent.Uninstalled(manifest));
@@ -135,7 +149,21 @@ public sealed partial class InstallationService
     /// is inside Apps; this re-checks anyway, because the cost of being wrong here is
     /// somebody's files.
     /// </summary>
-    private void DeleteManagedDirectory(string directory)
+    /// <summary>
+    /// Deletes a directory RepoDeck owns, and then checks that it is actually gone.
+    /// </summary>
+    /// <remarks>
+    /// The check is not paranoia. On Windows a recursive delete can return successfully
+    /// while the removal is still pending, because another process holds a handle to
+    /// something inside - a virus scanner reading a freshly written executable, a second
+    /// copy of RepoDeck, a file browser with the folder open. A live uninstall hit exactly
+    /// that: RepoDeck reported success, dropped the record, and left 69 MB on disk that
+    /// nothing was tracking any more.
+    ///
+    /// So the result is verified rather than assumed, with a short retry for the pending
+    /// case, and the caller is told the truth either way.
+    /// </remarks>
+    private bool DeleteManagedDirectory(string directory)
     {
         var full = Path.GetFullPath(directory);
 
@@ -145,7 +173,26 @@ public sealed partial class InstallationService
                 $"Refused to delete a directory outside RepoDeck's managed folder: {full}");
         }
 
-        Directory.Delete(full, recursive: true);
+        for (var attempt = 1; attempt <= DeleteAttempts; attempt++)
+        {
+            try
+            {
+                if (Directory.Exists(full)) Directory.Delete(full, recursive: true);
+            }
+            catch (Exception ex) when (attempt < DeleteAttempts)
+            {
+                _log.Warn("Install",
+                    $"Could not remove {full} (attempt {attempt}): {ex.Message}");
+            }
+
+            // The only answer that counts. A delete that returned without throwing has
+            // still not removed anything if the directory is standing there afterwards.
+            if (!Directory.Exists(full)) return true;
+
+            if (attempt < DeleteAttempts) Thread.Sleep(DeleteRetryDelayMs);
+        }
+
+        return !Directory.Exists(full);
     }
 
     private void TryDeleteFile(string path)
