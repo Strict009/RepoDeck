@@ -31,6 +31,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public string LogFolder => _services.Paths.Logs;
     public string PlatformText => PlatformInfo.CurrentDescription;
 
+    /// <summary>Which build this is, so a problem report can name it.</summary>
+    public string VersionText => AppVersion.Description;
+
     public bool HasToken => _services.Tokens.HasToken;
 
     public string TokenStatus => HasToken

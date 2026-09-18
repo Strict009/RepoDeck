@@ -3,7 +3,12 @@
   <!-- This manifest is used on Windows only.
        Don't remove it as it might cause problems with window transparency and embedded controls.
        For more details visit https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests -->
-  <assemblyIdentity version="1.0.0.0" name="RepoDeck.Desktop"/>
+  <!-- This is the side-by-side assembly identity, not the application version.
+       RepoDeck's version lives in Directory.Build.props and is stamped into the
+       executable from there; this stays fixed so nobody has to keep two places in
+       step. It previously read 1.0.0.0, which claimed a stability RepoDeck has not
+       reached. -->
+  <assemblyIdentity version="0.1.0.0" name="RepoDeck.Desktop"/>
 
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
     <application>

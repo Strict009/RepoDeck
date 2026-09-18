@@ -126,6 +126,20 @@ dotnet run --project src/RepoDeck/RepoDeck.csproj
 dotnet test
 ```
 
+## Building a release
+
+RepoDeck is currently version 0.1.0-alpha. To produce installable artifacts:
+
+```
+pwsh build/package.ps1
+```
+
+That produces a portable zip and a per-user Windows installer in `dist/`, with SHA-256
+checksums. The build is self-contained, so it runs without .NET installed separately.
+
+See [docs/RELEASING.md](docs/RELEASING.md) for the detail, including what the packaging
+script refuses to ship and why the installer never asks for administrator access.
+
 ## GitHub rate limits
 
 Without a token, GitHub allows 60 requests an hour and 10 searches a minute, which is
@@ -144,4 +158,8 @@ writes the token to disk and never records it in the log.
 `%LOCALAPPDATA%\RepoDeck` on Windows, `~/.local/share/RepoDeck` on Linux. RepoDeck only
 ever writes inside that folder.
 
-See `docs/ARCHITECTURE.md` and `docs/STATUS.md`.
+That is deliberately separate from wherever the program itself is installed. Uninstalling
+RepoDeck does not delete it, so the applications RepoDeck installed for you stay where they
+are and are still there if you reinstall.
+
+See `docs/ARCHITECTURE.md`, `docs/STATUS.md` and `docs/RELEASING.md`.

@@ -25,6 +25,8 @@
                 <StackPanel Spacing="10">
                     <TextBlock Text="THIS COMPUTER" Classes="sectionLabel" />
                     <TextBlock Text="{Binding PlatformText}" Classes="body" />
+                    <TextBlock Text="{Binding VersionText}" Classes="muted"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 

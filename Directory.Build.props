@@ -1,0 +1,39 @@
+<Project>
+
+  <!--
+    RepoDeck's version, in one place.
+
+    Deliberately pre-1.0 and deliberately suffixed. RepoDeck installs other people's
+    software onto somebody's machine; calling it 1.0 before it has been run by anyone
+    other than its author would be a claim it has not earned. The suffix is what every
+    build stamps into its own metadata, so an alpha tester reporting a problem can say
+    which build they had.
+
+    Raising this is the only edit needed to cut a new release: the packaging script reads
+    it from here rather than taking a version as an argument, so the artifacts, the
+    installer and the running application can never disagree about what they are.
+  -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix>alpha</VersionSuffix>
+
+    <!-- Derived, not repeated. Windows file metadata is four numbers and cannot hold a
+         suffix, but writing them out by hand would mean three places to edit and two
+         chances to forget. -->
+    <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
+    <FileVersion>$(VersionPrefix).0</FileVersion>
+
+    <!-- Keep the informational version exactly as written above rather than appending a
+         commit hash, because it is shown to people, not to a build system. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Company>RepoDeck</Company>
+    <Product>RepoDeck</Product>
+    <Authors>RepoDeck</Authors>
+    <Copyright>Copyright © RepoDeck contributors</Copyright>
+    <Description>GitHub, made approachable. Find, understand, install and maintain software from GitHub.</Description>
+  </PropertyGroup>
+
+</Project>

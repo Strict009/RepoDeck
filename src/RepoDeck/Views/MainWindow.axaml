@@ -8,6 +8,7 @@
         x:Class="RepoDeck.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="RepoDeck"
+        Icon="avares://RepoDeck/Assets/RepoDeck.ico"
         Width="1320" Height="860"
         MinWidth="880" MinHeight="600"
         Background="{DynamicResource RdPageBackgroundBrush}">

@@ -168,7 +168,7 @@ Seven of these were found by running the application, not by reading it.
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - **988 passed, 0 failed** (up from 798; 190 new tests).
+- `dotnet test` - **994 passed, 0 failed** (up from 798; 196 new tests).
 - Every new guard was confirmed to **fail without its fix**, not merely to pass with it.
 
 **Driven on screen, against real GitHub and a real installation:**
@@ -230,6 +230,120 @@ Not started, and deliberately outside Milestone 4's boundary:
 4. An explicit "install this anyway" for the `Unknown` case.
 
 Source builds and installer execution remain out of scope.
+
+## Distribution (0.1.0-alpha)
+
+RepoDeck can now be built into something installable. Deliberately pre-1.0 and deliberately
+suffixed: it installs other people's software onto somebody's machine, and calling it 1.0
+before anyone but its author has run it would be a claim it has not earned.
+
+### Versioning
+
+`Directory.Build.props` holds the only copy of the version. The assembly metadata, the
+Windows file version, the artifact names, the installer's registration and the string
+RepoDeck shows on its own Settings page all derive from it, and the packaging script reads
+it rather than taking an argument - so the artifacts and the running application cannot
+disagree about what they are.
+
+The four-part numeric forms are derived rather than repeated, because three places to edit
+is two chances to forget.
+
+### Artifacts
+
+One command, `pwsh build/package.ps1`, produces into `dist/`:
+
+| File | Size |
+|---|---|
+| `RepoDeck-Portable-0.1.0-alpha-win-x64.zip` | 52.4 MB |
+| `RepoDeck-Setup-0.1.0-alpha-win-x64.exe` | 39.9 MB |
+| `RepoDeck-0.1.0-alpha-win-x64.sha256` | checksums, `sha256sum -c` format |
+
+A test asserts the version still carries a pre-release suffix, so dropping it takes a
+deliberate act with a failing test in the way rather than an absent-minded edit.
+
+Self-contained win-x64, 222 files, 123 MB unpacked. Not trimmed and not single-file:
+trimming an Avalonia application removes types the XAML loader finds by name at runtime and
+the failure is a blank window rather than a build error, and single-file would unpack to a
+temporary directory on first run, which is one more thing to go wrong on the machine
+RepoDeck is trying to prove itself on. ReadyToRun is on; it costs 15 MB and buys startup.
+
+### Installer
+
+Inno Setup 6, per-user, no elevation, into `%LOCALAPPDATA%\Programs\RepoDeck`.
+
+The choice follows from something RepoDeck already says. The install confirmation tells
+people it will not ask for administrator access; an installer that demanded elevation would
+contradict that on the first screen a new user sees. `PrivilegesRequiredOverridesAllowed` is
+deliberately unset for the same reason - with it, Inno opens by offering "Install for all
+users (requires administrative privileges)", which puts an elevation prompt in front of an
+application whose whole argument is that it never needs one.
+
+MSI can be made to install per-user, but that is precisely where MSI is weakest. MSIX needs
+a signing certificate the user must trust before sideloading. Squirrel and Velopack want to
+own the update mechanism, and RepoDeck has a deliberate one of its own.
+
+`ISCC.exe` is not a NuGet package, so its absence is a warning rather than a failure: the
+script says how to install it and still produces the portable archive.
+
+### Where things live
+
+The program installs to `%LOCALAPPDATA%\Programs\RepoDeck`. Everything RepoDeck owns stays
+in `%LOCALAPPDATA%\RepoDeck`, and **uninstalling does not touch it** - applications RepoDeck
+installed on somebody's behalf are not its to delete. The portable build uses the same
+location, so a portable copy and an installed copy share one library rather than quietly
+keeping two.
+
+### What the audit found
+
+Most of it was already right. `AppPaths` resolved `%LOCALAPPDATA%` and XDG correctly, every
+store derived from it, there were no config files, no absolute paths, no `BaseDirectory` or
+`GetCurrentDirectory` use, the theme and fonts were embedded resources, and the developer
+tooling was already excluded outside Debug.
+
+Six gaps, all fixed: no version metadata at all; no application icon; `app.manifest`
+hard-coding `1.0.0.0` and so claiming a stability RepoDeck has not reached; no publish
+configuration; no way for a tester to see which build they were running; and `dist/` not
+ignored.
+
+### The payload check
+
+The first Release publish was 224 MB, of which **101 MB was `libSkiaSharp.pdb` and
+`libHarfBuzzSharp.pdb`** - native debug symbols arriving as package content. `DebugType=none`
+does not touch those. They are excluded in the project file, and the packaging script now
+refuses to build if any `.pdb` reappears, along with sources, project files, test
+assemblies, xunit, coverlet, `*.token`, `secrets.json`, `appsettings.Local.json`, or any
+absolute build-machine path inside the shipped `.deps.json` or `.runtimeconfig.json`.
+
+### Tested
+
+All eight, on the development machine:
+
+| # | Test | Result |
+|---|---|---|
+| 1 | Release build | Clean, 0 warnings, 0 errors |
+| 2 | Portable build | Extracted to a fresh directory and run |
+| 3 | Installer | Driven through its wizard, and run silently |
+| 4 | First launch | From publish output, portable archive and installed copy |
+| 5 | Persistent data path | All three share `%LOCALAPPDATA%\RepoDeck` and one library |
+| 6 | Uninstall | Program directory, both shortcuts and registration gone; data intact |
+| 7 | Reinstall | Found its three application directories again |
+| 8 | Upgrade | 0.1.0-alpha to 0.1.1-alpha in place, one registration entry not two |
+
+Two defects were found and fixed while testing: the installer offered an "Install for all
+users" elevation path, and the checksum file was written with CRLF, which makes every line
+of a `sha256sum -c` check fail.
+
+### Still owed
+
+1. **Clean-machine verification.** Everything above ran on a computer with the .NET SDK
+   installed. The build is self-contained and references no shared runtime, but "runs
+   without .NET installed" has not been demonstrated anywhere it was genuinely absent.
+2. **No code signing.** SmartScreen will warn about both artifacts, correctly: they are
+   unsigned binaries from an unknown publisher.
+3. **Nothing is published.** No GitHub release, no upload, no update feed.
+4. **win-x64 only.** The application runs on Linux; there is no Linux packaging.
+5. **Upgrade while running was not tested.** Both installer runs were made with RepoDeck
+   closed.
 
 ## Earlier milestones
 

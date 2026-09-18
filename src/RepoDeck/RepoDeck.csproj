@@ -10,6 +10,30 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- The window icon and the icon Explorer shows on the executable are the same file. -->
+    <ApplicationIcon>Assets\RepoDeck.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!--
+    Publish settings for a distributable build. Self-contained so a clean Windows machine
+    needs nothing installed first: the whole point of RepoDeck is that somebody who does
+    not know what a runtime is can still run the thing.
+
+    Not trimmed and not single-file, deliberately. Trimming an Avalonia application removes
+    types the XAML loader finds by name at runtime, and the failure shows up as a blank
+    window rather than a build error. Single-file would unpack itself to a temporary
+    directory on first run, which is one more thing to go wrong on a machine RepoDeck is
+    trying to prove itself on. Both are worth revisiting once there is something to
+    compare against; neither is worth risking for an alpha.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,4 +51,25 @@
   <ItemGroup>
     <InternalsVisibleTo Include="RepoDeck.Tests" />
   </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <!--
+    Keep debug symbols out of a distributed build.
+
+    DebugType=none suppresses RepoDeck's own .pdb, but SkiaSharp and HarfBuzzSharp ship
+    native symbol files as package content, and those come along regardless: 101 MB of the
+    first Release publish was libSkiaSharp.pdb and libHarfBuzzSharp.pdb. They are of no use
+    to anybody installing RepoDeck, and shipping them would nearly double the download for
+    debug artifacts nobody asked for.
+  -->
+  <Target Name="RemoveSymbolsFromPublish" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish
+          Remove="@(ResolvedFileToPublish)"
+          Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
 </Project>

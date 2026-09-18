@@ -1,0 +1,26 @@
+RepoDeck is a development build.
+
+This is pre-release software. It works, it has been tested, and it is not finished. Things
+will change, and some of them will change in ways that are not backwards compatible.
+
+What RepoDeck installs here:
+
+  - The program itself goes into your own user folder. No administrator access is
+    required, and none is requested.
+
+What RepoDeck keeps elsewhere:
+
+  - Everything RepoDeck downloads, installs on your behalf, or remembers lives in
+    %LOCALAPPDATA%\RepoDeck. That folder is deliberately separate from the program, and
+    uninstalling RepoDeck will not delete it. Applications RepoDeck installed for you stay
+    where they are.
+
+What RepoDeck will not do:
+
+  - It will not run installers, scripts, or anything else it downloads.
+  - It will not ask for administrator access.
+  - It will not change Windows settings or touch anything outside its own folders.
+
+RepoDeck cannot tell you whether software you find through it is safe or trustworthy.
+Nothing it shows you is a recommendation. It tells you what it found and how it worked it
+out, and the decision stays yours.
