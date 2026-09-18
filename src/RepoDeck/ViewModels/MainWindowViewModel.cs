@@ -67,9 +67,37 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         UpdateRateLimit(services.GitHub.RateLimit);
         services.GitHub.RateLimitChanged += UpdateRateLimit;
         RefreshLibraryCount();
+
+        // The welcome takes over the whole window on a first run, so nothing else has to
+        // know about it: the shell simply has no chrome until it is done.
+        if (!services.Preferences.Current.HasSeenWelcome)
+        {
+            var onboarding = new OnboardingViewModel(services.Preferences);
+
+            onboarding.Finished += () =>
+            {
+                _discover.BrowseMode = services.Preferences.Current.BrowseMode;
+                Onboarding = null;
+            };
+
+            _onboarding = onboarding;
+        }
     }
 
     public ObservableCollection<NavigationItem> NavigationItems { get; }
+
+    /// <summary>
+    /// The first-run welcome, or null once it is done. While it is here the shell shows
+    /// nothing else at all - no sidebar, no status bar - because a welcome competing with
+    /// the interface it is introducing helps nobody.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowOnboarding))]
+    [NotifyPropertyChangedFor(nameof(ShowShell))]
+    private OnboardingViewModel? _onboarding;
+
+    public bool ShowOnboarding => Onboarding is not null;
+    public bool ShowShell => Onboarding is null;
 
     [ObservableProperty] private ViewModelBase _currentPage;
     [ObservableProperty] private NavigationItem _selectedNavigationItem;

@@ -289,6 +289,35 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         return SearchCommand.ExecuteAsync(null);
     }
 
+    /// <summary>Ways of slicing the search: newest, smallest, portable, weird.</summary>
+    public IReadOnlyList<DiscoverCollection> Collections => DiscoverCollection.All;
+
+    /// <summary>
+    /// Runs a collection. Unlike a category these adjust the sort and filters as well as
+    /// the text, because "recently updated" is a question about ordering rather than about
+    /// subject matter.
+    /// </summary>
+    [RelayCommand]
+    private Task SearchCollectionAsync(DiscoverCollection? collection)
+    {
+        if (collection is null) return Task.CompletedTask;
+
+        SearchText = collection.Query;
+        ActiveCategory = collection.Label;
+
+        SelectedSort = SortOption.All.FirstOrDefault(o => o.Value == collection.Sort) ?? SelectedSort;
+        SelectedUpdated = UpdatedOption.All.FirstOrDefault(o => o.Value == collection.Updated) ?? SelectedUpdated;
+
+        if (collection.MinStars is { } stars)
+        {
+            SelectedStars = StarsOption.All
+                .Where(o => o.MinStars <= stars)
+                .MaxBy(o => o.MinStars ?? 0) ?? SelectedStars;
+        }
+
+        return SearchCommand.ExecuteAsync(null);
+    }
+
     /// <summary>The category currently being browsed, when the search came from a tile.</summary>
     [ObservableProperty] private string? _activeCategory;
 

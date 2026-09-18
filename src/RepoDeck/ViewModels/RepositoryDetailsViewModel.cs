@@ -229,7 +229,15 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
     /// </summary>
     private async Task RunAnalysisAsync(RepositoryDetails details, CancellationToken cancellationToken)
     {
-        var progress = new Progress<AnalysisStage>(stage => AnalysisStatus = stage.ToDisplayString());
+        // Progress<T> marshals through the synchronisation context, so a report can be
+        // delivered after the analysis has finished. Without this guard the last one wins
+        // and the page sits reading "Preparing installation plan..." above a finished plan.
+        var analysing = true;
+
+        var progress = new Progress<AnalysisStage>(stage =>
+        {
+            if (analysing) AnalysisStatus = stage.ToDisplayString();
+        });
 
         try
         {
@@ -253,11 +261,16 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
             ApplyMedia(_mediaService.Discover(
                 details.Repository, details.ReadmeMarkdown, analysis.FileListing));
 
+            // The analysis is done, so the progress line has to stop claiming otherwise.
+            analysing = false;
+            AnalysisStatus = "";
+
             _log.Info("Details", $"{details.Repository.FullName}: {analysis.ApplicationType} "
                                  + $"({analysis.ApplicationTypeConfidence}), plan: {plan.Strategy}");
         }
         catch (OperationCanceledException)
         {
+            analysing = false;
             AnalysisStatus = "";
             throw;
         }
@@ -266,6 +279,7 @@ public sealed partial class RepositoryDetailsViewModel : ViewModelBase
             // The rest of the page is still useful, so a failed analysis is reported
             // in place rather than taking the whole details view down.
             _log.Error("Details", $"Analysis failed for {details.Repository.FullName}", ex);
+            analysing = false;
             AnalysisStatus = "";
             AnalysisIncompleteReason = "RepoDeck could not finish analysing this repository.";
             HasAnalysis = true;

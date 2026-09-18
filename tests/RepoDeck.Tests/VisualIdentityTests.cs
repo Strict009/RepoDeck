@@ -50,12 +50,12 @@ public class VisualIdentityTests
         var github = new FakeGitHubClient { DefaultResults = [TestRepositories.Create()] };
         var vm = Discover(github);
 
-        var games = DiscoverCategory.All.Single(c => c.Label == "Games");
+        var games = DiscoverCategory.All.Single(c => c.Label == "Games & Emulation");
         await vm.SearchCategoryCommand.ExecuteAsync(games);
 
         Assert.Equal(1, github.SearchCallCount);
         Assert.Equal(games.Query, vm.SearchText);
-        Assert.Equal("Games", vm.ActiveCategory);
+        Assert.Equal("Games & Emulation", vm.ActiveCategory);
         Assert.True(vm.ShowResults);
     }
 

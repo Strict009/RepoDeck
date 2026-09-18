@@ -329,6 +329,18 @@
         <Setter Property="HorizontalContentAlignment" Value="Left" />
     </Style>
 
+    <!-- A tile the user has chosen, for a either-or question. -->
+    <Style Selector="Button.tileChosen /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <Style Selector="Button.tileChosen:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
     <Style Selector="Button.tile /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
     </Style>
@@ -524,6 +536,57 @@
     <Style Selector="Button.quiet:pressed /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+    </Style>
+
+    <!-- ==================== WHY? ==================== -->
+    <!--
+        Sits beside every verdict RepoDeck makes. Small enough not to compete with the
+        answer, lit enough to be obviously pressable: the point is that a beginner can ask
+        why about the one thing that puzzled them and be taught, rather than having to
+        learn what any of it means first.
+    -->
+    <Style Selector="Button.why">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Padding" Value="7,2" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.8" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.why /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Button.why:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.why:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdPanelInsetBrush}" />
+    </Style>
+
+    <!-- The evidence group a WHY button just pointed at. -->
+    <Style Selector="Border.evidence">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0,0,0,0" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="Border.evidenceHighlighted">
+        <Setter Property="Background" Value="{DynamicResource RdAccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,0" />
+        <Setter Property="Padding" Value="10" />
     </Style>
 
     <!-- ==================== Segmented switch ==================== -->

@@ -81,6 +81,32 @@ public static class Humanize
         return size.ToString(format, CultureInfo.InvariantCulture) + " " + units[unit];
     }
 
+    /// <summary>
+    /// Bytes with one decimal place, for a counter that is moving while somebody watches.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="FileSize"/> drops decimals above ten, which is right for "57 MB" on a
+    /// confirmation and wrong for a download readout: it would sit on "18 MB" for several
+    /// seconds and then jump, which reads as a stall rather than as progress.
+    /// </remarks>
+    public static string FileSizePrecise(long bytes)
+    {
+        if (bytes < 0) return "unknown";
+
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double size = bytes;
+        var unit = 0;
+
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+
+        var format = unit == 0 ? "0" : "0.0";
+        return size.ToString(format, CultureInfo.InvariantCulture) + " " + units[unit];
+    }
+
     public static string Percent(double share) =>
         (share * 100).ToString(share >= 0.1 ? "0" : "0.0", CultureInfo.InvariantCulture) + "%";
 

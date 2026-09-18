@@ -12,7 +12,16 @@
         MinWidth="880" MinHeight="600"
         Background="{DynamicResource RdPageBackgroundBrush}">
 
-    <Grid ColumnDefinitions="232,*">
+    <Panel>
+
+    <!--
+        The first-run welcome takes the whole window. A welcome competing with the
+        interface it is introducing helps nobody.
+    -->
+    <ContentControl Content="{Binding Onboarding}"
+                    IsVisible="{Binding ShowOnboarding}" />
+
+    <Grid ColumnDefinitions="232,*" IsVisible="{Binding ShowShell}">
 
         <!-- ==================== Control strip ==================== -->
         <Border Grid.Column="0"
@@ -158,4 +167,5 @@
             </Border>
         </Grid>
     </Grid>
+    </Panel>
 </Window>

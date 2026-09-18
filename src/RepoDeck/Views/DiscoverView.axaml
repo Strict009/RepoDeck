@@ -185,13 +185,47 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:DiscoverCategory">
-                                    <Button Classes="tile" Width="178" Height="74"
+                                    <Button Classes="tile" Width="196" Height="74"
                                             Command="{Binding $parent[ItemsControl].((vm:DiscoverViewModel)DataContext).SearchCategoryCommand}"
                                             CommandParameter="{Binding}"
                                             ToolTip.Tip="{Binding Description}">
                                         <StackPanel Spacing="3">
                                             <TextBlock Text="{Binding Label}" FontSize="14"
                                                        FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Description}" Classes="muted"
+                                                       TextWrapping="Wrap" MaxLines="2"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!--
+                        Collections: ways of slicing the search rather than subjects.
+                        Each description says what it actually asks GitHub for, because
+                        "Popular on GitHub" could easily read as "RepoDeck recommends",
+                        which it is not and must never become.
+                    -->
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="OR BROWSE BY THE KIND OF THING" Classes="sectionLabel" />
+                        <ItemsControl ItemsSource="{Binding Collections}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel ItemSpacing="10" LineSpacing="10" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DiscoverCollection">
+                                    <Button Classes="tile" Width="212" Height="74"
+                                            Command="{Binding $parent[ItemsControl].((vm:DiscoverViewModel)DataContext).SearchCollectionCommand}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip.Tip="{Binding Description}">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="{Binding Label}" FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource RdAccentBrush}" />
                                             <TextBlock Text="{Binding Description}" Classes="muted"
                                                        TextWrapping="Wrap" MaxLines="2"
                                                        TextTrimming="CharacterEllipsis" />
@@ -294,15 +328,21 @@
                                             ClipToBounds="True"
                                             CornerRadius="{DynamicResource RdRadiusSmall}"
                                             Margin="0,0,12,0">
-                                        <Panel>
+                                        <Panel ToolTip.Tip="{Binding KindExplanation}">
                                             <Border Background="{Binding FallbackBrush}"
                                                     IsVisible="{Binding ShowFallback}" />
-                                            <TextBlock Text="{Binding FallbackInitial}"
-                                                       IsVisible="{Binding ShowFallback}"
-                                                       FontSize="18" FontWeight="Bold"
-                                                       Foreground="{DynamicResource RdOnAccentBrush}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" />
+
+                                            <!-- The kind mark reads as a silhouette at this
+                                                 size, which a letter does not: scanning a
+                                                 long list, the shape says more than the
+                                                 first character of the name. -->
+                                            <controls:KindArtwork Kind="{Binding Kind}"
+                                                                  Initial="{Binding FallbackInitial}"
+                                                                  Accent="{DynamicResource RdOnAccentBrush}"
+                                                                  MarkScale="0.62"
+                                                                  Opacity="0.85"
+                                                                  IsVisible="{Binding ShowFallback}" />
+
                                             <Image Source="{Binding Image}"
                                                    IsVisible="{Binding ShowImage}"
                                                    Stretch="UniformToFill" />

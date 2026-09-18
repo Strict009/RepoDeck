@@ -1,39 +1,85 @@
 # RepoDeck
 
-A desktop application that makes useful GitHub projects approachable to people who do
-not write software.
+GitHub has a ridiculous amount of great free software on it. RepoDeck makes it easier to
+actually use.
 
-**Discover -> Understand -> Inspect -> Install -> Run -> Update**
+You search for what you want the computer to do. RepoDeck finds projects, explains in
+plain English what each one is, works out whether it will run on your machine, and
+installs the ones it can — into a folder it owns, without running anything on your behalf.
 
-Search GitHub, understand in plain English what a project actually is, see whether it
-will run on your computer, and install and launch the ones RepoDeck can handle. Anything
-it cannot install confidently is downloaded and handed to you with the reason stated -
-nothing is ever run on your behalf without you asking.
+![RepoDeck's Discover page: a grid of programs with a side panel explaining one of them](docs/images/repodeck-discover.png)
 
-Update checking is the next milestone and is not implemented yet.
+---
 
-## Look and feel
+## What it does
 
-A dark, dense interface in the spirit of late-1990s media players and desktop utilities:
-squared-off panels, small capitalised labels, segmented meters and one acid-lime accent
-that is used sparingly enough to still mean something. Every status light sits beside a
-word, so no state is carried by colour alone.
+**Finds programs.** Search in ordinary words — "edit videos", "send files", "music
+player" — or browse by category. RepoDeck reads what it finds and tells you what it is
+for, rather than showing you a repository and wishing you luck.
 
-Results are cards about programs rather than rows about repositories: a picture, a name,
-what it is for, whether it runs on your computer, and what RepoDeck can do about it.
-Selecting one opens a side panel with the full answer without losing your place in the
-search. A denser Compact view is a click away for anyone who prefers a list.
+**Tells you whether it will work.** It looks at what the project actually publishes and
+compares it with your computer: the operating system, the processor, whether there is a
+ready-made build at all. The answer is a sentence, not a compatibility matrix.
 
-Show APPS to put programs RepoDeck has evidence you can run at the top, or EVERYTHING for
-raw GitHub discovery. Projects with no pictures of their own get artwork RepoDeck draws
-for the kind of thing they appear to be - never an invented screenshot or logo.
+**Explains how it decided.** Every verdict has a **WHY?** beside it. Pressing it shows the
+evidence — which file it found, why that file matches your machine, what it could not work
+out. Nothing is a black box, and you pick up the vocabulary by reading answers rather than
+by having to know it first.
 
-## Requirements
+**Installs what it safely can.** Portable archives and standalone programs go into
+RepoDeck's own folder. Anything it cannot install confidently is downloaded and handed to
+you with the reason stated.
 
-- .NET 10 SDK
-- Windows x64 or Linux x64
+## What works today
 
-## Build and run
+| | |
+|---|---|
+| Search and browse | Yes |
+| Plain-English explanations | Yes |
+| Compatibility checking | Yes |
+| Installing portable builds and single executables | Yes |
+| Running what it installed | Yes |
+| Removing what it installed | Yes |
+| Windows installers and Linux packages | Downloaded and handed to you, never run |
+| Building from source | No, and not planned |
+| Update checking | Not yet |
+
+Windows x64 and Linux x64.
+
+## How it keeps you in control
+
+RepoDeck shows you the whole plan before it downloads anything, and asks:
+
+- **what** it will download, by name and size
+- **where** it will put it, by full path
+- **what it will do**, step by step
+- **what it will not do**, explicitly
+
+It will not run an installer, a script or anything else it downloads. It will not ask for
+administrator access. It will not change a Windows setting or touch anything outside its
+own folder. It will not start a program until you ask it to.
+
+And the thing it says at the front door, because it matters more than any feature:
+
+> RepoDeck cannot tell you whether software is safe or trustworthy. Nothing it shows you
+> is a recommendation. It tells you what it found and how it worked it out, and the
+> decision stays yours.
+
+Stars are not treated as a quality signal, popularity is never presented as an
+endorsement, and "RepoDeck can install this" is a statement about RepoDeck rather than
+about the software.
+
+![RepoDeck's first-run welcome, listing what it can do and what it will never do](docs/images/repodeck-welcome.png)
+
+## Download
+
+There is no release yet. Until there is, see **Building it yourself** below.
+
+---
+
+## Building it yourself
+
+Requires the .NET 10 SDK, on Windows x64 or Linux x64.
 
 ```
 dotnet build
@@ -43,20 +89,39 @@ dotnet test
 
 ## GitHub rate limits
 
-Without a token, GitHub allows 60 requests an hour and 10 searches a minute, which is
-easy to exhaust. To raise the limits, set an environment variable before starting
-RepoDeck:
+Without a token, GitHub allows 60 requests an hour and 10 searches a minute, which is easy
+to exhaust. To raise the limits, set an environment variable before starting RepoDeck:
 
 ```
 setx REPODECK_GITHUB_TOKEN your_token_here
 ```
 
-A token with no scopes is enough for searching public repositories. RepoDeck never
-writes the token to disk and never records it in the log.
+A token with no scopes is enough for searching public repositories. RepoDeck never writes
+the token to disk and never records it in the log.
 
 ## Where RepoDeck keeps its files
 
 `%LOCALAPPDATA%\RepoDeck` on Windows, `~/.local/share/RepoDeck` on Linux. RepoDeck only
-ever writes inside that folder.
+ever writes inside that folder, and only ever deletes files it put there itself.
 
-See `docs/ARCHITECTURE.md` and `docs/STATUS.md`.
+## Look and feel
+
+A dark, dense interface in the spirit of late-1990s media players and desktop utilities:
+squared-off panels, small capitalised labels, segmented meters and one acid-lime accent
+used sparingly enough to still mean something. Every status light sits beside a word, so
+no state is carried by colour alone.
+
+Projects with no pictures of their own get artwork RepoDeck draws for the kind of thing
+they appear to be — a window, a waveform, a controller. Never an invented screenshot or
+logo.
+
+## How it is put together
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design, and
+[docs/STATUS.md](docs/STATUS.md) for what is done, what is not, and every known problem.
+
+In short: discovering, understanding, planning and executing are kept separate; the
+installer re-decides nothing, it carries out a plan that was written down and shown to
+you; every write and delete is confined to RepoDeck's own folder and re-checked at the
+point of use; uncertainty is a type rather than a string; and RepoDeck never renders a
+verdict on whether software is safe.

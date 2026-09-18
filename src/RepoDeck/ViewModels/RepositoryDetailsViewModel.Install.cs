@@ -50,6 +50,16 @@ public sealed partial class RepositoryDetailsViewModel
     [NotifyPropertyChangedFor(nameof(ShowUninstallButton))]
     private InstallState _installState = InstallState.Unavailable;
 
+    /// <summary>The four stages, shown together while an installation runs.</summary>
+    public InstallActivityViewModel Activity { get; } = new();
+
+    /// <summary>What the user is agreeing to, built from the plan.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasConfirmation))]
+    private InstallConfirmation? _confirmation;
+
+    public bool HasConfirmation => Confirmation is not null;
+
     [ObservableProperty] private string _installProgressText = "";
     [ObservableProperty] private double _installProgressFraction;
     [ObservableProperty] private bool _installProgressIsIndeterminate = true;
@@ -134,6 +144,10 @@ public sealed partial class RepositoryDetailsViewModel
         if (_plan?.CanProceed != true) return;
 
         InstallMessage = null;
+
+        // Built from the plan rather than from a constant, so what the user agrees to
+        // cannot drift away from what the installer actually does.
+        Confirmation = InstallConfirmation.From(_plan, FriendlyTitle);
         InstallState = InstallState.AwaitingConfirmation;
     }
 
@@ -155,6 +169,7 @@ public sealed partial class RepositoryDetailsViewModel
         InstallProgressText = "Preparing...";
         InstallProgressIsIndeterminate = true;
         InstallProgressFraction = 0;
+        Activity.Reset();
 
         var progress = new Progress<InstallationProgress>(ReportInstallProgress);
 
@@ -204,6 +219,7 @@ public sealed partial class RepositoryDetailsViewModel
     private void ReportInstallProgress(InstallationProgress progress)
     {
         InstallProgressText = progress.Describe();
+        Activity.Apply(progress);
 
         if (progress.Download?.Fraction is { } fraction)
         {

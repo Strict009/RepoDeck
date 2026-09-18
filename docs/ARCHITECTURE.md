@@ -584,6 +584,92 @@ They are wrong sometimes, and the interface is built so that being wrong is chea
 ordering shifts, nothing is hidden that RepoDeck is not sure about, and every verdict can
 be opened up and read.
 
+## Finishing the experience
+
+### The front door
+
+A first run shows a welcome instead of the interface. Two steps: what RepoDeck does and
+what it will never do, then one question with a sensible default already chosen.
+
+The "will never" half carries the same weight as the "can" half on purpose. The audience
+for this application has been trained by twenty years of download sites to expect a
+program that fetches software to also install four other things, and saying so plainly at
+the front door is worth more than any amount of reassurance later. The four promises are
+the Milestone 3 boundaries restated in the second person, and a test holds them to it: if
+the installer ever stops keeping one, the welcome becomes a lie on the first screen.
+
+Alongside them sits the one thing that has to be admitted in the same breath - that
+RepoDeck cannot tell anybody whether software is safe, and nothing it shows is a
+recommendation. A welcome is exactly the wrong place to imply otherwise.
+
+Skipping is allowed and is not punished: the defaults are the ones the second step offers,
+and the welcome does not come back. The flag lives with the interface preferences, because
+losing it means seeing a welcome screen again rather than anything that matters.
+
+### Why?
+
+Every verdict RepoDeck makes has a **WHY?** beside it. Pressing it opens the reasoning at
+the group that answers that particular question, highlighted, rather than dumping six
+groups on somebody who wanted one answer.
+
+This is the whole point of keeping evidence rather than conclusions. A beginner can ask why
+about the one thing that puzzled them - "why does it think this works on my PC?" - and be
+told that the release contains `SharpEmu-win-x64.zip`, that `win` matches Windows, that
+`x64` matches their processor, and that the archive contains a runnable Windows
+application. They learn the vocabulary by reading answers rather than by having to know it
+first.
+
+The questions the buttons point at are constants on the view model, shared with the code
+that builds the groups, so a button can never point at a question nothing answers. Every
+group leads with the verdict itself, so a WHY? that opened an empty panel - worse than no
+button at all - is impossible even when the analysis found nothing else to say.
+
+### The confirmation
+
+The last moment before anything is written is where RepoDeck's argument either holds or
+does not. A button saying "Install" beside a size is what every other installer offers.
+What is offered here is:
+
+- the name, the version, the exact file and its size, and whose project it is;
+- **what RepoDeck will do**, numbered, in order;
+- **what RepoDeck will not do**, ruled out by name;
+- the full path it will write to.
+
+Both lists are built from the plan rather than from a constant, so they cannot drift away
+from what the installer actually does. Tests assert that nothing in the "will" list
+describes running anything, and that nothing anywhere in it claims the software is safe.
+
+### Installing, as four stages
+
+A single bar reading "Installing..." tells somebody nothing about what is happening to
+their computer. RepoDeck shows all four stages at once from the moment installing begins -
+DOWNLOAD, VERIFY, EXTRACT, REGISTER - each with a status light, a segmented meter and a
+word. That is the argument for trusting this made visible while it happens, rather than
+claimed in a paragraph beforehand.
+
+Only Download has a real percentage. The other three report that they are happening and
+then that they are done: a meter animating through a number RepoDeck does not have would
+be inventing the one thing progress is for. Reaching a later stage marks the earlier ones
+done, because a report from a later stage is proof the earlier ones finished and a stage
+left quietly dark would look like something had gone wrong. A failure or a cancellation
+marks nothing done that was not done.
+
+The byte counter uses `Humanize.FileSizePrecise` rather than `FileSize`, because the
+latter drops decimals above ten and a download would sit on "18 MB" for several seconds
+before jumping - which reads as a stall rather than as progress.
+
+### Categories and collections
+
+Nine categories by subject, and six collections that slice the search a different way:
+Popular on GitHub, Recently updated, Portable apps, No installation needed, Small &
+useful, and Weird & useful.
+
+All of them are searches. Nothing is hand-picked by anybody, and each description says
+what it actually asks GitHub for - "Popular on GitHub" says "the most starred, GitHub's
+own number, not a recommendation", because the label alone could easily be read as
+"RepoDeck recommends", which it is not and must never become. A test asserts that no
+collection describes itself with words like "best", "top", "trusted" or "safe".
+
 ## Caching and rate limits
 
 `ResponseCache` is an in-memory TTL cache keyed by request URI: 5 minutes for searches,

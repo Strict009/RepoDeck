@@ -50,6 +50,12 @@ public sealed record PreferencesSnapshot
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public BrowseMode BrowseMode { get; init; } = BrowseMode.Apps;
+
+    /// <summary>
+    /// Whether the welcome has been shown. Losing this means seeing a welcome screen
+    /// again, which is why it is safe to keep here rather than anywhere more careful.
+    /// </summary>
+    public bool HasSeenWelcome { get; init; }
 }
 
 public interface IUserPreferences

@@ -1,0 +1,168 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:RepoDeck.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="720"
+             x:Class="RepoDeck.Views.OnboardingView"
+             x:DataType="vm:OnboardingViewModel">
+
+    <!--
+        The front door. Two steps, then out of the way for good. What RepoDeck will never
+        do is given the same weight as what it does, because the audience has been trained
+        by twenty years of download sites to expect a program that fetches software to also
+        install four other things.
+    -->
+    <Border Background="{DynamicResource RdPageBackgroundBrush}">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <Grid RowDefinitions="*,Auto" MaxWidth="820" Margin="40,48,40,32">
+
+                <!-- ==================== Step one ==================== -->
+                <StackPanel Grid.Row="0" Spacing="28" IsVisible="{Binding IsWelcomeStep}">
+
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Width="5" Height="38"
+                                    Background="{DynamicResource RdAccentBrush}"
+                                    VerticalAlignment="Center" />
+                            <TextBlock Text="WELCOME TO REPODECK" Classes="display"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <TextBlock Classes="h2"
+                                   Foreground="{DynamicResource RdTextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   Text="Find useful free software on GitHub without needing to learn GitHub." />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+
+                        <Border Grid.Column="0" Classes="panel">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="REPODECK CAN" Classes="microLabel"
+                                           Foreground="{DynamicResource RdAccentBrush}" />
+                                <ItemsControl ItemsSource="{Binding CanDo}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,9">
+                                                <Ellipse Grid.Column="0" Classes="led ledOn"
+                                                         VerticalAlignment="Top" Margin="0,6,11,0" />
+                                                <TextBlock Grid.Column="1" Text="{Binding}"
+                                                           Classes="body" TextWrapping="Wrap" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Classes="panel">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="REPODECK WILL NEVER" Classes="microLabel"
+                                           Foreground="{DynamicResource RdCautionBrush}" />
+                                <ItemsControl ItemsSource="{Binding WillNeverDo}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,9">
+                                                <TextBlock Grid.Column="0" Text="&#x2715;"
+                                                           Classes="muted"
+                                                           VerticalAlignment="Top" Margin="0,1,11,0" />
+                                                <TextBlock Grid.Column="1" Text="{Binding}"
+                                                           Classes="body" TextWrapping="Wrap" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- The one honest thing that has to sit alongside all of that -->
+                    <Border Classes="inset">
+                        <StackPanel Spacing="7">
+                            <TextBlock Text="AND ONE THING TO BE CLEAR ABOUT" Classes="microLabel"
+                                       Foreground="{DynamicResource RdCautionBrush}" />
+                            <TextBlock Text="{Binding Caveat}" Classes="secondary"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ==================== Step two ==================== -->
+                <StackPanel Grid.Row="0" Spacing="24" IsVisible="{Binding IsModeStep}"
+                            VerticalAlignment="Top">
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="ONE QUESTION" Classes="microLabel"
+                                   Foreground="{DynamicResource RdAccentBrush}" />
+                        <TextBlock Text="What should searching show you?" Classes="display" />
+                        <TextBlock Classes="secondary" TextWrapping="Wrap"
+                                   Text="You can change this at any time, and nothing is ever hidden without RepoDeck saying so." />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+
+                        <Button Grid.Column="0" Classes="tile"
+                                Classes.tileChosen="{Binding IsAppsChosen}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Padding="18"
+                                Command="{Binding ChooseAppsCommand}">
+                            <StackPanel Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                    <Ellipse Classes="led"
+                                             Classes.ledOn="{Binding IsAppsChosen}"
+                                             VerticalAlignment="Center" />
+                                    <TextBlock Text="APPS" Classes="h1" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding AppsDescription}" Classes="secondary"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Column="1" Classes="tile"
+                                Classes.tileChosen="{Binding IsEverythingChosen}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Padding="18"
+                                Command="{Binding ChooseEverythingCommand}">
+                            <StackPanel Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                    <Ellipse Classes="led"
+                                             Classes.ledOn="{Binding IsEverythingChosen}"
+                                             VerticalAlignment="Center" />
+                                    <TextBlock Text="EVERYTHING" Classes="h1" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding EverythingDescription}" Classes="secondary"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
+                <!-- ==================== Where next ==================== -->
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,32,0,0">
+
+                    <Button Grid.Column="0" Classes="quiet" Content="SKIP"
+                            Command="{Binding SkipCommand}"
+                            IsVisible="{Binding IsWelcomeStep}"
+                            ToolTip.Tip="Go straight to RepoDeck. The defaults are the same ones the next step offers." />
+
+                    <Button Grid.Column="0" Classes="quiet" Content="BACK"
+                            Command="{Binding BackCommand}"
+                            IsVisible="{Binding IsModeStep}" />
+
+                    <Button Grid.Column="2" Classes="primary" Content="GET STARTED"
+                            MinWidth="180" MinHeight="44"
+                            IsVisible="{Binding IsWelcomeStep}"
+                            Command="{Binding GetStartedCommand}" />
+
+                    <Button Grid.Column="2" Classes="primary" Content="START LOOKING"
+                            MinWidth="180" MinHeight="44"
+                            IsVisible="{Binding IsModeStep}"
+                            Command="{Binding FinishCommand}" />
+                </Grid>
+            </Grid>
+        </ScrollViewer>
+    </Border>
+</UserControl>

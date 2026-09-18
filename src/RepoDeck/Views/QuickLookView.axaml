@@ -149,7 +149,14 @@
                                          Classes.ledWarn="{Binding !CompatibilityIsKnown}"
                                          VerticalAlignment="Top" Margin="0,5,10,0" />
                                 <StackPanel Grid.Column="1" Spacing="1">
-                                    <TextBlock Text="WORKS ON THIS PC" Classes="microLabel" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="WORKS ON THIS PC" Classes="microLabel"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Classes="why" Content="WHY?"
+                                                Command="{Binding $parent[UserControl].((vm:QuickLookViewModel)DataContext).WhyCommand}"
+                                                CommandParameter="Will it work on this PC?"
+                                                ToolTip.Tip="Show the evidence behind this answer" />
+                                    </Grid>
                                     <TextBlock Text="{Binding CompatibilityText}" Classes="secondary"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
@@ -159,7 +166,14 @@
                                 <Ellipse Grid.Column="0" Classes="led ledOff"
                                          VerticalAlignment="Top" Margin="0,5,10,0" />
                                 <StackPanel Grid.Column="1" Spacing="1">
-                                    <TextBlock Text="SETUP" Classes="microLabel" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="SETUP" Classes="microLabel"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Classes="why" Content="WHY?"
+                                                Command="{Binding $parent[UserControl].((vm:QuickLookViewModel)DataContext).WhyCommand}"
+                                                CommandParameter="How much setup?"
+                                                ToolTip.Tip="Show the evidence behind this answer" />
+                                    </Grid>
                                     <TextBlock Text="{Binding SetupLabel}" Classes="body" />
                                     <TextBlock Text="{Binding SetupSummary}" Classes="muted"
                                                TextWrapping="Wrap" />
@@ -172,7 +186,14 @@
                                          Classes.ledBad="{Binding IsNotCompatible}"
                                          VerticalAlignment="Top" Margin="0,5,10,0" />
                                 <StackPanel Grid.Column="1" Spacing="1">
-                                    <TextBlock Text="REPODECK CAN" Classes="microLabel" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="REPODECK CAN" Classes="microLabel"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Classes="why" Content="WHY?"
+                                                Command="{Binding $parent[UserControl].((vm:QuickLookViewModel)DataContext).WhyCommand}"
+                                                CommandParameter="Can RepoDeck install it?"
+                                                ToolTip.Tip="Show the evidence behind this answer" />
+                                    </Grid>
                                     <TextBlock Text="{Binding InstallabilityLabel}" Classes="body" />
                                     <TextBlock Text="{Binding InstallabilitySummary}" Classes="muted"
                                                TextWrapping="Wrap" />
@@ -223,8 +244,12 @@
                             <ItemsControl ItemsSource="{Binding Reasoning}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:EvidenceGroup">
-                                        <StackPanel Spacing="5" Margin="0,0,0,10">
-                                            <TextBlock Text="{Binding Question}" Classes="microLabel" />
+                                        <Border Classes="evidence"
+                                                Classes.evidenceHighlighted="{Binding IsHighlighted}"
+                                                Margin="0,0,0,10">
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="{Binding Question}" Classes="microLabel"
+                                                       Foreground="{DynamicResource RdAccentBrush}" />
                                             <ItemsControl ItemsSource="{Binding Points}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="x:String">
@@ -238,6 +263,7 @@
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
                                         </StackPanel>
+                                        </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

@@ -204,7 +204,7 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     // ---- The reasoning, folded away --------------------------------------
 
     /// <summary>
-    /// Everything behind the four answers above: which download was chosen and why, what
+    /// Everything behind the answers above: which download was chosen and why, what
     /// architecture it is built for, what the release contained, what kind of project this
     /// looks like, and what RepoDeck could not establish.
     /// </summary>
@@ -219,8 +219,53 @@ public sealed partial class QuickLookViewModel : ViewModelBase
 
     [ObservableProperty] private bool _reasoningExpanded;
 
+    /// <summary>
+    /// The question the user last asked WHY about. The matching group is highlighted, so
+    /// pressing WHY beside "Works on this PC" does not dump six groups on somebody who
+    /// wanted one answer.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHighlightedQuestion))]
+    private string? _highlightedQuestion;
+
+    public bool HasHighlightedQuestion => HighlightedQuestion is { Length: > 0 };
+
+    /// <summary>The questions the WHY buttons point at. One place, so they cannot drift.</summary>
+    public const string CompatibilityQuestion = "Will it work on this PC?";
+    public const string SetupQuestion = "How much setup?";
+    public const string InstallabilityQuestion = "Can RepoDeck install it?";
+    public const string KindQuestion = "What kind of project is this?";
+
+    /// <summary>
+    /// Opens the reasoning at the group that answers one particular verdict.
+    /// </summary>
+    /// <remarks>
+    /// This is the whole point of keeping evidence rather than just conclusions: a novice
+    /// can ask why about the specific thing that puzzled them and be taught the answer,
+    /// rather than having to learn what any of it means first.
+    /// </remarks>
     [RelayCommand]
-    private void ToggleReasoning() => ReasoningExpanded = !ReasoningExpanded;
+    private void Why(string? question)
+    {
+        HighlightedQuestion = question;
+        ReasoningExpanded = true;
+
+        foreach (var group in Reasoning) group.IsHighlighted = group.Question == question;
+    }
+
+    [RelayCommand]
+    private void ToggleReasoning()
+    {
+        ReasoningExpanded = !ReasoningExpanded;
+
+        if (!ReasoningExpanded) ClearHighlight();
+    }
+
+    private void ClearHighlight()
+    {
+        HighlightedQuestion = null;
+        foreach (var group in Reasoning) group.IsHighlighted = false;
+    }
 
     // ---- Technical details, folded away ----------------------------------
     public ObservableCollection<TechnicalFact> TechnicalDetails { get; } = [];
@@ -516,12 +561,15 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     {
         Reasoning.Clear();
 
-        Add("What kind of project is this?", [
+        Add(KindQuestion, [
             classification.Label + ".",
             .. classification.Reasons
         ]);
 
-        Add("Will it work on this PC?", [
+        Add(CompatibilityQuestion, [
+            // The verdict itself leads, so this group is never empty: a WHY button that
+            // opened nothing would be worse than no button.
+            CompatibilityText,
             .. analysis.Evidence.Where(e => e.Supports).Select(e => e.Text),
             .. releases.Recommended is { } asset
                 ? new[]
@@ -533,9 +581,10 @@ public sealed partial class QuickLookViewModel : ViewModelBase
             .. releases.Recommended?.Reasons ?? []
         ]);
 
-        Add("How much setup?", setup.Reasons);
+        Add(SetupQuestion, [setup.Summary, .. setup.Reasons]);
 
-        Add("Can RepoDeck install it?", [
+        Add(InstallabilityQuestion, [
+            Installability.Summary,
             .. Installability.Reasons,
             .. plan.Warnings,
             .. plan.BlockingIssues
@@ -724,7 +773,19 @@ public sealed record TechnicalFact(string Label, string Value);
 /// in release v1.7 suit Windows x64" and "it looks like a music player" answer different
 /// things and reading them in sequence makes neither clearer.
 /// </remarks>
-public sealed record EvidenceGroup(string Question, IReadOnlyList<string> Points)
+public sealed partial class EvidenceGroup : ViewModelBase
 {
+    public EvidenceGroup(string question, IReadOnlyList<string> points)
+    {
+        Question = question;
+        Points = points;
+    }
+
+    public string Question { get; }
+    public IReadOnlyList<string> Points { get; }
+
     public bool HasPoints => Points.Count > 0;
+
+    /// <summary>True for the group a WHY button just pointed at.</summary>
+    [ObservableProperty] private bool _isHighlighted;
 }

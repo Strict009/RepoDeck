@@ -400,42 +400,184 @@
                                            Text="RepoDeck will show you the plan before it downloads anything." />
                             </StackPanel>
 
-                            <!-- The confirmation step: the last moment before anything is written -->
-                            <Border Background="{DynamicResource RdAccentSoftBrush}"
-                                    CornerRadius="10" Padding="16"
+                            <!--
+                                The confirmation step: the last moment before anything is
+                                written, and the point where RepoDeck's whole argument
+                                either holds or does not. A numbered list of what will
+                                happen and an explicit list of what will not, both built
+                                from the plan so they cannot drift from what it does.
+                            -->
+                            <Border Classes="panel"
+                                    BorderBrush="{DynamicResource RdAccentBrush}"
                                     IsVisible="{Binding ShowConfirmation}">
-                                <StackPanel Spacing="12">
-                                    <TextBlock Text="Ready to install" Classes="h2" />
-                                    <TextBlock Classes="body" Text="{Binding PlanStepSummary}" />
-                                    <TextBlock Classes="secondary" Text="{Binding PlanDownloadSummary}" />
-                                    <TextBlock Classes="muted" Text="{Binding PlanDirectory}" />
-                                    <TextBlock Classes="muted"
-                                               Text="RepoDeck will not run what it downloads. The Installation Preview above lists everything it intends to do." />
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Button Classes="primary" Content="Yes, install it"
-                                                Command="{Binding ConfirmInstallCommand}" />
-                                        <Button Classes="secondary" Content="Not now"
-                                                Command="{Binding CancelConfirmationCommand}" />
+                                <StackPanel Spacing="16" DataContext="{Binding Confirmation}"
+                                            x:DataType="vm:InstallConfirmation">
+
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="READY TO INSTALL" Classes="microLabel"
+                                                   Foreground="{DynamicResource RdAccentBrush}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="{Binding Title}" Classes="display" />
+                                            <TextBlock Text="{Binding VersionText}" Classes="h2"
+                                                       VerticalAlignment="Bottom"
+                                                       Foreground="{DynamicResource RdTextSecondaryBrush}" />
+                                        </StackPanel>
                                     </StackPanel>
+
+                                    <!-- The facts, as headings rather than a sentence -->
+                                    <WrapPanel ItemSpacing="40" LineSpacing="14">
+                                        <StackPanel Spacing="2" IsVisible="{Binding HasDownloadSize}">
+                                            <TextBlock Text="DOWNLOAD" Classes="microLabel" />
+                                            <TextBlock Text="{Binding DownloadSizeText}" Classes="h2" />
+                                            <TextBlock Text="{Binding AssetName}" Classes="muted" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="FROM" Classes="microLabel" />
+                                            <TextBlock Text="{Binding SourceText}" Classes="h2" />
+                                            <TextBlock Text="on GitHub" Classes="muted" />
+                                        </StackPanel>
+                                    </WrapPanel>
+
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+
+                                        <Border Grid.Column="0" Classes="inset">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="REPODECK WILL" Classes="microLabel"
+                                                           Foreground="{DynamicResource RdAccentBrush}" />
+                                                <ItemsControl ItemsSource="{Binding WillDo}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="x:String">
+                                                            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,5">
+                                                                <Ellipse Grid.Column="0" Classes="led ledOn"
+                                                                         VerticalAlignment="Top"
+                                                                         Margin="0,5,9,0" />
+                                                                <TextBlock Grid.Column="1" Text="{Binding}"
+                                                                           Classes="secondary"
+                                                                           TextWrapping="Wrap" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Grid.Column="1" Classes="inset">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="REPODECK WILL NOT" Classes="microLabel"
+                                                           Foreground="{DynamicResource RdCautionBrush}" />
+                                                <ItemsControl ItemsSource="{Binding WillNotDo}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="x:String">
+                                                            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,5">
+                                                                <TextBlock Grid.Column="0" Text="&#x2715;"
+                                                                           Classes="muted"
+                                                                           VerticalAlignment="Top"
+                                                                           Margin="0,0,9,0" />
+                                                                <TextBlock Grid.Column="1" Text="{Binding}"
+                                                                           Classes="secondary"
+                                                                           TextWrapping="Wrap" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="IT WILL GO HERE" Classes="microLabel" />
+                                        <SelectableTextBlock Text="{Binding DestinationText}"
+                                                             FontSize="12" TextWrapping="Wrap"
+                                                             Foreground="{DynamicResource RdTextSecondaryBrush}" />
+                                    </StackPanel>
+
+                                    <Border Background="{DynamicResource RdCautionSoftBrush}"
+                                            BorderBrush="{DynamicResource RdCautionBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="{DynamicResource RdRadiusSmall}"
+                                            Padding="12"
+                                            IsVisible="{Binding HasWarnings}">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="WORTH KNOWING" Classes="microLabel"
+                                                       Foreground="{DynamicResource RdCautionBrush}" />
+                                            <ItemsControl ItemsSource="{Binding Warnings}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="x:String">
+                                                        <TextBlock Text="{Binding}" Classes="secondary"
+                                                                   TextWrapping="Wrap" Margin="0,0,0,4" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </Border>
 
-                            <!-- In progress -->
-                            <StackPanel Spacing="10" IsVisible="{Binding ShowProgress}">
-                                <!-- A real percentage gets the meter; unknown progress gets a bar. -->
-                                <controls:SegmentedMeter Height="10" SegmentCount="24"
-                                                         Value="{Binding InstallProgressFraction}"
-                                                         IsVisible="{Binding !InstallProgressIsIndeterminate}"
-                                                         OnBrush="{DynamicResource RdAccentBrush}"
-                                                         OffBrush="{DynamicResource RdPanelInsetBrush}" />
-                                <ProgressBar Height="6" IsIndeterminate="True"
-                                             IsVisible="{Binding InstallProgressIsIndeterminate}" />
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <TextBlock Text="{Binding InstallProgressText}" Classes="secondary"
-                                               VerticalAlignment="Center" />
-                                    <Button Classes="secondary" Content="Cancel"
-                                            Command="{Binding ConfirmInstallCancelCommand}" />
+                            <StackPanel Orientation="Horizontal" Spacing="10"
+                                        HorizontalAlignment="Right"
+                                        IsVisible="{Binding ShowConfirmation}">
+                                <Button Classes="secondary" Content="CANCEL" MinWidth="110"
+                                        Command="{Binding CancelConfirmationCommand}" />
+                                <Button Classes="primary" Content="INSTALL" MinWidth="130"
+                                        MinHeight="40"
+                                        Command="{Binding ConfirmInstallCommand}" />
+                            </StackPanel>
+
+                            <!--
+                                Installing. Four named stages rather than one bar, because
+                                "Installing..." tells nobody what is happening to their
+                                computer, and the four stages are the whole argument for
+                                trusting this, made visible while it happens.
+                            -->
+                            <Border Classes="inset" IsVisible="{Binding ShowProgress}">
+                                <StackPanel Spacing="14" DataContext="{Binding Activity}"
+                                            x:DataType="vm:InstallActivityViewModel">
+
+                                    <ItemsControl ItemsSource="{Binding Stages}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:InstallStageViewModel">
+                                                <Grid ColumnDefinitions="Auto,104,*,Auto" Margin="0,0,0,9"
+                                                      ToolTip.Tip="{Binding Description}">
+                                                    <Ellipse Grid.Column="0" Classes="led"
+                                                             Classes.ledOn="{Binding IsDone}"
+                                                             Classes.ledWarn="{Binding IsActive}"
+                                                             Classes.ledOff="{Binding IsWaiting}"
+                                                             VerticalAlignment="Center"
+                                                             Margin="0,0,10,0" />
+
+                                                    <TextBlock Grid.Column="1" Text="{Binding Label}"
+                                                               Classes="microLabel"
+                                                               VerticalAlignment="Center" />
+
+                                                    <controls:SegmentedMeter Grid.Column="2" Height="12"
+                                                                             SegmentCount="18"
+                                                                             Value="{Binding Percent}"
+                                                                             VerticalAlignment="Center"
+                                                                             OnBrush="{DynamicResource RdAccentBrush}"
+                                                                             OffBrush="{DynamicResource RdPanelInsetBrush}" />
+
+                                                    <TextBlock Grid.Column="3" Text="{Binding StateText}"
+                                                               Classes="muted" Width="72"
+                                                               TextAlignment="Right"
+                                                               VerticalAlignment="Center"
+                                                               Margin="12,0,0,0" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="{Binding BytesText}" Classes="secondary"
+                                               IsVisible="{Binding HasBytes}" />
                                 </StackPanel>
+                            </Border>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12"
+                                        IsVisible="{Binding ShowProgress}">
+                                <TextBlock Text="{Binding InstallProgressText}" Classes="secondary"
+                                           VerticalAlignment="Center" />
+                                <Button Classes="secondary" Content="CANCEL"
+                                        Command="{Binding ConfirmInstallCancelCommand}" />
                             </StackPanel>
 
                             <!-- Installed -->
