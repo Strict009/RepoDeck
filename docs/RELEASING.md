@@ -1,7 +1,8 @@
 # Producing a RepoDeck alpha release
 
-Everything below happens on your own machine. Nothing here publishes anything to GitHub or
-anywhere else; it produces files in `dist/` and stops.
+By default everything below happens on your own machine: it produces files in `dist/` and
+stops. Uploading anything is opt-in, takes a switch, and even then produces a **draft** that
+nobody can download until you press Publish yourself.
 
 ## The short version
 
@@ -64,7 +65,49 @@ release and RepoDeck is not one.
 ```
 pwsh build/package.ps1 -SkipInstaller          # portable only
 pwsh build/package.ps1 -KeepPublishDirectory   # leave artifacts/publish for inspection
+pwsh build/package.ps1 -DraftRelease           # also create a draft GitHub release
 ```
+
+## Putting a release on GitHub
+
+Binaries do not belong in the git tree. Git keeps every version of every file forever, so
+committing 92 MB per release puts that weight in the repository permanently — every future
+clone pays for it, even after the files are deleted. They belong in a GitHub Release, stored
+outside the history. That is also the only place RepoDeck can ever find itself: it reads
+releases and their assets, not repository files.
+
+```
+pwsh build/package.ps1 -DraftRelease
+```
+
+This is **opt-in and never automatic**. Without the switch the script uploads nothing
+anywhere. With it, it builds as normal and then creates a **draft** release: the release
+exists on GitHub, visible only to people who can write to the repository, until somebody
+presses **Publish** on the release page. That press is the last point at which a person
+looks at it and decides.
+
+Before uploading anything it checks that the GitHub CLI is installed and signed in, that
+release notes exist at `docs/release-notes/<version>.md`, and that no release already exists
+for the tag — an existing release is not something to overwrite silently, because it may
+already be published and people may already have downloaded it.
+
+The tag is created against the **exact commit the artifacts were built from**, not the tip
+of the default branch, which is only the same thing by luck. If the working tree has
+uncommitted changes the script says so loudly, because then the artifacts do not correspond
+to any commit at all and the tag would describe something that was never built.
+
+A version with a pre-release suffix is marked `--prerelease`. That matters beyond the label:
+RepoDeck's own update checker skips pre-releases unless the installed version is itself one,
+so a build marked this way behaves correctly toward its own users.
+
+### Release notes
+
+One file per version, at `docs/release-notes/<version>.md` — for example
+`docs/release-notes/0.1.0-alpha.md`. The script refuses to draft a release without one.
+
+They are written for the person downloading it, not for a changelog generator. For an
+unsigned alpha that means saying plainly that SmartScreen will warn, why, and what to do
+about it; where the program goes and where its data goes; and what has not been tested.
 
 ## Verifying what you built
 
@@ -149,5 +192,6 @@ genuinely absent. That is the one claim still owed a test.
 
 - **No code signing.** Windows SmartScreen will warn about both artifacts, and it is right
   to: they are unsigned binaries from an unknown publisher.
-- **Nothing is published.** No GitHub release, no upload, no auto-update feed.
+- **Nothing is published unless asked.** `-DraftRelease` creates a draft; publishing it is
+  a deliberate press on GitHub. There is no auto-update feed.
 - **win-x64 only.** The application runs on Linux; there is no Linux packaging yet.

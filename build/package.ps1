@@ -21,6 +21,13 @@
 .PARAMETER KeepPublishDirectory
     Leave the intermediate publish output in place for inspection.
 
+.PARAMETER DraftRelease
+    After building, create a DRAFT GitHub release for this version and attach the
+    artifacts. Nothing becomes public: a draft is visible only to people who can write
+    to the repository until somebody presses Publish on GitHub. Requires the GitHub CLI
+    and release notes at docs/release-notes/<version>.md. Without this switch the script
+    uploads nothing anywhere.
+
 .EXAMPLE
     pwsh build/package.ps1
 #>
@@ -28,7 +35,8 @@
 [CmdletBinding()]
 param(
     [switch]$SkipInstaller,
-    [switch]$KeepPublishDirectory
+    [switch]$KeepPublishDirectory,
+    [switch]$DraftRelease
 )
 
 $ErrorActionPreference = 'Stop'
@@ -205,6 +213,8 @@ Write-Detail ("$PortableName  ({0:N1} MB)" -f ((Get-Item $portablePath).Length /
 # ---------------------------------------------------------------------------
 
 $installerPath = $null
+$DraftCreated  = $null
+$commit        = $null
 
 if ($SkipInstaller) {
     Write-Step 'Skipping the installer (asked not to build it)'
@@ -282,6 +292,82 @@ foreach ($artifact in (Get-ChildItem $DistDir -File | Where-Object { $_.Extensio
 [IO.File]::WriteAllText($checksumFile, ($lines -join "`n") + "`n", (New-Object Text.UTF8Encoding $false))
 
 # ---------------------------------------------------------------------------
+# Draft release
+# ---------------------------------------------------------------------------
+#
+# Opt-in, and never otherwise. A packaging script that uploaded on every run would
+# eventually upload something nobody meant to share, so this only happens when asked
+# for by name.
+#
+# Even then it creates a *draft*: the release exists on GitHub, visible to people who
+# can write to the repository and to nobody else, until a person presses Publish. That
+# is the last point at which somebody looks at it and decides.
+
+if ($DraftRelease) {
+    Write-Step 'Creating a draft GitHub release'
+
+    $gh = Get-Command 'gh' -ErrorAction SilentlyContinue
+    if (-not $gh) {
+        throw 'The GitHub CLI (gh) is not installed, so no draft release was created. ' +
+              'The artifacts above are complete. Install it with: winget install --id GitHub.cli'
+    }
+
+    & gh auth status 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'The GitHub CLI is not signed in. Run: gh auth login'
+    }
+
+    $tag = "v$Version"
+
+    $notes = Join-Path $RepoRoot "docs/release-notes/$Version.md"
+    if (-not (Test-Path $notes)) {
+        throw "No release notes at $notes. Write them before drafting a release - the notes " +
+              'are the part a person actually reads, and generated ones say nothing.'
+    }
+
+    # An existing release for this tag is not something to overwrite silently. It may be
+    # published already, in which case replacing its files changes what people have
+    # downloaded under a name they were told was fixed.
+    & gh release view $tag 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        throw "A release already exists for $tag. Delete it deliberately, or raise the " +
+              'version in Directory.Build.props, rather than replacing it in place.'
+    }
+
+    # Tag the commit these artifacts were actually built from. Left to itself, gh tags the
+    # tip of the default branch, which is only the same thing by luck.
+    $commit = (& git -C $RepoRoot rev-parse HEAD).Trim()
+
+    $dirty = & git -C $RepoRoot status --porcelain
+    if ($dirty) {
+        Write-Host '    WARNING: the working tree has uncommitted changes.' -ForegroundColor Yellow
+        Write-Host "    These artifacts were built from something that is not $($commit.Substring(0,7))," -ForegroundColor Yellow
+        Write-Host '    so the tag will not describe what is in them.' -ForegroundColor Yellow
+    }
+
+    $assets = Get-ChildItem $DistDir -File | Sort-Object Name | ForEach-Object { $_.FullName }
+
+    # --prerelease matters beyond the label. RepoDeck's own update checker skips
+    # pre-releases unless the installed version is itself one, so a build marked this
+    # way behaves correctly toward its own users.
+    $prerelease = if ($Version -match '-') { '--prerelease' } else { '--latest' }
+
+    & gh release create $tag @assets `
+        --draft `
+        $prerelease `
+        --target $commit `
+        --title "RepoDeck $Version" `
+        --notes-file $notes
+
+    if ($LASTEXITCODE -ne 0) { throw 'Creating the draft release failed.' }
+
+    Write-Detail "Draft created: $tag at $($commit.Substring(0,7))"
+    Write-Detail "$($assets.Count) file(s) attached"
+
+    $DraftCreated = $tag
+}
+
+# ---------------------------------------------------------------------------
 
 if (-not $KeepPublishDirectory) {
     Remove-Item (Join-Path $RepoRoot 'artifacts') -Recurse -Force -ErrorAction SilentlyContinue
@@ -295,5 +381,11 @@ Get-ChildItem $DistDir -File | Sort-Object Name | ForEach-Object {
 Write-Host ''
 Write-Host "    in $DistDir"
 Write-Host ''
-Write-Host '    Nothing has been published anywhere. These are local files.' -ForegroundColor DarkGray
+if ($DraftCreated) {
+    Write-Host "    A DRAFT release exists at $DraftCreated. It is not public." -ForegroundColor Yellow
+    Write-Host '    Nobody can download it until you press Publish on GitHub.' -ForegroundColor Yellow
+}
+else {
+    Write-Host '    Nothing has been published anywhere. These are local files.' -ForegroundColor DarkGray
+}
 Write-Host ''
