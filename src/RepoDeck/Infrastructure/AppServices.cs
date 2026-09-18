@@ -49,6 +49,7 @@ public sealed class AppServices : IDisposable
         Transfers = new TransferRegistry();
         Preferences = new UserPreferences(Paths, Log);
         Favorites = new FavoritesStore(Paths, Log);
+        RecentlyViewed = new RecentlyViewed(Paths, Log);
         History = new LifecycleHistory(Paths, Log);
 
         var installer = new InstallationService(
@@ -109,6 +110,9 @@ public sealed class AppServices : IDisposable
 
     /// <summary>What RepoDeck has done, in plain English, for the user to read.</summary>
     public ILifecycleHistory History { get; }
+
+    /// <summary>The last few projects the user opened. Local, bounded, and forgettable.</summary>
+    public IRecentlyViewed RecentlyViewed { get; }
 
     /// <summary>What RepoDeck is fetching right now, or recently tried to. In memory only.</summary>
     public ITransferRegistry Transfers { get; }

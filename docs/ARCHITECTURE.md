@@ -837,6 +837,73 @@ what makes that true by construction rather than by care.
 Checking runs one application at a time. Parallel checks would be faster and would exhaust
 an unauthenticated rate allowance on a library of any size.
 
+## Navigation
+
+### A stack, not a flag
+
+`NavigationHistory` holds where the user has been. Each entry records the page view model,
+what the status strip calls it, and **what a child screen should call the way back to it**.
+
+That last field is recorded when leaving rather than computed when returning, and the
+distinction matters. Discover is two places depending on what is on it - a page of results
+somebody wants to get back to, or the home page they started from - and by the time Back is
+pressed the screen may no longer be in the state that made the label true.
+
+Pages are held, not rebuilt. Returning to a search must not re-run it: the results are
+already there, the GitHub allowance has been spent on them once, and repeating the request
+would be slower and would sometimes fail. This is why the section view models are
+long-lived and only detail pages are constructed per visit.
+
+The stack is bounded at 20. A session that opens two hundred projects should not keep two
+hundred view models alive, and somebody pressing Back that many times has long since
+stopped meaning "the previous screen".
+
+### A destination is a way out from anywhere
+
+Binding the sidebar to `SelectedItem` alone is not enough, and this was a real defect rather
+than a theoretical one. Somebody on a details page reached from Discover still has Discover
+selected, so clicking Discover changed no selection, raised no event, and left them looking
+at the page they were trying to leave.
+
+The tap is handled instead. Choosing a destination clears the history and returns that
+section to its root - which for Discover means its home state, not whatever was last on
+screen inside it.
+
+### State that belongs to the view model, not the view
+
+The shell swaps the whole page on navigation, so the view is destroyed and rebuilt. Anything
+that must survive a round trip therefore lives on the view model: the results, the query,
+the filters, the browse mode, the Quick Look selection, and the scroll position.
+
+The scroll offset is the least obvious of these. It is a number on `DiscoverViewModel`,
+written when the view detaches and restored when it attaches, deferred to `Loaded` priority
+because a `ScrollViewer` clamps an offset to the extent it currently knows about - which, at
+attach time, is nothing.
+
+### Home and Results are one view model and two places
+
+`ShowHome` and `ShowResultControls` are separate states deliberately. Home is for somebody
+who does not know what they want; results are for somebody narrowing an answer. Sort,
+language, stars, last-updated and the view toggle only appear once there is something to
+apply them to, because offering them earlier asks a beginner to operate machinery with
+nothing in it.
+
+Sharing a view model keeps the search pipeline in one place. Splitting the *states* keeps
+the page honest about what it is for.
+
+### Recently viewed is a convenience, not a profile
+
+`RecentlyViewed` stores an owner, a name, a trimmed one-line description and a timestamp -
+enough to draw a card without asking GitHub anything, and nothing more. Twelve entries,
+deduplicated, capped, local, clearable. No accounts and no synchronisation.
+
+Reopening an entry fetches the real repository rather than reconstructing a half-populated
+one from what was stored. A card built from four fields and presented as the project itself
+would be RepoDeck asserting something it does not know.
+
+The shelf is absent rather than empty when there is no history, because an empty heading is
+a promise of content that is not there.
+
 ## Caching and rate limits
 
 `ResponseCache` is an in-memory TTL cache keyed by request URI: 5 minutes for searches,

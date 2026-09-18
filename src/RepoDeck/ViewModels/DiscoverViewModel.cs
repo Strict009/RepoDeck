@@ -18,6 +18,7 @@ namespace RepoDeck.ViewModels;
 /// </summary>
 public sealed partial class DiscoverViewModel : ViewModelBase
 {
+    private readonly Services.History.IRecentlyViewed _recentlyViewed;
     private readonly IGitHubClient _github;
     private readonly IRepositoryExplanationService _explanations;
     private readonly IRepositoryMediaService _media;
@@ -43,8 +44,10 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         IUserPreferences? preferences = null,
         QuickLookViewModel? quickLook = null,
         MachineProfile? machine = null,
-        IFavoritesStore? favorites = null)
+        IFavoritesStore? favorites = null,
+        Services.History.IRecentlyViewed? recentlyViewed = null)
     {
+        _recentlyViewed = recentlyViewed ?? Services.History.NullRecentlyViewed.Instance;
         _github = github;
         _explanations = explanations;
         _media = media;
@@ -55,6 +58,11 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         _favorites = favorites;
 
         QuickLook = quickLook;
+
+        // The shelf follows the store rather than being rebuilt on navigation, so opening
+        // something from Discover updates it without a round trip through the shell.
+        _recentlyViewed.Changed += RefreshRecentlyViewed;
+        RefreshRecentlyViewed();
 
         if (quickLook is not null)
         {
@@ -95,6 +103,92 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
     public ObservableCollection<RepositoryCardViewModel> Results { get; } = [];
 
+    /// <summary>
+    /// The last few projects the user opened, newest first. Empty for somebody who has
+    /// never opened one, and the shelf does not appear at all in that case: an empty
+    /// "Recently viewed" heading on a first run is a promise of content that is not there.
+    /// </summary>
+    public ObservableCollection<RecentProjectViewModel> RecentlyViewed { get; } = [];
+
+    public bool HasRecentlyViewed => RecentlyViewed.Count > 0;
+
+    /// <summary>
+    /// How far down the results the user had scrolled, so returning from a details page
+    /// puts them back where they were rather than at the top of a page they had already
+    /// worked their way through.
+    /// </summary>
+    /// <remarks>
+    /// Kept on the view model rather than in the view because the view is rebuilt on every
+    /// navigation - the shell swaps the whole page - while this object survives. It is a
+    /// number describing a scroll position and nothing else.
+    /// </remarks>
+    public double ResultsScrollOffset { get; set; }
+
+    /// <summary>
+    /// Returns Discover to its home state: exploration, not results.
+    /// </summary>
+    /// <remarks>
+    /// Called when somebody chooses Discover in the sidebar, which is a request to start
+    /// again rather than to look at the same results once more. The search text goes with
+    /// the results, because leaving the query behind in an empty-looking page invites a
+    /// second press of Enter that runs the search nobody asked for again.
+    ///
+    /// Filters and the Apps/All Projects mode are deliberately kept. Those are preferences
+    /// about how somebody wants to browse, not part of one particular search.
+    /// </remarks>
+    public void ReturnHome()
+    {
+        if (SearchCancelCommand.CanExecute(null)) SearchCancelCommand.Execute(null);
+
+        CancelImageLoading();
+
+        SelectedResult = null;
+        QuickLook?.CloseCommand.Execute(null);
+
+        Results.Clear();
+        SearchText = "";
+        ErrorMessage = null;
+        ResultSummary = "";
+        SetAsideNotice = null;
+        HiddenByFilterNotice = null;
+        CanLoadMore = false;
+        ResultsScrollOffset = 0;
+
+        HasSearched = false;
+        RaiseResultStates();
+    }
+
+    private void RefreshRecentlyViewed()
+    {
+        RecentlyViewed.Clear();
+
+        foreach (var entry in _recentlyViewed.All())
+        {
+            RecentlyViewed.Add(new RecentProjectViewModel(entry, OpenRecent));
+        }
+
+        OnPropertyChanged(nameof(HasRecentlyViewed));
+    }
+
+    /// <summary>
+    /// Reopens something from the shelf. The stored entry is a name and an owner, not a
+    /// full repository, so this asks GitHub for the real one rather than inventing a
+    /// half-populated record and showing it as fact.
+    /// </summary>
+    private async void OpenRecent(RecentProjectViewModel recent)
+    {
+        try
+        {
+            var repository = await _github.GetRepositoryAsync(recent.Owner, recent.Entry.Name);
+            if (repository is not null) RepositoryOpenRequested?.Invoke(repository);
+        }
+        catch (Exception ex)
+        {
+            // Failing to reopen something is a disappointment, not an error worth a dialog.
+            _log.Warn("Discover", $"Could not reopen {recent.FullName}: {ex.Message}");
+        }
+    }
+
     /// <summary>Starting points for someone who has not decided what they want yet.</summary>
     public IReadOnlyList<DiscoverCategory> Categories => DiscoverCategory.All;
 
@@ -114,7 +208,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowResults))]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
-    [NotifyPropertyChangedFor(nameof(ShowWelcome))]
+    [NotifyPropertyChangedFor(nameof(ShowHome))]
     private bool _isBusy;
 
     [ObservableProperty] private bool _isLoadingMore;
@@ -123,13 +217,14 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasError))]
     [NotifyPropertyChangedFor(nameof(ShowResults))]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
-    [NotifyPropertyChangedFor(nameof(ShowWelcome))]
+    [NotifyPropertyChangedFor(nameof(ShowHome))]
     private string? _errorMessage;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowResults))]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
-    [NotifyPropertyChangedFor(nameof(ShowWelcome))]
+    [NotifyPropertyChangedFor(nameof(ShowHome))]
+    [NotifyPropertyChangedFor(nameof(ShowResultControls))]
     private bool _hasSearched;
 
     [ObservableProperty] private string _resultSummary = "";
@@ -142,7 +237,22 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     // Exactly one of these three is true at a time, so the view never shows two states.
     public bool ShowResults => HasSearched && !IsBusy && !HasError && Results.Count > 0;
     public bool ShowEmptyState => HasSearched && !IsBusy && !HasError && Results.Count == 0;
-    public bool ShowWelcome => !HasSearched && !IsBusy && !HasError;
+    /// <summary>
+    /// Discover Home: the exploration state. Deliberately separate from results even
+    /// though they share this view model, because the two are for different things. Home
+    /// is for somebody who does not know what they want and needs somewhere to start;
+    /// results are for somebody who has asked a question and is narrowing the answer.
+    /// Giving Home the whole result-oriented control surface - sort, language, stars,
+    /// last-updated, view mode - asks a beginner to operate machinery before they have
+    /// anything to operate it on.
+    /// </summary>
+    public bool ShowHome => !HasSearched && !IsBusy && !HasError;
+
+    /// <summary>
+    /// Filters and view-mode controls belong to the results state. They appear when
+    /// there is something to filter, and not before.
+    /// </summary>
+    public bool ShowResultControls => HasSearched;
 
     // ---- Commands ---------------------------------------------------------
 
@@ -296,6 +406,12 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     /// <summary>Ways of slicing the search: newest, smallest, portable, weird.</summary>
     public IReadOnlyList<DiscoverCollection> Collections => DiscoverCollection.All;
 
+    /// <summary>The collections that lead the page, as large cards.</summary>
+    public IReadOnlyList<DiscoverCollection> FeaturedCollections => DiscoverCollection.FeaturedOnly;
+
+    /// <summary>The remainder, as chips beneath them.</summary>
+    public IReadOnlyList<DiscoverCollection> OtherCollections => DiscoverCollection.SecondaryOnly;
+
     /// <summary>
     /// Runs a collection. Unlike a category these adjust the sort and filters as well as
     /// the text, because "recently updated" is a question about ordering rather than about
@@ -367,17 +483,25 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAppsMode))]
-    [NotifyPropertyChangedFor(nameof(IsEverythingMode))]
+    [NotifyPropertyChangedFor(nameof(IsAllProjectsMode))]
     [NotifyPropertyChangedFor(nameof(BrowseModeExplanation))]
     private BrowseMode _browseMode;
 
     public bool IsAppsMode => BrowseMode == BrowseMode.Apps;
-    public bool IsEverythingMode => BrowseMode == BrowseMode.Everything;
+    public bool IsAllProjectsMode => BrowseMode == BrowseMode.Everything;
 
     public string BrowseModeExplanation => IsAppsMode
         ? "Programs first. RepoDeck puts what it has evidence you can actually run at the top, "
           + "and sets aside libraries and reading material. It is not judging quality or safety."
         : "Everything GitHub returned, in GitHub's own order. Nothing is set aside.";
+
+    /// <summary>What choosing Apps means, for the control itself rather than the page.</summary>
+    public static string AppsModeExplanation =>
+        "Focus on programs you can actually use.";
+
+    /// <summary>What choosing All Projects means.</summary>
+    public static string AllProjectsModeExplanation =>
+        "Include libraries, source projects, websites and developer tools.";
 
     /// <summary>Results Apps mode set aside, phrased so the user can get them back.</summary>
     [ObservableProperty] private string? _setAsideNotice;
@@ -395,7 +519,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     private void UseAppsMode() => BrowseMode = BrowseMode.Apps;
 
     [RelayCommand]
-    private void UseEverythingMode() => BrowseMode = BrowseMode.Everything;
+    private void UseAllProjectsMode() => BrowseMode = BrowseMode.Everything;
 
     // ---- Quick Look -------------------------------------------------------
 
@@ -656,6 +780,6 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(ShowResults));
         OnPropertyChanged(nameof(ShowEmptyState));
-        OnPropertyChanged(nameof(ShowWelcome));
+        OnPropertyChanged(nameof(ShowHome));
     }
 }

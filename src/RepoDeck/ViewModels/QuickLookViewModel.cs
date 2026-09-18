@@ -30,6 +30,7 @@ namespace RepoDeck.ViewModels;
 /// </remarks>
 public sealed partial class QuickLookViewModel : ViewModelBase
 {
+    private readonly Services.History.IRecentlyViewed _recentlyViewed;
     private readonly IGitHubClient _github;
     private readonly IRepositoryExplanationService _explanations;
     private readonly IRepositoryAnalyzerService _analyzer;
@@ -55,8 +56,10 @@ public sealed partial class QuickLookViewModel : ViewModelBase
         LaunchService launcher,
         MachineProfile machine,
         IAppLog log,
-        ImageLoader? images = null)
+        ImageLoader? images = null,
+        Services.History.IRecentlyViewed? recentlyViewed = null)
     {
+        _recentlyViewed = recentlyViewed ?? Services.History.NullRecentlyViewed.Instance;
         _github = github;
         _explanations = explanations;
         _analyzer = analyzer;
@@ -321,6 +324,10 @@ public sealed partial class QuickLookViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsFavorite));
         OnPropertyChanged(nameof(FavoriteTooltip));
         OnPropertyChanged(nameof(FavoriteGlyph));
+
+        // Opening Quick Look is a deliberate look at something, so it counts. The list
+        // dedupes and is capped, so arrowing through results cannot turn it into a log.
+        _recentlyViewed.Record(card.Repository);
 
         var token = _work!.Token;
         return LoadAsync(card, generation, token);

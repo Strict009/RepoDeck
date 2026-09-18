@@ -61,6 +61,8 @@
                 </Border>
 
                 <ListBox Grid.Row="1"
+                         Name="NavigationList"
+                         Tapped="OnNavigationTapped"
                          Classes="nav"
                          Margin="0,10,0,0"
                          ItemsSource="{Binding NavigationItems}"
@@ -129,7 +131,7 @@
                               Fill="{DynamicResource RdAccentBrush}"
                               Width="13" Height="13" Stretch="Uniform"
                               VerticalAlignment="Center" />
-                        <TextBlock Text="BACK TO RESULTS" VerticalAlignment="Center"
+                        <TextBlock Text="{Binding BackLabel}" VerticalAlignment="Center"
                                    FontSize="11" FontWeight="Bold" LetterSpacing="0.8"
                                    Foreground="{DynamicResource RdAccentBrush}" />
                     </StackPanel>

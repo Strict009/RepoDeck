@@ -148,7 +148,7 @@ public class DiscoverUxTests
         var vm = Discover(github);
 
         // Everything mode, so nothing is set aside and every shape of card is examined.
-        vm.UseEverythingModeCommand.Execute(null);
+        vm.UseAllProjectsModeCommand.Execute(null);
         vm.SearchText = "anything";
         await vm.SearchCommand.ExecuteAsync(null);
 

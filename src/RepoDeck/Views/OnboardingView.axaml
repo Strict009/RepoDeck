@@ -131,7 +131,7 @@
                                     <Ellipse Classes="led"
                                              Classes.ledOn="{Binding IsEverythingChosen}"
                                              VerticalAlignment="Center" />
-                                    <TextBlock Text="EVERYTHING" Classes="h1" VerticalAlignment="Center" />
+                                    <TextBlock Text="ALL PROJECTS" Classes="h1" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding EverythingDescription}" Classes="secondary"
                                            TextWrapping="Wrap" />

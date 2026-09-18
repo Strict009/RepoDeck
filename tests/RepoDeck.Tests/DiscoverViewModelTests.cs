@@ -84,14 +84,14 @@ public class DiscoverViewModelTests
         var github = new FakeGitHubClient { DefaultResults = [TestRepositories.Create()] };
         var vm = Create(github);
 
-        Assert.True(vm.ShowWelcome);
+        Assert.True(vm.ShowHome);
         Assert.False(vm.ShowResults);
         Assert.False(vm.ShowEmptyState);
 
         vm.SearchText = "thing";
         await vm.SearchCommand.ExecuteAsync(null);
 
-        Assert.False(vm.ShowWelcome);
+        Assert.False(vm.ShowHome);
         Assert.True(vm.ShowResults);
         Assert.False(vm.ShowEmptyState);
     }

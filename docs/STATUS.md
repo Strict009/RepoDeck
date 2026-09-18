@@ -168,7 +168,7 @@ Seven of these were found by running the application, not by reading it.
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - **994 passed, 0 failed** (up from 798; 196 new tests).
+- `dotnet test` - **1025 passed, 0 failed** (up from 798; 227 new tests).
 - Every new guard was confirmed to **fail without its fix**, not merely to pass with it.
 
 **Driven on screen, against real GitHub and a real installation:**
@@ -230,6 +230,101 @@ Not started, and deliberately outside Milestone 4's boundary:
 4. An explicit "install this anyway" for the `Unknown` case.
 
 Source builds and installer execution remain out of scope.
+
+## Navigation and Discover Home (pre-release polish)
+
+A focused pass before 0.1.0-alpha goes to anybody. No service or security architecture
+changed; this is navigation and the Discover landing page.
+
+### Back means something specific now
+
+`NavigationHistory` replaced a single boolean and one hardcoded label reading "BACK TO
+RESULTS" - which was a lie whenever somebody had arrived from Favorites, or from Discover
+before searching for anything. The stack records the screen being left *and what to call
+the way back to it*, worked out on the way out rather than on the way back, because by then
+the screen may no longer be in the state that made the label true.
+
+Pages are held rather than rebuilt, so returning to a search does not re-run it. The
+results are already there and the GitHub allowance has already been spent on them once.
+The history is capped at 20: somebody pressing Back that many times has long since stopped
+meaning "the previous screen".
+
+`Alt+Left` and the mouse back button both work, handled as tunnelling events so they fire
+wherever the focus happens to be. Back that does nothing while the cursor is in the search
+box is the kind of thing nobody reports and everybody notices.
+
+Restored on the way back: the query, the results, the filters, Apps/All Projects, Card or
+Compact, the Quick Look selection, and the scroll position. The last one lives on the view
+model rather than in the view, because the shell rebuilds the view on every navigation and
+the view model survives.
+
+### Discover Home is not Discover Results
+
+One view model, two states, treated as different places. Home is for somebody who does not
+know what they want; results are for somebody who has asked a question and is narrowing the
+answer. Sort, language, stars, last-updated and the view toggle are result controls and no
+longer appear on Home - offering them before there is anything to filter asks a beginner to
+operate machinery with nothing in it.
+
+Choosing Discover in the sidebar returns to Home, clearing the search and its results but
+keeping the filters and browse mode. Those are preferences about browsing rather than part
+of one particular search.
+
+### The page itself
+
+Categories are larger and carry the same drawn kind marks the cards use. Five of the nine
+had been `ProjectKind.Utility`, which drew the same gear five times and made the row read
+as unfinished; they are spread across the marks that fit.
+
+Four collections lead as large cards - Portable apps, No installation needed, Small &
+useful, Weird & useful - with the rest as chips. **Popular on GitHub is deliberately not
+promoted.** Giving it a large card would turn a star count owned by GitHub into a
+recommendation owned by RepoDeck.
+
+"OR DESCRIBE WHAT YOU WANT" became "NOT SURE WHAT TO SEARCH FOR?". The explanatory box
+became three steps - SEARCH, UNDERSTAND, INSTALL - with a control statement underneath that
+is true of the installer as it actually behaves: RepoDeck does not silently run scripts or
+installers, and the third step says it handles *the supported installation*, not every one.
+
+`EVERYTHING` became `ALL PROJECTS`, with an explanation on each half of the switch rather
+than one for the pair.
+
+### Recently viewed
+
+`RecentlyViewed`: owner, name, a trimmed one-line description and a timestamp. Twelve
+entries, deduped, local, clearable, and nothing leaves the machine. No accounts, no
+synchronisation. The shelf does not appear at all when it is empty, because an empty
+"Recently viewed" heading on a first run is a promise of content that is not there.
+
+Reopening an entry asks GitHub for the real repository rather than inventing a
+half-populated record and showing it as fact.
+
+### Defect found by driving it
+
+**Clicking Discover in the sidebar did nothing when already inside Discover.** The
+`SelectedItem` binding only raises on change, and somebody on a details page reached from
+Discover still has Discover selected - so the click left them looking at the page they were
+trying to leave. Handled on the tap instead, so a destination is a way out from anywhere,
+including from inside itself.
+
+### Tested
+
+Driven on screen: Discover to search to details and back with everything restored; `Alt+Left`;
+the contextual label reading "Back to results"; sidebar Discover returning to Home; the
+Recently viewed shelf appearing only after something had been opened; Home and Results
+inspected separately; narrow (960px) reflowing to two columns without clipping.
+
+1025 tests, 0 failed.
+
+### Not covered
+
+- **Installed has no details page**, so "Installed to details and back" could not be
+  exercised. Its rows expand in place and its Source button opens a browser. Favorites does
+  navigate to details and was the path tested instead.
+- **The mouse back button was not pressed**, only written. This machine did not have a mouse
+  with side buttons to hand.
+- **Scroll restoration was not measured precisely** - the results were restored and the page
+  was not at the top, but no exact offset was compared.
 
 ## Distribution (0.1.0-alpha)
 

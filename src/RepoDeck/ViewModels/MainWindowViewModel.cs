@@ -18,6 +18,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly DownloadsViewModel _downloads;
     private readonly FavoritesViewModel _favorites;
     private readonly IUiDispatcher _dispatcher;
+    private readonly NavigationHistory _history = new();
     private RepositoryDetailsViewModel? _activeDetails;
 
     public MainWindowViewModel(AppServices services, IUiDispatcher? dispatcher = null)
@@ -28,7 +29,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _quickLook = new QuickLookViewModel(
             services.GitHub, services.Explanations, services.Analyzer, services.InstallPlanner,
             services.Media, services.InstalledApps, services.Launcher, services.Machine,
-            services.Log, services.Images);
+            services.Log, services.Images, services.RecentlyViewed);
 
         _quickLook.DetailsRequested += ShowRepositoryDetails;
 
@@ -38,7 +39,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         _discover = new DiscoverViewModel(
             services.GitHub, services.Explanations, services.Media, services.Log, services.Images,
-            services.Preferences, _quickLook, services.Machine, services.Favorites);
+            services.Preferences, _quickLook, services.Machine, services.Favorites,
+            services.RecentlyViewed);
 
         _discover.RepositoryOpenRequested += ShowRepositoryDetails;
         _discover.RepositoryInstallRequested += repository => ShowRepositoryDetails(repository, offerInstall: true);
@@ -109,6 +111,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(GoBackCommand))]
     private bool _canGoBack;
 
+    /// <summary>
+    /// What the way back is called from here: "Back to results", "Back to Installed".
+    /// Named after the screen it returns to, because "Back" on its own leaves somebody
+    /// guessing where they will land.
+    /// </summary>
+    [ObservableProperty] private string _backLabel = "";
+
     // Set from the selected page in the constructor, so the strip never opens showing
     // a placeholder that does not match what is on screen.
     [ObservableProperty] private string _statusText = "";
@@ -116,7 +125,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public string PlatformText => PlatformInfo.CurrentDescription;
 
-    partial void OnSelectedNavigationItemChanged(NavigationItem value)
+    /// <summary>
+    /// Goes to a top-level destination, whether or not it is already selected.
+    /// </summary>
+    /// <remarks>
+    /// The selection binding alone is not enough. Somebody on a details page reached from
+    /// Discover still has Discover selected, so clicking Discover changed nothing and left
+    /// them looking at the page they were trying to leave. A sidebar destination has to be
+    /// a way out from anywhere, including from inside itself.
+    /// </remarks>
+    [RelayCommand]
+    private void GoToSection(NavigationItem? item)
+    {
+        if (item is null) return;
+
+        if (ReferenceEquals(SelectedNavigationItem, item))
+        {
+            // Already the selected section, so the property setter will not fire. Do the
+            // work directly.
+            EnterSection(item);
+            return;
+        }
+
+        SelectedNavigationItem = item;
+    }
+
+    partial void OnSelectedNavigationItemChanged(NavigationItem value) => EnterSection(value);
+
+    private void EnterSection(NavigationItem value)
     {
         // Choosing a section always leaves any detail page behind.
         CancelActiveDetailsLoad();
@@ -126,18 +162,41 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         if (ReferenceEquals(value.Page, _downloads)) _downloads.Refresh();
         if (ReferenceEquals(value.Page, _favorites)) _favorites.Refresh();
 
+        // A top-level destination is a fresh start, not a step deeper. Discover in
+        // particular returns to its own root - the home page - rather than to whatever
+        // was last on screen inside it.
+        _history.Clear();
+
+        if (ReferenceEquals(value.Page, _discover)) _discover.ReturnHome();
+
         CurrentPage = value.Page;
-        CanGoBack = false;
+        SyncBackState();
         StatusText = value.Title;
     }
 
+    private void SyncBackState()
+    {
+        CanGoBack = _history.CanGoBack;
+        BackLabel = _history.BackLabel;
+    }
+
+    /// <summary>
+    /// Returns to the previous screen, restoring it rather than rebuilding it. A search
+    /// is not run again on the way back: the results are already there, the allowance
+    /// has already been spent on them once, and repeating the request would be slower
+    /// and would sometimes fail.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanGoBack))]
     private void GoBack()
     {
+        var previous = _history.Pop();
+        if (previous is null) return;
+
         CancelActiveDetailsLoad();
-        CurrentPage = SelectedNavigationItem.Page;
-        CanGoBack = false;
-        StatusText = SelectedNavigationItem.Title;
+
+        CurrentPage = (ViewModelBase)previous.Page;
+        StatusText = previous.Title;
+        SyncBackState();
     }
 
     private void ShowRepositoryDetails(GitHubRepository repository) =>
@@ -171,13 +230,38 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         details.OfferInstallWhenReady = offerInstall;
 
+        // Recorded on the way out, while the screen being left is still in the state
+        // that makes the label true.
+        _history.Push(new NavigationEntry(CurrentPage, StatusText, DescribeWayBack()));
+
+        _services.RecentlyViewed.Record(repository);
+
         _activeDetails = details;
         CurrentPage = details;
-        CanGoBack = true;
         StatusText = repository.FullName;
+        SyncBackState();
 
         // Fire and forget: the page shows its own loading and error states.
         _ = details.LoadCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>
+    /// Names the screen being left behind. Discover is two places depending on what is
+    /// on it: a page of results somebody wants to get back to, or the home page they
+    /// started from.
+    /// </summary>
+    private string DescribeWayBack()
+    {
+        if (ReferenceEquals(CurrentPage, _discover))
+        {
+            return _discover.HasSearched ? "Back to results" : "Back to Discover";
+        }
+
+        if (ReferenceEquals(CurrentPage, _installed)) return "Back to Installed";
+        if (ReferenceEquals(CurrentPage, _favorites)) return "Back to Favorites";
+        if (ReferenceEquals(CurrentPage, _downloads)) return "Back to Downloads";
+
+        return "Back";
     }
 
     private void CancelActiveDetailsLoad()

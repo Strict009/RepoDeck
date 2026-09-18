@@ -45,7 +45,7 @@ public class AppsModeTests
         var vm = Discover(new FakeGitHubClient());
 
         Assert.True(vm.IsAppsMode);
-        Assert.False(vm.IsEverythingMode);
+        Assert.False(vm.IsAllProjectsMode);
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public class AppsModeTests
         };
 
         var vm = Discover(github);
-        vm.UseEverythingModeCommand.Execute(null);
+        vm.UseAllProjectsModeCommand.Execute(null);
         vm.SearchText = "music player";
         await vm.SearchCommand.ExecuteAsync(null);
 
@@ -113,7 +113,7 @@ public class AppsModeTests
         };
 
         var vm = Discover(github);
-        vm.UseEverythingModeCommand.Execute(null);
+        vm.UseAllProjectsModeCommand.Execute(null);
         vm.SearchText = "music player";
         await vm.SearchCommand.ExecuteAsync(null);
 
@@ -162,7 +162,7 @@ public class AppsModeTests
         var preferences = new FakePreferences();
         var vm = Discover(new FakeGitHubClient(), preferences);
 
-        vm.UseEverythingModeCommand.Execute(null);
+        vm.UseAllProjectsModeCommand.Execute(null);
 
         Assert.Equal(BrowseMode.Everything, preferences.Current.BrowseMode);
     }
@@ -173,7 +173,7 @@ public class AppsModeTests
         var preferences = new FakePreferences(
             new PreferencesSnapshot { BrowseMode = BrowseMode.Everything });
 
-        Assert.True(Discover(new FakeGitHubClient(), preferences).IsEverythingMode);
+        Assert.True(Discover(new FakeGitHubClient(), preferences).IsAllProjectsMode);
     }
 
     [Fact]
@@ -181,11 +181,11 @@ public class AppsModeTests
     {
         var vm = Discover(new FakeGitHubClient(), new FakePreferences());
 
-        vm.UseEverythingModeCommand.Execute(null);
-        Assert.NotEqual(vm.IsAppsMode, vm.IsEverythingMode);
+        vm.UseAllProjectsModeCommand.Execute(null);
+        Assert.NotEqual(vm.IsAppsMode, vm.IsAllProjectsMode);
 
         vm.UseAppsModeCommand.Execute(null);
-        Assert.NotEqual(vm.IsAppsMode, vm.IsEverythingMode);
+        Assert.NotEqual(vm.IsAppsMode, vm.IsAllProjectsMode);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public class AppsModeTests
         var vm = Discover(new FakeGitHubClient(), new FakePreferences());
 
         var apps = vm.BrowseModeExplanation;
-        vm.UseEverythingModeCommand.Execute(null);
+        vm.UseAllProjectsModeCommand.Execute(null);
         var everything = vm.BrowseModeExplanation;
 
         Assert.NotEqual(apps, everything);
@@ -221,7 +221,7 @@ public class AppsModeTests
 
         Assert.Single(vm.Results);
 
-        vm.UseEverythingModeCommand.Execute(null);
+        vm.UseAllProjectsModeCommand.Execute(null);
         await vm.SearchCommand.ExecuteAsync(null);
 
         Assert.Equal(2, vm.Results.Count);

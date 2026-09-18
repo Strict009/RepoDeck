@@ -18,7 +18,10 @@
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="Discover" Classes="display" />
-                    <TextBlock Text="Find something useful" Classes="secondary" />
+                    <TextBlock Text="What do you want your PC to do?" Classes="secondary"
+                               IsVisible="{Binding ShowHome}" />
+                    <TextBlock Text="Find something useful" Classes="secondary"
+                               IsVisible="{Binding !ShowHome}" />
                 </StackPanel>
 
                 <!--
@@ -35,12 +38,16 @@
                             Classes.segmentActive="{Binding IsAppsMode}"
                             MinWidth="96"
                             Content="APPS"
+                            ToolTip.Tip="Focus on programs you can actually use."
+                            AutomationProperties.Name="Apps: focus on programs you can actually use"
                             Command="{Binding UseAppsModeCommand}" />
                     <Button Classes="segment"
-                            Classes.segmentActive="{Binding IsEverythingMode}"
-                            MinWidth="118"
-                            Content="EVERYTHING"
-                            Command="{Binding UseEverythingModeCommand}" />
+                            Classes.segmentActive="{Binding IsAllProjectsMode}"
+                            MinWidth="132"
+                            Content="ALL PROJECTS"
+                            ToolTip.Tip="Include libraries, source projects, websites and developer tools."
+                            AutomationProperties.Name="All Projects: include libraries, source projects, websites and developer tools"
+                            Command="{Binding UseAllProjectsModeCommand}" />
                 </StackPanel>
             </Grid>
 
@@ -48,7 +55,7 @@
                 <TextBox Grid.Column="0"
                          Classes="search"
                          Name="SearchBox"
-                         PlaceholderText="What do you want your PC to do?"
+                         PlaceholderText="Search for apps, tools, games, or describe what you need..."
                          Text="{Binding SearchText}">
                     <TextBox.KeyBindings>
                         <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
@@ -74,11 +81,13 @@
 
             <TextBlock Classes="muted"
                        Text="{Binding BrowseModeExplanation}" TextWrapping="Wrap" MaxWidth="820"
-                       HorizontalAlignment="Left" />
+                       HorizontalAlignment="Left"
+                       IsVisible="{Binding ShowResultControls}" />
         </StackPanel>
 
         <!-- ==================== Filters ==================== -->
-        <Border Grid.Row="1" Margin="0,16,0,14" Padding="0">
+        <Border Grid.Row="1" Margin="0,16,0,14" Padding="0"
+                IsVisible="{Binding ShowResultControls}">
             <StackPanel Spacing="10">
                 <WrapPanel ItemSpacing="8" LineSpacing="8">
                     <ComboBox ItemsSource="{Binding SortOptions}"
@@ -172,30 +181,51 @@
             </Border>
 
             <!-- Landing -->
-            <ScrollViewer IsVisible="{Binding ShowWelcome}">
-                <StackPanel Spacing="22" Margin="0,8,14,28">
+            <ScrollViewer IsVisible="{Binding ShowHome}" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="34" Margin="0,10,14,36" MaxWidth="1180" HorizontalAlignment="Left">
 
-                    <StackPanel Spacing="12">
+                    <!--
+                        ==================== Categories ====================
+                        Subjects, drawn with the same kind marks the cards use, so the
+                        visual language is one language rather than two.
+                    -->
+                    <StackPanel Spacing="14">
                         <TextBlock Text="BROWSE BY CATEGORY" Classes="sectionLabel" />
                         <ItemsControl ItemsSource="{Binding Categories}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <WrapPanel ItemSpacing="10" LineSpacing="10" />
+                                    <WrapPanel ItemSpacing="12" LineSpacing="12" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:DiscoverCategory">
-                                    <Button Classes="tile" Width="196" Height="74"
+                                    <Button Classes="tile" Width="240" Height="112" Padding="0"
                                             Command="{Binding $parent[ItemsControl].((vm:DiscoverViewModel)DataContext).SearchCategoryCommand}"
                                             CommandParameter="{Binding}"
                                             ToolTip.Tip="{Binding Description}">
-                                        <StackPanel Spacing="3">
-                                            <TextBlock Text="{Binding Label}" FontSize="14"
-                                                       FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding Description}" Classes="muted"
-                                                       TextWrapping="Wrap" MaxLines="2"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
+                                        <Grid ColumnDefinitions="Auto,*" Margin="14,12">
+                                            <Border Grid.Column="0" Width="46" Height="46"
+                                                    VerticalAlignment="Top"
+                                                    ClipToBounds="True" Margin="0,0,13,0"
+                                                    CornerRadius="{DynamicResource RdRadiusSmall}">
+                                                <Panel>
+                                                    <Border Background="{DynamicResource RdPanelInsetBrush}" />
+                                                    <controls:KindArtwork Kind="{Binding Kind}"
+                                                                          Initial=""
+                                                                          Accent="{DynamicResource RdAccentBrush}"
+                                                                          MarkScale="0.56"
+                                                                          Opacity="0.9" />
+                                                </Panel>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Label}" FontSize="15"
+                                                           FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Description}" Classes="muted"
+                                                           TextWrapping="Wrap" MaxLines="2"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Grid>
                                     </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -203,41 +233,134 @@
                     </StackPanel>
 
                     <!--
-                        Collections: ways of slicing the search rather than subjects.
-                        Each description says what it actually asks GitHub for, because
-                        "Popular on GitHub" could easily read as "RepoDeck recommends",
-                        which it is not and must never become.
+                        ==================== Featured collections ====================
+                        Ways of slicing the search rather than subjects. Three of the four
+                        are about how a program is delivered, which is the thing a beginner
+                        cannot judge and the thing that decides whether RepoDeck can help.
+
+                        Each description says what it actually asks GitHub for. "Popular on
+                        GitHub" is deliberately not promoted here: giving it a large card
+                        would turn a star count owned by GitHub into a recommendation owned
+                        by RepoDeck, which is the one line this project does not cross.
                     -->
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="OR BROWSE BY THE KIND OF THING" Classes="sectionLabel" />
-                        <ItemsControl ItemsSource="{Binding Collections}">
+                    <StackPanel Spacing="14">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="COLLECTIONS" Classes="sectionLabel" />
+                            <TextBlock Classes="muted"
+                                       Text="Each of these is a search. Nothing here is hand-picked, and nothing is a recommendation." />
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding FeaturedCollections}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel ItemSpacing="12" LineSpacing="12" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DiscoverCollection">
+                                    <Button Classes="tile" Width="278" Height="158" Padding="0"
+                                            Command="{Binding $parent[ItemsControl].((vm:DiscoverViewModel)DataContext).SearchCollectionCommand}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip.Tip="{Binding Description}">
+                                        <StackPanel Margin="16,14" Spacing="11">
+                                            <Border Width="52" Height="52"
+                                                    ClipToBounds="True" HorizontalAlignment="Left"
+                                                    CornerRadius="{DynamicResource RdRadiusSmall}">
+                                                <Panel>
+                                                    <Border Background="{DynamicResource RdPanelInsetBrush}" />
+                                                    <controls:KindArtwork Kind="{Binding Kind}"
+                                                                          Initial=""
+                                                                          Accent="{DynamicResource RdAccentBrush}"
+                                                                          MarkScale="0.58" />
+                                                </Panel>
+                                            </Border>
+
+                                            <StackPanel Spacing="5">
+                                                <TextBlock Text="{Binding Label}" FontSize="16"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource RdAccentBrush}"
+                                                           TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Description}" Classes="muted"
+                                                           TextWrapping="Wrap" MaxLines="3"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <WrapPanel ItemSpacing="8" LineSpacing="8">
+                            <ItemsControl ItemsSource="{Binding OtherCollections}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel ItemSpacing="8" LineSpacing="8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DiscoverCollection">
+                                        <Button Classes="secondary"
+                                                Content="{Binding Label}"
+                                                Command="{Binding $parent[ItemsControl].((vm:DiscoverViewModel)DataContext).SearchCollectionCommand}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="{Binding Description}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <!--
+                        ==================== Recently viewed ====================
+                        Only when there is something to show. An empty "Recently viewed"
+                        heading on a first run is a promise of content that is not there.
+                    -->
+                    <StackPanel Spacing="14" IsVisible="{Binding HasRecentlyViewed}">
+                        <TextBlock Text="RECENTLY VIEWED" Classes="sectionLabel" />
+                        <ItemsControl ItemsSource="{Binding RecentlyViewed}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel ItemSpacing="10" LineSpacing="10" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:DiscoverCollection">
-                                    <Button Classes="tile" Width="212" Height="74"
-                                            Command="{Binding $parent[ItemsControl].((vm:DiscoverViewModel)DataContext).SearchCollectionCommand}"
-                                            CommandParameter="{Binding}"
-                                            ToolTip.Tip="{Binding Description}">
-                                        <StackPanel Spacing="3">
-                                            <TextBlock Text="{Binding Label}" FontSize="14"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource RdAccentBrush}" />
-                                            <TextBlock Text="{Binding Description}" Classes="muted"
-                                                       TextWrapping="Wrap" MaxLines="2"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
+                                <DataTemplate x:DataType="vm:RecentProjectViewModel">
+                                    <Button Classes="tile" Width="228" Height="88" Padding="0"
+                                            Command="{Binding OpenCommand}"
+                                            ToolTip.Tip="{Binding FullName}">
+                                        <Grid ColumnDefinitions="Auto,*" Margin="12,10">
+                                            <Border Grid.Column="0" Width="38" Height="38"
+                                                    VerticalAlignment="Top" Margin="0,0,11,0"
+                                                    ClipToBounds="True"
+                                                    CornerRadius="{DynamicResource RdRadiusSmall}">
+                                                <Panel>
+                                                    <Border Background="{Binding FallbackBrush}" />
+                                                    <controls:KindArtwork Kind="{Binding Kind}"
+                                                                          Initial="{Binding FallbackInitial}"
+                                                                          Accent="{DynamicResource RdOnAccentBrush}"
+                                                                          MarkScale="0.56"
+                                                                          Opacity="0.88" />
+                                                </Panel>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding FriendlyName}" FontSize="13"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Owner}" Classes="muted"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding WhenText}" Classes="muted" />
+                                            </StackPanel>
+                                        </Grid>
                                     </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </StackPanel>
 
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="OR DESCRIBE WHAT YOU WANT" Classes="sectionLabel" />
+                    <!-- ==================== Suggestions ==================== -->
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="NOT SURE WHAT TO SEARCH FOR?" Classes="sectionLabel" />
                         <WrapPanel ItemSpacing="8" LineSpacing="8">
                             <Button Classes="secondary" Content="Edit videos"
                                     Command="{Binding SearchForCommand}" CommandParameter="video editor" />
@@ -258,13 +381,60 @@
                         </WrapPanel>
                     </StackPanel>
 
-                    <Border Classes="inset" MaxWidth="620" HorizontalAlignment="Left">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="HOW THIS WORKS" Classes="microLabel" />
-                            <TextBlock Classes="secondary"
-                                       Text="RepoDeck searches a large collection of free, open software. It reads each project, explains in plain English what it does, works out whether it runs on your computer, and installs the ones it can." />
-                        </StackPanel>
-                    </Border>
+                    <!--
+                        ==================== How RepoDeck works ====================
+                        Three steps rather than a paragraph. The third is worded carefully:
+                        RepoDeck installs what it has a plan for and hands over what it
+                        does not, and the safety line below it has to stay true of the
+                        installer as it actually behaves, not as a slogan.
+                    -->
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="HOW REPODECK WORKS" Classes="sectionLabel" />
+
+                        <WrapPanel ItemSpacing="12" LineSpacing="12">
+                            <Border Classes="inset" Width="292" Padding="17,15">
+                                <StackPanel Spacing="7">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="1" FontSize="20" FontWeight="Bold"
+                                                   Foreground="{DynamicResource RdAccentBrush}" />
+                                        <TextBlock Text="SEARCH" Classes="microLabel"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Classes="secondary" TextWrapping="Wrap"
+                                               Text="Tell RepoDeck what you want your PC to do." />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="inset" Width="292" Padding="17,15">
+                                <StackPanel Spacing="7">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="2" FontSize="20" FontWeight="Bold"
+                                                   Foreground="{DynamicResource RdAccentBrush}" />
+                                        <TextBlock Text="UNDERSTAND" Classes="microLabel"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Classes="secondary" TextWrapping="Wrap"
+                                               Text="RepoDeck explains what it found and whether it works on this computer." />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="inset" Width="292" Padding="17,15">
+                                <StackPanel Spacing="7">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="3" FontSize="20" FontWeight="Bold"
+                                                   Foreground="{DynamicResource RdAccentBrush}" />
+                                        <TextBlock Text="INSTALL" Classes="microLabel"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Classes="secondary" TextWrapping="Wrap"
+                                               Text="When RepoDeck understands how to install it, it can handle the supported installation for you." />
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+
+                        <TextBlock Classes="muted" TextWrapping="Wrap" MaxWidth="900"
+                                   Text="You're always in control. RepoDeck doesn't silently run scripts or installers." />
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
 
@@ -282,7 +452,7 @@
             </Border>
 
             <!-- Results -->
-            <ScrollViewer IsVisible="{Binding ShowResults}">
+            <ScrollViewer Name="ResultsScroller" IsVisible="{Binding ShowResults}">
                 <StackPanel Spacing="0" Margin="0,0,14,24">
 
                     <!--
