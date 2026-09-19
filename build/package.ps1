@@ -56,6 +56,32 @@ function Write-Detail([string]$text) {
     Write-Host "    $text" -ForegroundColor DarkGray
 }
 
+<#
+    Runs gh purely to ask a question, and returns whether it succeeded.
+
+    Not as simple as it looks. gh writes to stderr in the ordinary course of answering -
+    "release not found" is how it says no - and in Windows PowerShell, merging a native
+    command's stderr into the pipeline wraps each line in an ErrorRecord. With
+    ErrorActionPreference set to Stop, that turns a perfectly normal "no" into a
+    terminating error and kills the script on its happy path, which is exactly what
+    happened the first time this ran.
+
+    So stderr goes to nowhere rather than into the pipeline, and the exit code is the only
+    thing consulted.
+#>
+function Invoke-Gh([string[]]$Arguments) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    try {
+        & gh @Arguments 1>$null 2>$null
+        return $LASTEXITCODE -eq 0
+    }
+    finally {
+        $ErrorActionPreference = $previous
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Version: one source of truth
 # ---------------------------------------------------------------------------
@@ -312,8 +338,7 @@ if ($DraftRelease) {
               'The artifacts above are complete. Install it with: winget install --id GitHub.cli'
     }
 
-    & gh auth status 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
+    if (-not (Invoke-Gh @('auth', 'status'))) {
         throw 'The GitHub CLI is not signed in. Run: gh auth login'
     }
 
@@ -328,8 +353,7 @@ if ($DraftRelease) {
     # An existing release for this tag is not something to overwrite silently. It may be
     # published already, in which case replacing its files changes what people have
     # downloaded under a name they were told was fixed.
-    & gh release view $tag 2>&1 | Out-Null
-    if ($LASTEXITCODE -eq 0) {
+    if (Invoke-Gh @('release', 'view', $tag)) {
         throw "A release already exists for $tag. Delete it deliberately, or raise the " +
               'version in Directory.Build.props, rather than replacing it in place.'
     }
