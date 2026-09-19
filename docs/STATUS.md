@@ -168,7 +168,7 @@ Seven of these were found by running the application, not by reading it.
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - **1025 passed, 0 failed** (up from 798; 227 new tests).
+- `dotnet test` - **1040 passed, 0 failed** (up from 798; 242 new tests).
 - Every new guard was confirmed to **fail without its fix**, not merely to pass with it.
 
 **Driven on screen, against real GitHub and a real installation:**
@@ -222,14 +222,68 @@ edit to the manifest, noted here so the result is not mistaken for an unprompted
 
 ## Next task
 
-Not started, and deliberately outside Milestone 4's boundary:
+**0.1.x — Prove it.** Fix what real machines disagree with. This is priority zero and
+everything below waits on it.
 
-1. Checksum verification against a published checksum asset.
-2. A background or scheduled update check, rather than only on request.
-3. RepoDeck finding itself - still needs a public release to exist.
-4. An explicit "install this anyway" for the `Unknown` case.
+The one claim 0.1.0-alpha makes and has never demonstrated is that it runs on a Windows
+machine with no development tooling on it. `docs/CLEAN-MACHINE-TEST.md` is the twelve-step
+run; `build/clean-machine-report.ps1` captures the machine state a failure needs to be
+described properly. Anything that fails becomes 0.1.1.
 
-Source builds and installer execution remain out of scope.
+Startup failures now produce evidence rather than silence. `CrashReporter` is installed
+before Avalonia and writes a readable report to the Logs folder, with a native message box
+for a failure that happens before there is a window to put one in. It recognises the shapes
+a clean machine actually produces - a missing native library, an architecture mismatch, a
+refused folder, a full disk - and says nothing at all when the shape is unfamiliar, because
+a confident wrong explanation sends somebody off to fix the wrong thing.
+
+### 0.2 — Understand it
+
+The theme: RepoDeck can answer "can I install this?" and should answer "what is this, why
+would I want it, and what am I getting into?"
+
+1. **Project Detail overhaul.** A real project page: identity and badges at the top, then
+   tabs for Overview, Releases, Compatibility, Files and Activity. "RepoDeck found" and
+   "Things to know" as separate lists, with the evidence behind a disclosure.
+2. **Software search rather than repository search.** Score application likelihood, release
+   availability, platform fit, recency, README evidence, binary availability and activity,
+   then split results into Best matches and Other results. The claim stays "this appears to
+   be the kind of application you searched for", never "this software is good".
+3. **Install confidence.** High / Uncertain / Manual, each stating the evidence: which asset,
+   from which release, and why RepoDeck believes it fits. Not a safety score, and
+   deliberately not antivirus by vibes.
+4. **Application identity.** Icons, screenshots, developer identity, categories.
+5. **Release intelligence.** Better version detection and release comparison, building on
+   the conservative comparison already in place.
+
+### 0.3 — Manage it
+
+A serious Library and Update Center: batch updates that remain individually inspectable,
+stronger repair, detection of applications RepoDeck did not install, and a library summary
+worth opening the application for - "3 updates available, 1 project has not published a
+release in 3 years, 1 installation appears damaged".
+
+### Then
+
+Linux packaging, broader package types, and paste-a-GitHub-URL analysis: drop any repository
+link into RepoDeck and have it say what the project is, whether it is an end-user
+application at all, and which asset suits this machine.
+
+### Updating RepoDeck itself
+
+Deliberately not scheduled yet, because it is harder than it looks and the existing update
+transaction cannot be pointed at RepoDeck.
+
+That transaction works by moving the live installation aside and promoting a validated copy
+into its place. A running process cannot have its own executable moved on Windows, so
+RepoDeck updating itself needs a different mechanism: a small separate updater that outlives
+the exit, or a staged swap applied on next launch. The honest interim answer is to check,
+tell the user a newer version exists, and send them to the release page - which is what the
+installer's upgrade path already handles correctly.
+
+The guiding test for all of it stays the same: **could somebody who does not know what a
+GitHub repository is use RepoDeck to find, understand, install and maintain software from
+GitHub?**
 
 ## Navigation and Discover Home (pre-release polish)
 

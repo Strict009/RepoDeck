@@ -163,3 +163,19 @@ RepoDeck does not delete it, so the applications RepoDeck installed for you stay
 are and are still there if you reinstall.
 
 See `docs/ARCHITECTURE.md`, `docs/STATUS.md` and `docs/RELEASING.md`.
+
+## Testing it on a clean machine
+
+RepoDeck 0.1.0-alpha ships its own runtime and should need nothing installed first. That
+has not been proven on a machine where it was genuinely absent, and it is the most useful
+thing an early tester can check.
+
+`docs/CLEAN-MACHINE-TEST.md` is a twelve-step run for a fresh Windows machine or VM.
+`build/clean-machine-report.ps1` captures the machine state that a failure report needs.
+
+If RepoDeck fails to start, it writes a crash report to `%LOCALAPPDATA%RepoDeckogs`
+and shows a message box naming the file. Getting neither is itself worth reporting.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
