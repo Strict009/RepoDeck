@@ -1,0 +1,178 @@
+using RepoDeck.Models;
+using RepoDeck.Services.Analysis;
+
+namespace RepoDeck.Tests;
+
+/// <summary>
+/// The Best Matches / Other Results boundary. These are deliberately awkward shapes:
+/// relevance alone must never turn a library, plugin, list or archived project into an
+/// end-user application.
+/// </summary>
+public class SearchMatchClassifierTests
+{
+    private static readonly MachineProfile Windows =
+        MachineProfile.For(OsPlatform.Windows, CpuArchitecture.X64);
+
+    private static SearchMatchAssessment Assess(
+        GitHubRepository repository,
+        string query,
+        Installability? installability = null)
+    {
+        var likelihood = ApplicationLikelihoodEvaluator.Evaluate(repository);
+        var classification = ProjectKindClassifier.Classify(repository);
+        var capability = installability
+                         ?? InstallabilityEvaluator.FromMetadata(
+                             repository, likelihood,
+                             SetupDifficultyEvaluator.EvaluateFromMetadata(repository, likelihood));
+        var relevance = RelevanceScorer.Score(
+            repository, query, classification, capability, Windows);
+
+        return SearchMatchClassifier.Assess(
+            repository, query, likelihood, classification, capability, relevance);
+    }
+
+    [Fact]
+    public void A_relevant_desktop_emulator_is_a_best_match()
+    {
+        var repository = TestRepositories.Create(
+            "pcsx2", description: "A PlayStation 2 emulator for Windows desktop computers.",
+            language: "C++", topics: ["emulator", "desktop", "windows"]);
+
+        var result = Assess(repository, "PS2 emulator");
+
+        Assert.Equal(SearchResultGroup.BestMatch, result.Group);
+        Assert.Contains(result.Reasons, r => r.Contains("end-user", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Reasons, r => r.Contains("PS2 emulator", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void A_matching_library_stays_under_other_results()
+    {
+        var repository = TestRepositories.Create(
+            "music-player-sdk", description: "A music player library and SDK for developers.",
+            topics: ["library", "sdk", "audio"]);
+
+        var result = Assess(repository, "music player");
+
+        Assert.Equal(SearchResultGroup.OtherResult, result.Group);
+        Assert.Contains(result.Reasons, r => r.Contains("developers", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void A_plugin_is_not_promoted_as_the_application_it_extends()
+    {
+        var repository = TestRepositories.Create(
+            "video-editor-plugin", description: "A plugin for a popular video editor.",
+            topics: ["plugin", "extension", "video"]);
+
+        Assert.Equal(SearchResultGroup.OtherResult, Assess(repository, "video editor").Group);
+    }
+
+    [Fact]
+    public void An_awesome_list_is_relevant_but_not_presented_as_software()
+    {
+        var repository = TestRepositories.Create(
+            "awesome-file-managers", description: "A curated list of file manager projects.",
+            language: "Markdown", topics: ["awesome", "awesome-list", "curated"]);
+
+        var result = Assess(repository, "file manager");
+
+        Assert.Equal(SearchResultGroup.OtherResult, result.Group);
+        Assert.Contains(result.Reasons,
+            r => r.Contains("reading material", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void An_archived_application_is_not_a_best_match()
+    {
+        var repository = TestRepositories.Create(
+            "drawing-program", description: "A desktop drawing program.", archived: true,
+            topics: ["desktop", "gui", "drawing"]);
+
+        var result = Assess(repository, "drawing program");
+
+        Assert.Equal(SearchResultGroup.OtherResult, result.Group);
+        Assert.Contains(result.Reasons, r => r.Contains("archived", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Release_availability_is_unknown_until_it_has_actually_been_checked()
+    {
+        var repository = TestRepositories.Create(
+            "player", description: "A desktop music player.", topics: ["desktop", "music-player"]);
+
+        var result = Assess(repository, "music player");
+
+        Assert.Contains(result.Reasons,
+            r => r.Contains("has not been checked", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.Reasons,
+            r => r.Contains("No packaged", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Confirmed_package_evidence_replaces_the_unknown_statement()
+    {
+        var repository = TestRepositories.Create(
+            "player", description: "A desktop music player.", topics: ["desktop", "music-player"]);
+        var installability = new Installability
+        {
+            State = InstallabilityState.ReadyToInstall,
+            Confidence = Confidence.Confirmed,
+            Reasons = ["RepoDeck found player-win-x64.zip in release v2.0."]
+        };
+
+        var result = Assess(repository, "music player", installability);
+
+        Assert.Equal(SearchResultGroup.BestMatch, result.Group);
+        Assert.Contains(result.Reasons,
+            r => r.Contains("packaged release", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.Reasons,
+            r => r.Contains("has not been checked", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Explanations_never_claim_quality_safety_or_trust()
+    {
+        var repository = TestRepositories.Create(
+            "player", description: "A desktop music player.", topics: ["desktop", "music-player"]);
+        string[] forbidden = ["safe", "trusted", "recommended", "quality", "/100"];
+
+        foreach (var reason in Assess(repository, "music player").Reasons)
+        foreach (var word in forbidden)
+        {
+            Assert.DoesNotContain(word, reason, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+}
+
+public class SearchDiscoveryPresentationTests
+{
+    [Fact]
+    public void Discover_exposes_both_groups_and_why_in_both_view_modes()
+    {
+        var discover = File.ReadAllText(Path.Combine(SourceViews(), "DiscoverView.axaml"));
+        var card = File.ReadAllText(Path.Combine(SourceViews(), "RepositoryCardView.axaml"));
+
+        Assert.Contains("BEST MATCHES", discover);
+        Assert.Contains("OTHER RESULTS", discover);
+        Assert.Contains("BestMatches", discover);
+        Assert.Contains("OtherResults", discover);
+        Assert.Contains("Content=\"WHY?\"", discover); // Compact rows.
+        Assert.Contains("Header=\"WHY?\"", card);     // Cards.
+        Assert.Contains("WhyReasons", discover);
+        Assert.Contains("WhyReasons", card);
+    }
+
+    private static string SourceViews()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "src")))
+        {
+            directory = directory.Parent;
+        }
+
+        Assert.NotNull(directory);
+        return Path.Combine(directory!.FullName, "src", "RepoDeck", "Views");
+    }
+}

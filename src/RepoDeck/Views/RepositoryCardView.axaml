@@ -14,7 +14,7 @@
         can do about it, the action. The owner slug and the language are last and small.
     -->
     <Border Classes="card" Padding="0" ClipToBounds="True">
-        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
 
             <!-- ============ 1. The name, in a title bar ============ -->
             <Border Grid.Row="0"
@@ -135,8 +135,31 @@
                 </StackPanel>
             </Border>
 
+            <!-- The classification is inspectable without filling every card with prose. -->
+            <Expander Grid.Row="4"
+                      Header="WHY?"
+                      IsExpanded="{Binding IsWhyExpanded}"
+                      Margin="16,0,16,10">
+                <StackPanel Spacing="7" Margin="0,7,0,2">
+                    <TextBlock Text="{Binding WhyHeading}" Classes="microLabel"
+                               TextWrapping="Wrap" />
+                    <ItemsControl ItemsSource="{Binding WhyReasons}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+                                    <TextBlock Grid.Column="0" Text="•" Classes="muted"
+                                               Margin="0,0,7,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding}" Classes="muted"
+                                               TextWrapping="Wrap" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Expander>
+
             <!-- ============ 7 and 8. The action, then the small print ============ -->
-            <Border Grid.Row="4"
+            <Border Grid.Row="5"
                     BorderBrush="{DynamicResource RdBorderBrush}" BorderThickness="0,1,0,0"
                     Background="{DynamicResource RdSurfaceAltBrush}"
                     Padding="14,10">

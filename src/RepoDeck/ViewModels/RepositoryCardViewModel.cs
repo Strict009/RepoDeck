@@ -27,6 +27,8 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     private readonly Action<RepositoryCardViewModel>? _requestInstall;
     private readonly Func<RepositoryCardViewModel, bool>? _toggleFavorite;
     private readonly IAppLog _log;
+    private string? _searchQuery;
+    private MachineProfile? _searchMachine;
 
     public RepositoryCardViewModel(
         GitHubRepository repository,
@@ -208,11 +210,47 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty] private Relevance _relevance = Relevance.Neutral;
 
-    public void ApplyRelevance(Relevance relevance) => Relevance = relevance;
+    public void ApplyRelevance(Relevance relevance)
+    {
+        Relevance = relevance;
+        RefreshSearchMatch();
+    }
+
+    /// <summary>
+    /// Supplies the search context once, allowing confirmed Quick Look evidence to refine
+    /// this card later without introducing a second scoring system.
+    /// </summary>
+    public void ApplySearchContext(string query, MachineProfile machine)
+    {
+        _searchQuery = query;
+        _searchMachine = machine;
+        RefreshSearchIntelligence();
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBestMatch))]
+    [NotifyPropertyChangedFor(nameof(WhyHeading))]
+    [NotifyPropertyChangedFor(nameof(WhyReasons))]
+    private SearchMatchAssessment _searchMatch = SearchMatchAssessment.Other;
+
+    public bool IsBestMatch => SearchMatch.IsBestMatch;
+    public string WhyHeading => SearchMatch.ReasonHeading;
+    public IReadOnlyList<string> WhyReasons => SearchMatch.Reasons;
+
+    /// <summary>Raised only when confirmed evidence moves a card between result groups.</summary>
+    public event Action<RepositoryCardViewModel>? SearchResultGroupChanged;
+
+    [ObservableProperty] private bool _isWhyExpanded;
+
+    [RelayCommand]
+    private void ToggleWhy() => IsWhyExpanded = !IsWhyExpanded;
 
     /// <summary>Applies a classification refined by a deeper look.</summary>
-    public void ApplyRefinedClassification(ProjectClassification classification) =>
+    public void ApplyRefinedClassification(ProjectClassification classification)
+    {
         Classification = classification;
+        RefreshSearchIntelligence();
+    }
 
     // ---- Favourite --------------------------------------------------------
 
@@ -280,8 +318,31 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     }
 
     /// <summary>Applies the authoritative verdict once a plan has been produced.</summary>
-    public void ApplyAnalysedInstallability(Installability installability) =>
+    public void ApplyAnalysedInstallability(Installability installability)
+    {
         Installability = installability;
+        RefreshSearchIntelligence();
+    }
+
+    private void RefreshSearchIntelligence()
+    {
+        if (_searchQuery is null || _searchMachine is null) return;
+
+        Relevance = RelevanceScorer.Score(
+            Repository, _searchQuery, Classification, Installability, _searchMachine);
+        RefreshSearchMatch();
+    }
+
+    private void RefreshSearchMatch()
+    {
+        if (_searchQuery is null) return;
+
+        var previous = SearchMatch.Group;
+        SearchMatch = SearchMatchClassifier.Assess(
+            Repository, _searchQuery, Likelihood, Classification, Installability, Relevance);
+
+        if (previous != SearchMatch.Group) SearchResultGroupChanged?.Invoke(this);
+    }
 
     // ---- Commands ---------------------------------------------------------
 

@@ -9,6 +9,80 @@
              x:Class="RepoDeck.Views.DiscoverView"
              x:DataType="vm:DiscoverViewModel">
 
+    <UserControl.Resources>
+        <DataTemplate x:Key="CardResultTemplate" x:DataType="vm:RepositoryCardViewModel">
+            <ContentControl Content="{Binding}" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="CompactResultTemplate" x:DataType="vm:RepositoryCardViewModel">
+            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="10,8">
+                <Border Grid.Row="0" Grid.Column="0" Width="40" Height="40"
+                        ClipToBounds="True"
+                        CornerRadius="{DynamicResource RdRadiusSmall}"
+                        Margin="0,0,12,0">
+                    <Panel ToolTip.Tip="{Binding KindExplanation}">
+                        <Border Background="{Binding FallbackBrush}"
+                                IsVisible="{Binding ShowFallback}" />
+                        <controls:KindArtwork Kind="{Binding Kind}"
+                                              Initial="{Binding FallbackInitial}"
+                                              Accent="{DynamicResource RdOnAccentBrush}"
+                                              MarkScale="0.62"
+                                              Opacity="0.85"
+                                              IsVisible="{Binding ShowFallback}" />
+                        <Image Source="{Binding Image}"
+                               IsVisible="{Binding ShowImage}"
+                               Stretch="UniformToFill" />
+                    </Panel>
+                </Border>
+
+                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding FriendlyName}" Classes="body"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" MaxLines="1" />
+                    <TextBlock Text="{Binding Purpose}" Classes="muted"
+                               TextTrimming="CharacterEllipsis" MaxLines="1" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="7"
+                            VerticalAlignment="Center" Margin="14,0"
+                            ToolTip.Tip="{Binding InstallabilityExplanation}">
+                    <Ellipse Classes="led"
+                             Classes.ledOn="{Binding IsReadyToInstall}"
+                             Classes.ledWarn="{Binding IsDeveloperFocused}"
+                             Classes.ledBad="{Binding IsNotCompatible}" />
+                    <TextBlock Text="{Binding InstallabilityLabel}" Classes="muted"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Button Grid.Row="0" Grid.Column="3" Classes="quiet" Content="WHY?"
+                        Margin="0,0,8,0" VerticalAlignment="Center"
+                        Command="{Binding ToggleWhyCommand}" />
+
+                <Button Grid.Row="0" Grid.Column="4" Classes="primary"
+                        Content="{Binding PrimaryActionLabel}"
+                        VerticalAlignment="Center"
+                        Command="{Binding ActivateCommand}"
+                        ToolTip.Tip="{Binding PrimaryActionTooltip}" />
+
+                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5"
+                        Classes="inset" Margin="52,8,0,0" Padding="10"
+                        IsVisible="{Binding IsWhyExpanded}">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="{Binding WhyHeading}" Classes="microLabel" />
+                        <ItemsControl ItemsSource="{Binding WhyReasons}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{Binding StringFormat='• {0}'}" Classes="muted"
+                                               TextWrapping="Wrap" Margin="0,1" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <Grid Name="DiscoverRoot" ColumnDefinitions="*,Auto">
 
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="28,22,28,0">
@@ -123,8 +197,6 @@
                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowResults}">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14">
                         <TextBlock Text="{Binding ResultSummary}" Classes="muted" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding HiddenByFilterNotice}" Classes="muted" VerticalAlignment="Center"
-                                   IsVisible="{Binding HiddenByFilterNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     </StackPanel>
 
                     <!-- Card or Compact. The choice is remembered between runs. -->
@@ -455,98 +527,82 @@
             <ScrollViewer Name="ResultsScroller" IsVisible="{Binding ShowResults}">
                 <StackPanel Spacing="0" Margin="0,0,14,24">
 
-                    <!--
-                        Card by default. Three columns where there is room for three, then
-                        two, then one - the panel decides from its own width, so the layout
-                        follows the window rather than a breakpoint guessed in advance.
-                    -->
-                    <ListBox Classes="cards"
-                             IsVisible="{Binding IsCardView}"
-                             ItemsSource="{Binding Results}"
-                             SelectedItem="{Binding SelectedResult}"
-                             SelectionMode="Single">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <controls:ResponsiveCardsPanel
-                                    MinItemWidth="{DynamicResource RdCardMinWidth}"
-                                    MaxColumns="3"
-                                    Spacing="{DynamicResource RdCardSpacing}" />
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:RepositoryCardViewModel">
-                                <ContentControl Content="{Binding}" />
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <!-- Apps mode keeps every result, but separates strong application
+                         evidence from repositories that still need inspection. -->
+                    <StackPanel IsVisible="{Binding ShowGroupedResults}" Spacing="24">
+                        <StackPanel IsVisible="{Binding HasBestMatches}" Spacing="10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="BEST MATCHES" Classes="sectionLabel" />
+                                <TextBlock Text="Projects with evidence that they are end-user applications relevant to this search."
+                                           Classes="muted" TextWrapping="Wrap" />
+                            </StackPanel>
 
-                    <!--
-                        Compact: one row per project for somebody who already knows the
-                        landscape and wants forty results on screen rather than nine. The
-                        same facts in the same order, with the picture reduced to a tile.
-                    -->
-                    <ListBox Classes="rows"
-                             IsVisible="{Binding IsCompactView}"
-                             ItemsSource="{Binding Results}"
-                             SelectedItem="{Binding SelectedResult}"
-                             SelectionMode="Single">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:RepositoryCardViewModel">
-                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="10,8">
+                            <ListBox Classes="cards" IsVisible="{Binding IsCardView}"
+                                     ItemsSource="{Binding BestMatches}"
+                                     ItemTemplate="{StaticResource CardResultTemplate}"
+                                     SelectedItem="{Binding SelectedResult}" SelectionMode="Single">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <controls:ResponsiveCardsPanel
+                                            MinItemWidth="{DynamicResource RdCardMinWidth}"
+                                            MaxColumns="3" Spacing="{DynamicResource RdCardSpacing}" />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                            </ListBox>
 
-                                    <Border Grid.Column="0" Width="40" Height="40"
-                                            ClipToBounds="True"
-                                            CornerRadius="{DynamicResource RdRadiusSmall}"
-                                            Margin="0,0,12,0">
-                                        <Panel ToolTip.Tip="{Binding KindExplanation}">
-                                            <Border Background="{Binding FallbackBrush}"
-                                                    IsVisible="{Binding ShowFallback}" />
+                            <ListBox Classes="rows" IsVisible="{Binding IsCompactView}"
+                                     ItemsSource="{Binding BestMatches}"
+                                     ItemTemplate="{StaticResource CompactResultTemplate}"
+                                     SelectedItem="{Binding SelectedResult}" SelectionMode="Single" />
+                        </StackPanel>
 
-                                            <!-- The kind mark reads as a silhouette at this
-                                                 size, which a letter does not: scanning a
-                                                 long list, the shape says more than the
-                                                 first character of the name. -->
-                                            <controls:KindArtwork Kind="{Binding Kind}"
-                                                                  Initial="{Binding FallbackInitial}"
-                                                                  Accent="{DynamicResource RdOnAccentBrush}"
-                                                                  MarkScale="0.62"
-                                                                  Opacity="0.85"
-                                                                  IsVisible="{Binding ShowFallback}" />
+                        <StackPanel IsVisible="{Binding HasOtherResults}" Spacing="10">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="OTHER RESULTS" Classes="sectionLabel" />
+                                <TextBlock Text="Relevant repositories without enough evidence to call them strong software matches."
+                                           Classes="muted" TextWrapping="Wrap" />
+                            </StackPanel>
 
-                                            <Image Source="{Binding Image}"
-                                                   IsVisible="{Binding ShowImage}"
-                                                   Stretch="UniformToFill" />
-                                        </Panel>
-                                    </Border>
+                            <ListBox Classes="cards" IsVisible="{Binding IsCardView}"
+                                     ItemsSource="{Binding OtherResults}"
+                                     ItemTemplate="{StaticResource CardResultTemplate}"
+                                     SelectedItem="{Binding SelectedResult}" SelectionMode="Single">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <controls:ResponsiveCardsPanel
+                                            MinItemWidth="{DynamicResource RdCardMinWidth}"
+                                            MaxColumns="3" Spacing="{DynamicResource RdCardSpacing}" />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                            </ListBox>
 
-                                    <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding FriendlyName}" Classes="body"
-                                                   FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis" MaxLines="1" />
-                                        <TextBlock Text="{Binding Purpose}" Classes="muted"
-                                                   TextTrimming="CharacterEllipsis" MaxLines="1" />
-                                    </StackPanel>
+                            <ListBox Classes="rows" IsVisible="{Binding IsCompactView}"
+                                     ItemsSource="{Binding OtherResults}"
+                                     ItemTemplate="{StaticResource CompactResultTemplate}"
+                                     SelectedItem="{Binding SelectedResult}" SelectionMode="Single" />
+                        </StackPanel>
+                    </StackPanel>
 
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7"
-                                                VerticalAlignment="Center" Margin="14,0"
-                                                ToolTip.Tip="{Binding InstallabilityExplanation}">
-                                        <Ellipse Classes="led"
-                                                 Classes.ledOn="{Binding IsReadyToInstall}"
-                                                 Classes.ledWarn="{Binding IsDeveloperFocused}"
-                                                 Classes.ledBad="{Binding IsNotCompatible}" />
-                                        <TextBlock Text="{Binding InstallabilityLabel}" Classes="muted"
-                                                   VerticalAlignment="Center" />
-                                    </StackPanel>
+                    <!-- Everything mode preserves GitHub's ordering and does not group. -->
+                    <Panel IsVisible="{Binding ShowUngroupedResults}">
+                        <ListBox Classes="cards" IsVisible="{Binding IsCardView}"
+                                 ItemsSource="{Binding Results}"
+                                 ItemTemplate="{StaticResource CardResultTemplate}"
+                                 SelectedItem="{Binding SelectedResult}" SelectionMode="Single">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <controls:ResponsiveCardsPanel
+                                        MinItemWidth="{DynamicResource RdCardMinWidth}"
+                                        MaxColumns="3" Spacing="{DynamicResource RdCardSpacing}" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                        </ListBox>
 
-                                    <Button Grid.Column="3" Classes="primary"
-                                            Content="{Binding PrimaryActionLabel}"
-                                            VerticalAlignment="Center"
-                                            Command="{Binding ActivateCommand}"
-                                            ToolTip.Tip="{Binding PrimaryActionTooltip}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                        <ListBox Classes="rows" IsVisible="{Binding IsCompactView}"
+                                 ItemsSource="{Binding Results}"
+                                 ItemTemplate="{StaticResource CompactResultTemplate}"
+                                 SelectedItem="{Binding SelectedResult}" SelectionMode="Single" />
+                    </Panel>
 
                     <Button Classes="secondary"
                             Content="SHOW MORE RESULTS"

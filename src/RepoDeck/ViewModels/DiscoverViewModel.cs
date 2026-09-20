@@ -103,6 +103,20 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
     public ObservableCollection<RepositoryCardViewModel> Results { get; } = [];
 
+    /// <summary>Strong, explainable application matches shown first in Apps mode.</summary>
+    public ObservableCollection<RepositoryCardViewModel> BestMatches { get; } = [];
+
+    /// <summary>
+    /// Relevant repositories whose evidence is uncertain or developer-focused. Results
+    /// stay visible here rather than being silently filtered out.
+    /// </summary>
+    public ObservableCollection<RepositoryCardViewModel> OtherResults { get; } = [];
+
+    public bool HasBestMatches => BestMatches.Count > 0;
+    public bool HasOtherResults => OtherResults.Count > 0;
+    public bool ShowGroupedResults => IsAppsMode;
+    public bool ShowUngroupedResults => IsAllProjectsMode;
+
     /// <summary>
     /// The last few projects the user opened, newest first. Empty for somebody who has
     /// never opened one, and the shelf does not appear at all in that case: an empty
@@ -146,11 +160,11 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         QuickLook?.CloseCommand.Execute(null);
 
         Results.Clear();
+        BestMatches.Clear();
+        OtherResults.Clear();
         SearchText = "";
         ErrorMessage = null;
         ResultSummary = "";
-        SetAsideNotice = null;
-        HiddenByFilterNotice = null;
         CanLoadMore = false;
         ResultsScrollOffset = 0;
 
@@ -229,7 +243,6 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
     [ObservableProperty] private string _resultSummary = "";
     [ObservableProperty] private bool _canLoadMore;
-    [ObservableProperty] private string? _hiddenByFilterNotice;
     [ObservableProperty] private string _rateLimitSummary = "";
 
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
@@ -278,6 +291,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         CancelImageLoading();
         SelectedResult = null;
         Results.Clear();
+        BestMatches.Clear();
+        OtherResults.Clear();
         RaiseResultStates();
 
         try
@@ -476,23 +491,24 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     /// Apps or Everything, remembered between runs.
     /// </summary>
     /// <remarks>
-    /// Apps prioritises what RepoDeck has evidence is a usable program, and sets aside only
-    /// the clearest cases - a library it is sure about, or plainly reading material.
-    /// Everything is raw GitHub discovery in GitHub's own order. A result RepoDeck merely
-    /// could not classify is shown in both, because "I could not tell" is not a verdict.
+    /// Apps groups what RepoDeck has evidence is a usable program ahead of relevant but
+    /// uncertain, developer-focused or source-shaped results. Everything is raw GitHub
+    /// discovery in GitHub's own order. Neither mode hides a result.
     /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAppsMode))]
     [NotifyPropertyChangedFor(nameof(IsAllProjectsMode))]
     [NotifyPropertyChangedFor(nameof(BrowseModeExplanation))]
+    [NotifyPropertyChangedFor(nameof(ShowGroupedResults))]
+    [NotifyPropertyChangedFor(nameof(ShowUngroupedResults))]
     private BrowseMode _browseMode;
 
     public bool IsAppsMode => BrowseMode == BrowseMode.Apps;
     public bool IsAllProjectsMode => BrowseMode == BrowseMode.Everything;
 
     public string BrowseModeExplanation => IsAppsMode
-        ? "Programs first. RepoDeck puts what it has evidence you can actually run at the top, "
-          + "and sets aside libraries and reading material. It is not judging quality or safety."
+        ? "Programs first. RepoDeck separates strong software matches from relevant but uncertain "
+          + "results, and explains the evidence. Nothing is hidden. It is not judging quality or safety."
         : "Everything GitHub returned, in GitHub's own order. Nothing is set aside.";
 
     /// <summary>What choosing Apps means, for the control itself rather than the page.</summary>
@@ -502,9 +518,6 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     /// <summary>What choosing All Projects means.</summary>
     public static string AllProjectsModeExplanation =>
         "Include libraries, source projects, websites and developer tools.";
-
-    /// <summary>Results Apps mode set aside, phrased so the user can get them back.</summary>
-    [ObservableProperty] private string? _setAsideNotice;
 
     partial void OnBrowseModeChanged(BrowseMode value)
     {
@@ -620,14 +633,13 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     /// already contained plus classifications computed locally from it, so ranking thirty
     /// results costs nothing and a search can never become N+1 requests.
     ///
-    /// Apps mode reorders and, for the clearest cases, sets aside. Everything mode leaves
-    /// GitHub's own ordering alone: GitHub knows things about text relevance that RepoDeck
-    /// cannot see, and overriding that wholesale would be arrogant.
+    /// Apps mode groups and reorders results. Everything mode leaves GitHub's own ordering
+    /// alone: GitHub knows things about text relevance that RepoDeck cannot see, and
+    /// overriding that wholesale would be arrogant.
     /// </remarks>
     private void AppendResults(RepositorySearchResult result)
     {
         var query = SearchText?.Trim() ?? "";
-        var setAside = 0;
         var added = new List<RepositoryCardViewModel>();
 
         foreach (var repository in result.Items)
@@ -650,17 +662,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
                 OpenQuickLook, OnInstallRequested, ToggleFavorite,
                 _favorites?.IsFavorite(repository.OwnerLogin, repository.Name) ?? false);
 
-            card.ApplyRelevance(RelevanceScorer.Score(
-                repository, query, card.Classification, card.Installability, _machine));
-
-            // Only the clearest cases are set aside, and only when Apps was chosen. A
-            // project RepoDeck merely could not classify is still shown: "I could not tell"
-            // is not the same as "not for you".
-            if (BrowseMode == BrowseMode.Apps && IsClearlyNotAnApplication(card))
-            {
-                setAside++;
-                continue;
-            }
+            card.SearchResultGroupChanged += OnSearchResultGroupChanged;
+            card.ApplySearchContext(query, _machine);
 
             added.Add(card);
         }
@@ -669,35 +672,39 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         {
             // A stable sort: equal scores keep GitHub's order, so the reordering only ever
             // promotes things it has a reason to promote.
-            added = added.OrderByDescending(c => c.Relevance.Score).ToList();
+            added = added
+                .OrderByDescending(c => c.IsBestMatch)
+                .ThenByDescending(c => c.Relevance.Score)
+                .ToList();
         }
 
         foreach (var card in added) Results.Add(card);
 
-        SetAsideNotice = setAside == 0
-            ? null
-            : $"{setAside} result{(setAside == 1 ? "" : "s")} set aside as libraries or reading material. "
-              + "Switch to Everything to see them.";
-
-        HiddenByFilterNotice = SetAsideNotice;
+        // Classification is presentation, not filtering: every result stays reachable.
+        RebuildResultGroups();
 
         // Pictures arrive afterwards and never hold up the results.
         StartLoadingImages(added);
     }
 
-    /// <summary>
-    /// Whether Apps mode should set a result aside. Deliberately narrow: a library RepoDeck
-    /// is sure about, or something that is plainly reading material. Everything else stays.
-    /// </summary>
-    private static bool IsClearlyNotAnApplication(RepositoryCardViewModel card)
+    private void OnSearchResultGroupChanged(RepositoryCardViewModel card)
     {
-        if (card.Classification.Kind == ProjectKind.Library
-            && card.Classification.Confidence is Confidence.Likely or Confidence.Confirmed)
+        if (Results.Contains(card)) RebuildResultGroups();
+    }
+
+    private void RebuildResultGroups()
+    {
+        BestMatches.Clear();
+        OtherResults.Clear();
+
+        foreach (var card in Results)
         {
-            return true;
+            if (card.IsBestMatch) BestMatches.Add(card);
+            else OtherResults.Add(card);
         }
 
-        return card.Relevance.Score <= 30;
+        OnPropertyChanged(nameof(HasBestMatches));
+        OnPropertyChanged(nameof(HasOtherResults));
     }
 
     /// <summary>

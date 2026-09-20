@@ -8,13 +8,12 @@ using RepoDeck.ViewModels;
 namespace RepoDeck.Tests;
 
 /// <summary>
-/// Apps and Everything. Apps prioritises what RepoDeck has evidence is a usable program;
-/// Everything is raw GitHub discovery.
+/// Apps and Everything. Apps groups strong software matches ahead of other relevant
+/// repositories; Everything is raw GitHub discovery.
 /// </summary>
 /// <remarks>
-/// The rule these tests exist to protect: a result RepoDeck merely could not classify is
-/// never hidden. "I could not tell what this is" is not the same as "this is not for you",
-/// and only the clearest cases are set aside.
+/// The rule these tests exist to protect: no result is hidden. "I could not tell what this
+/// is" is not the same as "this is not for you"; ambiguity belongs under Other Results.
 /// </remarks>
 public class AppsModeTests
 {
@@ -49,7 +48,7 @@ public class AppsModeTests
     }
 
     [Fact]
-    public async Task Apps_sets_aside_a_library_it_is_sure_about()
+    public async Task Apps_puts_a_library_it_is_sure_about_under_other_results()
     {
         var github = new FakeGitHubClient
         {
@@ -60,9 +59,11 @@ public class AppsModeTests
         vm.SearchText = "music player";
         await vm.SearchCommand.ExecuteAsync(null);
 
-        Assert.Single(vm.Results);
-        Assert.Equal("player", vm.Results[0].Repository.Name);
-        Assert.NotNull(vm.SetAsideNotice);
+        Assert.Equal(2, vm.Results.Count);
+        Assert.Single(vm.BestMatches);
+        Assert.Equal("player", vm.BestMatches[0].Repository.Name);
+        Assert.Single(vm.OtherResults);
+        Assert.Equal("libfoo", vm.OtherResults[0].Repository.Name);
     }
 
     [Fact]
@@ -83,7 +84,7 @@ public class AppsModeTests
     }
 
     [Fact]
-    public async Task Everything_sets_nothing_aside()
+    public async Task Everything_shows_every_result_in_one_ungrouped_list()
     {
         var github = new FakeGitHubClient
         {
@@ -96,7 +97,7 @@ public class AppsModeTests
         await vm.SearchCommand.ExecuteAsync(null);
 
         Assert.Equal(3, vm.Results.Count);
-        Assert.Null(vm.SetAsideNotice);
+        Assert.True(vm.ShowUngroupedResults);
     }
 
     [Fact]
@@ -142,7 +143,7 @@ public class AppsModeTests
     }
 
     [Fact]
-    public async Task The_notice_tells_the_user_how_to_get_set_aside_results_back()
+    public async Task Apps_keeps_other_results_visible()
     {
         var github = new FakeGitHubClient
         {
@@ -153,7 +154,8 @@ public class AppsModeTests
         vm.SearchText = "music player";
         await vm.SearchCommand.ExecuteAsync(null);
 
-        Assert.Contains("Everything", vm.SetAsideNotice!);
+        Assert.Equal(2, vm.Results.Count);
+        Assert.Single(vm.OtherResults);
     }
 
     [Fact]
@@ -219,12 +221,15 @@ public class AppsModeTests
         vm.SearchText = "music player";
         await vm.SearchCommand.ExecuteAsync(null);
 
-        Assert.Single(vm.Results);
+        Assert.Equal(2, vm.Results.Count);
+        Assert.Single(vm.BestMatches);
+        Assert.Single(vm.OtherResults);
 
         vm.UseAllProjectsModeCommand.Execute(null);
         await vm.SearchCommand.ExecuteAsync(null);
 
         Assert.Equal(2, vm.Results.Count);
+        Assert.True(vm.ShowUngroupedResults);
     }
 
     [Fact]
