@@ -50,6 +50,8 @@ public sealed class InstalledAppStore : IInstalledAppStore
 
     public bool IsInstalled(string owner, string name) => Find(owner, name) is not null;
 
+    public event Action? Changed;
+
     public void Save(ApplicationManifest manifest)
     {
         lock (_gate)
@@ -59,16 +61,45 @@ public sealed class InstalledAppStore : IInstalledAppStore
             all.Add(manifest);
             Persist(all);
         }
+
+        Announce();
     }
 
     public bool Remove(string owner, string name)
     {
+        bool removed;
+
         lock (_gate)
         {
             var all = Load();
-            var removed = all.RemoveAll(m => Matches(m, owner, name)) > 0;
+            removed = all.RemoveAll(m => Matches(m, owner, name)) > 0;
             if (removed) Persist(all);
-            return removed;
+        }
+
+        if (removed) Announce();
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Tells whoever is listening, outside the lock and after the write succeeded.
+    /// </summary>
+    /// <remarks>
+    /// Outside the lock because a handler will call straight back in to read the library,
+    /// and holding the gate across somebody else's work is how a counter becomes a hang.
+    /// After the write because <see cref="Persist"/> throws on a full or read-only disk,
+    /// and announcing a change that did not happen is worse than announcing nothing.
+    /// </remarks>
+    private void Announce()
+    {
+        try
+        {
+            Changed?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            // A listener that throws must not turn a successful save into a failed one.
+            _log.Error("Installed", "A listener failed while handling a library change.", ex);
         }
     }
 

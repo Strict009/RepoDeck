@@ -41,6 +41,15 @@ public sealed partial class MainWindowViewModel
     // ---- Library ----------------------------------------------------------
     [ObservableProperty] private string _libraryText = "";
 
+    /// <summary>
+    /// Keeps the strip honest when something is installed, updated or removed.
+    /// </summary>
+    /// <remarks>
+    /// The store raises this from whichever thread did the work, and the strip is a bound
+    /// property, so it has to come back to the UI thread before it is touched.
+    /// </remarks>
+    private void OnLibraryChanged() => _dispatcher.Post(RefreshLibraryCount);
+
     /// <summary>Refreshes the installed count shown in the status strip.</summary>
     public void RefreshLibraryCount()
     {

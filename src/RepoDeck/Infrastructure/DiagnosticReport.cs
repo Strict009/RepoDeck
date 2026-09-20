@@ -142,8 +142,7 @@ public static class DiagnosticReport
         text.AppendLine();
         text.AppendLine("This report contains no tokens, credentials, file contents, search");
         text.AppendLine("history, list of installed applications, or your Windows user name.");
-        text.AppendLine("It is safe to paste into");
-        text.AppendLine($"an issue at {Services.Update.RepoDeckProject.IssuesUrl}");
+        text.AppendLine($"It is safe to paste into an issue at {Services.Update.RepoDeckProject.IssuesUrl}");
 
         return text.ToString();
     }
@@ -211,7 +210,7 @@ public static class DiagnosticReport
     /// </summary>
     /// <remarks>
     /// The point of printing a path is to say which location RepoDeck is using, and
-    /// "%LOCALAPPDATA%\RepoDeck" says that better than a path with somebody\x27s name in it.
+    /// "%LOCALAPPDATA%\RepoDeck" says that better than a path with somebody's name in it.
     /// A path outside the profile is left alone: if RepoDeck has ended up somewhere
     /// unexpected, that is the very thing the report exists to show.
     /// </remarks>

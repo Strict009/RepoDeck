@@ -71,6 +71,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         UpdateRateLimit(services.GitHub.RateLimit);
         services.GitHub.RateLimitChanged += UpdateRateLimit;
+
+        services.InstalledApps.Changed += OnLibraryChanged;
         RefreshLibraryCount();
 
         // The welcome takes over the whole window on a first run, so nothing else has to

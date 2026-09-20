@@ -518,6 +518,9 @@ internal sealed class FailingStore : IInstalledAppStore
 {
     public bool Saved { get; private set; }
 
+    /// <summary>This one never gets far enough to have anything to announce.</summary>
+    public event Action? Changed { add { } remove { } }
+
     public IReadOnlyList<ApplicationManifest> GetAll() => [];
     public ApplicationManifest? Find(string owner, string name) => null;
     public bool IsInstalled(string owner, string name) => false;

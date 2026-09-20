@@ -57,9 +57,9 @@ public static class CrashReporter
     /// user where it went. Returns the path, or null if nothing could be written.
     /// </summary>
     /// <param name="paths">
-    /// Where to write. Null means RepoDeck\x27s real folder, which is what the application
+    /// Where to write. Null means RepoDeck's real folder, which is what the application
     /// wants and what a test must not have: a test suite writing crash reports into the
-    /// developer\x27s live log folder leaves a healthy installation looking like it has been
+    /// developer's live log folder leaves a healthy installation looking like it has been
     /// falling over.
     /// </param>
     public static string? Report(

@@ -180,7 +180,7 @@ public sealed partial class InstallationService
                 }
                 catch
                 {
-                    // An unusable path claims nothing, and is somebody else\x27s problem.
+                    // An unusable path claims nothing, and is somebody else's problem.
                 }
             }
         }
@@ -225,7 +225,7 @@ public sealed partial class InstallationService
         // Displaced copies from an interrupted promotion are also dead weight.
         //
         // Two guards, because this is the one sweep that runs directly inside Apps rather
-        // than inside a reserved folder, and a mistake here deletes somebody\x27s software.
+        // than inside a reserved folder, and a mistake here deletes somebody's software.
         //
         // The wildcard alone is not enough: "*.replacing-*" would also match an installed
         // application whose own name happened to contain that text, and nothing stops a
@@ -233,27 +233,31 @@ public sealed partial class InstallationService
         // this code produces, and the directory must not be one any manifest claims.
         var claimed = ClaimedInstallationPaths();
 
-        foreach (var directory in claimed is not null && Directory.Exists(_paths.Apps)
-                     ? Directory.EnumerateDirectories(_paths.Apps, "*.replacing-*")
-                     : [])
+        // Null means the library could not be read, which the helper has already logged.
+        // Nothing in Apps is swept in that case: without the record there is no way to
+        // tell a displaced copy from an application somebody installed.
+        if (claimed is not null && Directory.Exists(_paths.Apps))
         {
-            if (!IsDisplacedCopyName(Path.GetFileName(directory))) continue;
+            foreach (var directory in Directory.EnumerateDirectories(_paths.Apps, "*.replacing-*"))
+            {
+                if (!IsDisplacedCopyName(Path.GetFileName(directory))) continue;
 
-            if (claimed.Contains(Path.GetFullPath(directory)))
-            {
-                _log.Warn("Install",
-                    $"Not removing {directory}: an installed application claims it.");
-                continue;
-            }
+                if (claimed.Contains(Path.GetFullPath(directory)))
+                {
+                    _log.Warn("Install",
+                        $"Not removing {directory}: an installed application claims it.");
+                    continue;
+                }
 
-            try
-            {
-                DeleteManagedDirectory(directory);
-                removed++;
-            }
-            catch (Exception ex)
-            {
-                _log.Warn("Install", $"Could not remove displaced installation {directory}: {ex.Message}");
+                try
+                {
+                    DeleteManagedDirectory(directory);
+                    removed++;
+                }
+                catch (Exception ex)
+                {
+                    _log.Warn("Install", $"Could not remove displaced installation {directory}: {ex.Message}");
+                }
             }
         }
 
