@@ -46,10 +46,20 @@ public partial class DiscoverView : UserControl
         // Six visual lists represent two view styles and three result sources. A list that
         // does not contain the active card reports a null selection; only an affirmative
         // user selection may change the shared view-model selection.
-        if (DataContext is DiscoverViewModel model
-            && e.AddedItems.OfType<RepositoryCardViewModel>().FirstOrDefault() is { } selected)
-        {
-            model.SelectedResult = selected;
-        }
+        if (DataContext is not DiscoverViewModel model) return;
+        if (e.AddedItems.OfType<RepositoryCardViewModel>().FirstOrDefault() is not { } selected) return;
+
+        // Queued, not assigned here.
+        //
+        // This runs inside the ListBox's own selection update, while its selection model is
+        // part-way through a batch operation. Setting SelectedResult synchronously makes the
+        // view model do its selection work in that window - and that work includes applying
+        // a deferred group move, which removes a card from the very ObservableCollection the
+        // list is bound to. Avalonia's SelectedItems then enumerates a collection that
+        // changed underneath it and throws ArgumentOutOfRangeException.
+        //
+        // Posting lets the selection operation finish first. The queue preserves order, so
+        // rapid clicks still end on the last one.
+        Dispatcher.UIThread.Post(() => model.SelectedResult = selected);
     }
 }
