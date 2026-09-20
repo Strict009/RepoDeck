@@ -4,145 +4,144 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:RepoDeck.ViewModels"
              xmlns:controls="using:RepoDeck.Controls"
-             mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="400"
+             mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="300"
              x:Class="RepoDeck.Views.RepositoryCardView"
              x:DataType="vm:RepositoryCardViewModel">
 
     <!--
-        Read in the order someone deciding what to install actually reads: the name, a
-        picture of it, what it is for, where it runs, how much work it is, what RepoDeck
-        can do about it, the action. The owner slug and the language are last and small.
+        A search result, read in the order somebody deciding actually reads it: what it is
+        called and who makes it, what it is for, what RepoDeck knows about running it, then
+        the one thing worth doing about it. Evidence sits underneath, folded away.
+
+        The banner is gone. It was 164px of artwork on a 460px card, and for the common case
+        - a project with no usable image - it drew the same geometric mark on every card in
+        the row, so three results were distinguished only by hue. Identity is now a 56px tile
+        beside the name, which is what it was doing anyway.
     -->
     <Border Classes="card" Padding="0" ClipToBounds="True">
-        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
 
-            <!-- ============ 1. The name, in a title bar ============ -->
-            <Border Grid.Row="0"
-                    Background="{DynamicResource RdSurfaceAltBrush}"
-                    BorderBrush="{DynamicResource RdBorderBrush}"
-                    BorderThickness="0,0,0,1"
-                    Padding="14,10">
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <Border Grid.Column="0"
-                            Width="3" Height="16"
-                            Background="{DynamicResource RdAccentBrush}"
-                            Margin="0,0,10,0"
-                            VerticalAlignment="Center" />
-
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding FriendlyName}"
-                               Classes="h1"
-                               VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis" MaxLines="1" />
-
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                        <Border Classes="chip chipCaution"
-                                IsVisible="{Binding IsArchived}"
-                                VerticalAlignment="Center"
-                                ToolTip.Tip="The authors have stopped maintaining this project.">
-                            <TextBlock Text="ABANDONED" />
-                        </Border>
-
-                        <!-- A bookmark, not a rating. Independent of whether it is installed. -->
-                        <Button Classes="star"
-                                Classes.starOn="{Binding IsFavorite}"
-                                Content="{Binding FavoriteGlyph}"
-                                Command="{Binding ToggleFavoriteCommand}"
-                                ToolTip.Tip="{Binding FavoriteTooltip}"
-                                AutomationProperties.Name="{Binding FavoriteTooltip}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- ============ 2. The picture ============ -->
-            <Panel Grid.Row="1" Height="164" ClipToBounds="True">
+            <!-- ============ 1. Identity: icon, name, publisher ============ -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="16,16,16,12">
 
                 <!--
                     RepoDeck's own artwork, drawn for the kind of thing this appears to be.
-                    Never GitHub's generated preview card - that is the project name and
-                    description set in small type, unreadable at this size and dishonest
-                    presented as a picture. Never a fabricated screenshot or logo either:
-                    these are plain geometric marks, the same for every project of a kind,
-                    and the caption says which kind rather than implying the project drew it.
+                    Never GitHub's generated preview card, and never a fabricated screenshot
+                    or logo: these are plain geometric marks, the same for every project of a
+                    kind, and the tooltip says which kind rather than implying the project
+                    drew it.
                 -->
-                <Panel IsVisible="{Binding ShowFallback}">
-                    <Border Background="{Binding FallbackBrush}" />
+                <Border Grid.Column="0" Width="56" Height="56"
+                        ClipToBounds="True"
+                        CornerRadius="{DynamicResource RdRadiusMedium}"
+                        Margin="0,0,14,0"
+                        ToolTip.Tip="{Binding KindExplanation}">
+                    <Panel>
+                        <Border Background="{Binding FallbackBrush}"
+                                IsVisible="{Binding ShowFallback}" />
+                        <controls:KindArtwork Kind="{Binding Kind}"
+                                              Initial="{Binding FallbackInitial}"
+                                              Accent="{DynamicResource RdOnAccentBrush}"
+                                              MarkScale="0.62"
+                                              Opacity="0.85"
+                                              IsVisible="{Binding ShowFallback}" />
+                        <Image Source="{Binding Image}"
+                               IsVisible="{Binding ShowImage}"
+                               Stretch="UniformToFill" />
+                    </Panel>
+                </Border>
 
-                    <controls:KindArtwork Kind="{Binding Kind}"
-                                          Initial="{Binding FallbackInitial}"
-                                          Accent="{DynamicResource RdOnAccentBrush}"
-                                          Opacity="0.8" />
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                    <!-- The full name is on the tooltip, because a long one is trimmed. -->
+                    <TextBlock Text="{Binding FriendlyName}"
+                               Classes="cardTitle"
+                               ToolTip.Tip="{Binding FriendlyName}"
+                               AutomationProperties.Name="{Binding FriendlyName}" />
 
-                    <Border Classes="chip"
-                            HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                            Margin="10"
-                            ToolTip.Tip="{Binding KindExplanation}">
-                        <TextBlock Text="{Binding FallbackCaption}" />
-                    </Border>
-                </Panel>
-
-                <Image Source="{Binding Image}"
-                       IsVisible="{Binding ShowImage}"
-                       Stretch="UniformToFill"
-                       StretchDirection="Both" />
-            </Panel>
-
-            <!-- ============ 3. What it is for ============ -->
-            <StackPanel Grid.Row="2" Margin="16,14,16,8" Spacing="10">
-                <TextBlock Text="{Binding Purpose}"
-                           Classes="secondary"
-                           TextWrapping="Wrap"
-                           MaxLines="3"
-                           TextTrimming="CharacterEllipsis"
-                           MinHeight="58"
-                           VerticalAlignment="Top" />
-
-                <!-- ============ 4. Where it runs ============ -->
-                <StackPanel Orientation="Horizontal" Spacing="7"
-                            IsVisible="{Binding HasPlatformText}">
-                    <Ellipse Classes="led ledOff" Width="6" Height="6" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding PlatformText}" Classes="microLabel"
-                               Foreground="{DynamicResource RdTextSecondaryBrush}"
-                               VerticalAlignment="Center" />
+                    <!-- Who publishes it. The implementation language is not part of who
+                         somebody is, and it moved to the technical details. -->
+                    <TextBlock Text="{Binding Owner}" Classes="muted"
+                               TextTrimming="CharacterEllipsis" MaxLines="1"
+                               ToolTip.Tip="Who publishes this" />
                 </StackPanel>
-            </StackPanel>
 
-            <!-- ============ 5 and 6. Effort, and what RepoDeck can do ============ -->
-            <Border Grid.Row="3" Classes="inset" Margin="16,0,16,12" Padding="12,9">
-                <StackPanel Spacing="8">
-
-                    <StackPanel Orientation="Horizontal" Spacing="8"
-                                IsVisible="{Binding ShowSetupLabel}"
-                                ToolTip.Tip="{Binding SetupExplanation}">
-                        <TextBlock Text="SETUP" Classes="microLabel" Width="74"
-                                   TextWrapping="NoWrap" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding SetupLabel}" Classes="secondary"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
-
-                    <!-- The REPODECK row label is gone: the whole window is RepoDeck, and
-                         repeating it once per card said nothing thirty times. What the
-                         verdict is stays, in a pill that always carries its own words. -->
-                    <StackPanel Orientation="Horizontal" Spacing="8"
-                                ToolTip.Tip="{Binding InstallabilityExplanation}">
-                        <TextBlock Text="CAN INSTALL" Classes="microLabel" Width="74"
-                                   TextWrapping="NoWrap" VerticalAlignment="Center" />
-                        <Border Classes="statusPill"
-                                Classes.positive="{Binding InstallabilityIsPositive}"
-                                Classes.caution="{Binding InstallabilityIsCaution}"
-                                Classes.danger="{Binding InstallabilityIsDanger}"
-                                Classes.neutral="{Binding InstallabilityIsNeutral}">
-                            <TextBlock Text="{Binding InstallabilityLabel}" />
-                        </Border>
-                    </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Top">
+                    <!-- A bookmark, not a rating. Independent of whether it is installed. -->
+                    <Button Classes="star"
+                            Classes.starOn="{Binding IsFavorite}"
+                            Content="{Binding FavoriteGlyph}"
+                            Command="{Binding ToggleFavoriteCommand}"
+                            ToolTip.Tip="{Binding FavoriteTooltip}"
+                            AutomationProperties.Name="{Binding FavoriteTooltip}" />
                 </StackPanel>
-            </Border>
+            </Grid>
 
-            <!-- The classification is inspectable without filling every card with prose. -->
-            <Expander Grid.Row="4"
-                      Header="WHY?"
+            <!-- ============ 2. What it is for ============ -->
+            <TextBlock Grid.Row="1"
+                       Text="{Binding Purpose}"
+                       Classes="secondary"
+                       TextWrapping="Wrap"
+                       MaxLines="2"
+                       TextTrimming="CharacterEllipsis"
+                       MinHeight="36"
+                       Margin="16,0,16,12" />
+
+            <!-- ============ 3. Status ============
+                 Three short facts at most, in place of the labelled mini-table that used to
+                 repeat SETUP and CAN INSTALL on every card. Each is a pill carrying its own
+                 words, so none of them depends on colour to be understood.
+            -->
+            <WrapPanel Grid.Row="2" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"
+                       Margin="16,0,16,12">
+
+                <!-- What the project says about where it runs. Neutral, always: this is the
+                     project's own claim from its tags, not RepoDeck checking anything, and
+                     dressing it as a verdict would imply a compatibility answer nobody has
+                     worked out yet. -->
+                <Border Classes="statusPill neutral"
+                        IsVisible="{Binding HasPlatformText}"
+                        ToolTip.Tip="What the project says about where it runs. RepoDeck has not checked this.">
+                    <TextBlock Text="{Binding PlatformText}" />
+                </Border>
+
+                <Border Classes="statusPill"
+                        Classes.positive="{Binding SetupIsPositive}"
+                        Classes.caution="{Binding SetupIsCaution}"
+                        Classes.neutral="{Binding SetupIsNeutral}"
+                        IsVisible="{Binding ShowSetupLabel}"
+                        ToolTip.Tip="{Binding SetupExplanation}">
+                    <TextBlock Text="{Binding SetupLabel}" />
+                </Border>
+
+                <!-- Hidden when the action already says it: an accent INSTALL beside a pill
+                     reading "Ready to install" is the same sentence twice. -->
+                <Border Classes="statusPill"
+                        Classes.positive="{Binding InstallabilityIsPositive}"
+                        Classes.caution="{Binding InstallabilityIsCaution}"
+                        Classes.danger="{Binding InstallabilityIsDanger}"
+                        Classes.neutral="{Binding InstallabilityIsNeutral}"
+                        IsVisible="{Binding ShowInstallabilityPill}"
+                        ToolTip.Tip="{Binding InstallabilityExplanation}">
+                    <TextBlock Text="{Binding InstallabilityPillText}" />
+                </Border>
+
+                <Border Classes="statusPill caution"
+                        IsVisible="{Binding IsArchived}"
+                        ToolTip.Tip="The authors have stopped maintaining this project.">
+                    <TextBlock Text="Abandoned" />
+                </Border>
+            </WrapPanel>
+
+            <!-- ============ 4. Evidence, folded away ============
+                 A quiet disclosure rather than something styled like an action. The heading
+                 names the question it answers, because Quick Look asks a different one.
+            -->
+            <Expander Grid.Row="3"
+                      Classes="evidence"
+                      Header="Why this match"
                       IsExpanded="{Binding IsWhyExpanded}"
-                      Margin="16,0,16,10">
+                      Margin="16,0,16,12">
                 <StackPanel Spacing="7" Margin="0,7,0,2">
                     <TextBlock Text="{Binding WhyHeading}" Classes="microLabel"
                                TextWrapping="Wrap" />
@@ -161,29 +160,30 @@
                 </StackPanel>
             </Expander>
 
-            <!-- ============ 7 and 8. The action, then the small print ============ -->
-            <Border Grid.Row="5"
+            <!-- ============ 5. The action ============
+                 One dominant action at most. INSTALL earns the accent because something can
+                 actually happen; DETAILS is quiet, because "read more about it" is not worth
+                 the brightest thing on the page thirty times over. SOURCE is a link.
+            -->
+            <Border Grid.Row="4"
                     BorderBrush="{DynamicResource RdBorderBrush}" BorderThickness="0,1,0,0"
                     Background="{DynamicResource RdSurfaceAltBrush}"
                     Padding="14,10">
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0"
-                               Text="{Binding MetadataLine}"
-                               Classes="muted"
-                               VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="Who publishes this, and what it is written in" />
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Button Grid.Column="0" Classes="link" Content="SOURCE"
+                            Command="{Binding OpenOnGitHubCommand}"
+                            ToolTip.Tip="Open this project's source code on GitHub"
+                            AutomationProperties.Name="Open this project's source code on GitHub" />
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <Button Classes="quiet" Content="SOURCE"
-                                Command="{Binding OpenOnGitHubCommand}"
-                                ToolTip.Tip="Open this project's source code on GitHub" />
-
-                        <Button Classes="primary"
-                                Content="{Binding PrimaryActionLabel}"
-                                Command="{Binding ActivateCommand}"
-                                ToolTip.Tip="{Binding PrimaryActionTooltip}" />
-                    </StackPanel>
+                    <!-- Exactly one of these classes applies. Setting both a static class
+                         and a conditional one would leave the winner to style order. -->
+                    <Button Grid.Column="2"
+                            Classes.primary="{Binding CanInstallDirectly}"
+                            Classes.secondary="{Binding !CanInstallDirectly}"
+                            Content="{Binding PrimaryActionLabel}"
+                            Command="{Binding ActivateCommand}"
+                            ToolTip.Tip="{Binding PrimaryActionTooltip}"
+                            AutomationProperties.Name="{Binding PrimaryActionTooltip}" />
                 </Grid>
             </Border>
         </Grid>

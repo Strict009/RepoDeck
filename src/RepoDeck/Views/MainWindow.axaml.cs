@@ -21,6 +21,51 @@ public partial class MainWindow : Window
         AddHandler(PointerPressedEvent, OnPointerPressedPreview, RoutingStrategies.Tunnel);
     }
 
+    /// <summary>
+    /// The width below which the sidebar becomes an icon rail.
+    /// </summary>
+    /// <remarks>
+    /// Chosen by measuring rather than by taste. The sidebar is 232px, and Discover keeps
+    /// 28px gutters around a card grid whose cards are 300px minimum: below about 960px the
+    /// content column can no longer hold two cards plus its gutters, so the sidebar is
+    /// taking space from the only thing on screen the user came for. Above it, two columns
+    /// fit and the labels are worth their room.
+    ///
+    /// The window minimum came down from 880 to 720 at the same time. With an 880 minimum
+    /// this threshold had a twenty-pixel range to live in, which is not a range anybody can
+    /// test, and the rail existed only in theory.
+    /// </remarks>
+    private const double RailThreshold = 960;
+
+    /// <summary>
+    /// Responsive state is a view concern, so it lives here rather than in the view model.
+    /// Nothing about which destinations exist, which is selected, or what they do changes
+    /// with the width - only whether their labels are drawn.
+    /// </summary>
+    protected override void OnSizeChanged(SizeChangedEventArgs e)
+    {
+        base.OnSizeChanged(e);
+        ApplyResponsiveState(e.NewSize.Width);
+    }
+
+    protected override void OnApplyTemplate(Avalonia.Controls.Primitives.TemplateAppliedEventArgs e)
+    {
+        base.OnApplyTemplate(e);
+        ApplyResponsiveState(Bounds.Width);
+    }
+
+    private void ApplyResponsiveState(double width)
+    {
+        if (ShellGrid is null) return;
+
+        var compact = width > 0 && width < RailThreshold;
+
+        if (compact == ShellGrid.Classes.Contains("compact")) return;
+
+        if (compact) ShellGrid.Classes.Add("compact");
+        else ShellGrid.Classes.Remove("compact");
+    }
+
     private void OnKeyDownPreview(object? sender, KeyEventArgs e)
     {
         // Alt+Left, the same gesture as every browser and file manager.

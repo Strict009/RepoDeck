@@ -14,6 +14,7 @@ namespace RepoDeck.ViewModels;
 public sealed record RateLimitPresentation(
     bool IsKnown,
     string Label,
+    bool IsLow,
     double Percent,
     string Detail,
     string Warning)
@@ -22,6 +23,7 @@ public sealed record RateLimitPresentation(
     public static RateLimitPresentation Unknown { get; } = new(
         IsKnown: false,
         Label: "",
+        IsLow: false,
         Percent: 0,
         Detail: "RepoDeck has not contacted GitHub yet.",
         Warning: "");
@@ -47,6 +49,7 @@ public sealed record RateLimitPresentation(
         return new RateLimitPresentation(
             IsKnown: true,
             Label: label,
+            IsLow: status.IsExhausted || fraction < 0.25,
             Percent: Math.Clamp(fraction * 100, 0, 100),
             Detail: $"{status.Remaining} of {status.Limit} GitHub requests left. {authentication}{resets}",
             Warning: status.IsExhausted ? "GitHub limit reached" : "");

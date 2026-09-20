@@ -282,10 +282,14 @@ public class SearchDiscoveryPresentationTests
         Assert.Contains("OTHER RESULTS", discover);
         Assert.Contains("BestMatches", discover);
         Assert.Contains("OtherResults", discover);
-        Assert.Contains("Content=\"WHY?\"", discover); // Compact rows.
-        Assert.Contains("Header=\"WHY?\"", card);     // Cards.
-        Assert.Contains("WhyReasons", discover);
-        Assert.Contains("WhyReasons", card);
+
+        // The evidence has to be reachable from both densities. How the affordance is
+        // worded or styled is presentation and changes; that it is bound to the reasons and
+        // can be opened is the contract.
+        Assert.Contains("WhyReasons", discover);   // Compact rows.
+        Assert.Contains("WhyReasons", card);       // Cards.
+        Assert.Contains("ToggleWhyCommand", discover);
+        Assert.Contains("IsWhyExpanded", card);
     }
 
     private static string SourceViews()

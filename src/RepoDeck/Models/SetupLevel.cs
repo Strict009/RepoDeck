@@ -61,5 +61,23 @@ public sealed record SetupAssessment
         _ => "RepoDeck could not work out how much setup this needs."
     };
 
+    /// <summary>
+    /// How this level should read on a card or a row.
+    /// </summary>
+    /// <remarks>
+    /// The same rule as <see cref="Installability.Tone"/>: an absence of evidence is
+    /// neutral, work to be done is caution, and nothing here is ever danger. Needing setup
+    /// is not a fault in the software, and "for developers" is a description of what
+    /// something is rather than a warning about it.
+    /// </remarks>
+    public StatusTone Tone => Level switch
+    {
+        SetupLevel.Easy => StatusTone.Positive,
+        SetupLevel.SomeSetup => StatusTone.Caution,
+        SetupLevel.Advanced => StatusTone.Caution,
+        SetupLevel.DeveloperFocused => StatusTone.Caution,
+        _ => StatusTone.Neutral
+    };
+
     public static SetupAssessment Unknown { get; } = new();
 }

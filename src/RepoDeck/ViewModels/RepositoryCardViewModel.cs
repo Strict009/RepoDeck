@@ -127,6 +127,9 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(InstallabilityIsCaution))]
     [NotifyPropertyChangedFor(nameof(InstallabilityIsDanger))]
     [NotifyPropertyChangedFor(nameof(InstallabilityIsNeutral))]
+    [NotifyPropertyChangedFor(nameof(InstallabilityPillText))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallabilityPill))]
+    [NotifyPropertyChangedFor(nameof(CanInstallDirectly))]
     [NotifyPropertyChangedFor(nameof(PrimaryActionLabel))]
     [NotifyPropertyChangedFor(nameof(PrimaryActionTooltip))]
     private Installability _installability;
@@ -172,6 +175,49 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     public bool InstallabilityIsCaution => InstallabilityTone == StatusTone.Caution;
     public bool InstallabilityIsDanger => InstallabilityTone == StatusTone.Danger;
     public bool InstallabilityIsNeutral => InstallabilityTone == StatusTone.Neutral;
+
+    // ---- The status strip on a card ---------------------------------------
+
+    /// <summary>
+    /// What the installability pill says. "Unknown" on its own reads as a property of the
+    /// software; what is actually unknown is whether RepoDeck has looked.
+    /// </summary>
+    public string InstallabilityPillText =>
+        Installability.State == InstallabilityState.Unknown
+            ? "Install not checked"
+            : Installability.Label;
+
+    /// <summary>
+    /// Whether the installability pill is worth showing at all.
+    /// </summary>
+    /// <remarks>
+    /// Two cases are dropped, both because something beside them already says it.
+    ///
+    /// When RepoDeck can install this, the accent INSTALL button says so, and a pill reading
+    /// "Ready to install" is the same sentence twice.
+    ///
+    /// When the answer is "needs setup" and the setup pill is showing, the two pills read
+    /// "Needs some setup" and "Needs setup" side by side. They are different axes - how much
+    /// work for you, versus what RepoDeck can do - but nobody reading a card is going to
+    /// parse that distinction out of five words, and the setup pill is the one that answers
+    /// the question they actually have. The full pair is still in the evidence and in Quick
+    /// Look, where there is room to say which is which.
+    /// </remarks>
+    public bool ShowInstallabilityPill =>
+        !Installability.AllowsDirectInstall
+        && !(Installability.State == InstallabilityState.NeedsSetup && ShowSetupLabel);
+
+    public StatusTone SetupTone => Setup.Tone;
+
+    public bool SetupIsPositive => SetupTone == StatusTone.Positive;
+    public bool SetupIsCaution => SetupTone == StatusTone.Caution;
+    public bool SetupIsNeutral => SetupTone == StatusTone.Neutral;
+
+    /// <summary>
+    /// True when this card can offer to install rather than merely to explain. Drives which
+    /// button gets the accent, so the accent means "something can happen here".
+    /// </summary>
+    public bool CanInstallDirectly => Installability.AllowsDirectInstall;
 
     // ---- 7. The action ----------------------------------------------------
 
@@ -385,6 +431,9 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
         OnPropertyChanged(nameof(InstallabilityIsCaution));
         OnPropertyChanged(nameof(InstallabilityIsDanger));
         OnPropertyChanged(nameof(InstallabilityIsNeutral));
+        OnPropertyChanged(nameof(InstallabilityPillText));
+        OnPropertyChanged(nameof(ShowInstallabilityPill));
+        OnPropertyChanged(nameof(CanInstallDirectly));
         OnPropertyChanged(nameof(PrimaryActionLabel));
         OnPropertyChanged(nameof(PrimaryActionTooltip));
         OnPropertyChanged(nameof(Classification));

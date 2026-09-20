@@ -280,10 +280,14 @@ public class WhyTests : IDisposable
     {
         var view = File.ReadAllText(Path.Combine(SourceViews(), "QuickLookView.axaml"));
 
-        var buttons = System.Text.RegularExpressions.Regex.Matches(view, "Classes=\"why\"").Count;
+        // What matters is that each verdict has its own disclosure pointing at its own
+        // question, not what the control is called or how it is styled. The parameter is the
+        // attribution: one shared control could not say which conclusion it explains.
+        var attributed = System.Text.RegularExpressions.Regex
+            .Matches(view, "CommandParameter=\"[^\"]+\"").Count;
 
         // Works on this PC, setup, and what RepoDeck can do.
-        Assert.True(buttons >= 3, $"only {buttons} WHY buttons in the panel");
+        Assert.True(attributed >= 3, $"only {attributed} attributed evidence controls in the panel");
     }
 
     private static string SourceViews()

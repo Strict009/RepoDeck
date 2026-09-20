@@ -130,9 +130,41 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowScreenshotStrip))]
     private bool _hasScreenshots;
 
-    public bool ShowScreenshotStrip => HasScreenshots;
+    /// <summary>
+    /// How many pictures actually arrived.
+    /// </summary>
+    /// <remarks>
+    /// Not how many were worth trying. A candidate that 404s, times out or turns out not to
+    /// be an image stays in the gallery as a tile that never loads, and the strip used to
+    /// reserve a frame for it - which is where the row of empty black boxes came from. Only
+    /// loaded tiles count, and only loaded tiles are drawn.
+    /// </remarks>
+    public int LoadedPictureCount => Gallery.Count(tile => tile.IsLoaded);
+
+    /// <summary>
+    /// A strip is for choosing between pictures, so it needs at least two to choose from.
+    /// One picture is a hero and belongs at full width; none is not a gallery at all.
+    /// </summary>
+    public bool ShowScreenshotStrip => LoadedPictureCount > 1;
+
     public bool ShowHero => Hero is { IsLoaded: true };
     public bool ShowHeroFallback => !ShowHero;
+
+    private void RefreshMediaVisibility()
+    {
+        OnPropertyChanged(nameof(LoadedPictureCount));
+        OnPropertyChanged(nameof(ShowScreenshotStrip));
+        OnPropertyChanged(nameof(ShowHero));
+        OnPropertyChanged(nameof(ShowHeroFallback));
+
+        // If the first candidate never arrived but a later one did, promote it rather than
+        // showing the fallback beside a strip of pictures that plainly exist.
+        if (Hero is not { IsLoaded: true })
+        {
+            var arrived = Gallery.FirstOrDefault(tile => tile.IsLoaded);
+            if (arrived is not null) SelectHero(arrived);
+        }
+    }
 
     /// <summary>Alt text from the README, when the project gave one.</summary>
     public string? HeroCaption => Hero?.Description;
@@ -298,7 +330,10 @@ public sealed partial class QuickLookViewModel : ViewModelBase
 
         // Seed from the card so the panel is never blank while the analysis runs.
         Title = card.FriendlyName;
-        Subtitle = card.MetadataLine;
+        // The publisher, not the publisher and the implementation language. What a project
+        // is written in does not help somebody decide whether to run it, and it is still in
+        // the technical details below for anyone who wants it.
+        Subtitle = card.Owner;
         WhatItIs = card.Purpose;
         WhatYouCanDoWithIt = "";
         SetupLabel = card.SetupLabel;
@@ -717,10 +752,10 @@ public sealed partial class QuickLookViewModel : ViewModelBase
             tile.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName != nameof(MediaTileViewModel.IsLoaded)) return;
-                if (!ReferenceEquals(tile, Hero)) return;
 
-                OnPropertyChanged(nameof(ShowHero));
-                OnPropertyChanged(nameof(ShowHeroFallback));
+                // Whether the strip is worth showing depends on how many pictures actually
+                // arrived, so every tile's outcome matters, not only the hero's.
+                RefreshMediaVisibility();
             };
 
             Gallery.Add(tile);
@@ -729,9 +764,7 @@ public sealed partial class QuickLookViewModel : ViewModelBase
 
         if (Gallery.Count > 0) SelectHero(Gallery[0]);
 
-        // One picture is a hero, not a gallery: a strip of one thumbnail below the image
-        // it duplicates is furniture.
-        HasScreenshots = Gallery.Count > 1;
+        RefreshMediaVisibility();
 
         // Real artwork found here is worth putting back on the card in the grid.
         if (media.PrimaryArtwork is { } artwork)

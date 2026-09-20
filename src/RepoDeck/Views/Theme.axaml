@@ -281,6 +281,63 @@
     </Style>
 
     <!-- Reserved for removal. Nothing else should ever be red. -->
+    <!--
+        Caution: an action worth noticing that is not the primary one. UPDATE in the Library
+        is the case this exists for - it used to be styled primary, which put two accent
+        buttons on the same row competing to be the obvious thing to press, when the obvious
+        thing to press is RUN.
+    -->
+    <Style Selector="Button.caution">
+        <Setter Property="Background" Value="{DynamicResource RdCautionSoftBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource RdCautionBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdCautionBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.5" />
+        <Setter Property="Padding" Value="14,9" />
+        <Setter Property="MinHeight" Value="{DynamicResource RdControlHeight}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.caution /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdCautionSoftBrush}" />
+    </Style>
+
+    <Style Selector="Button.caution:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdCautionBrush}" />
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource RdOnAccentBrush}" />
+    </Style>
+
+    <!--
+        A destructive action that is always on screen should not always be shouting. REMOVE
+        sits permanently beside OPEN FOLDER, so it reads as text in the danger colour rather
+        than a filled button, and only colours in on hover. The confirmation that follows
+        still uses the full danger treatment, because by then the user has asked for it.
+    -->
+    <Style Selector="Button.dangerQuiet">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource RdDangerBrush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="LetterSpacing" Value="0.5" />
+        <Setter Property="Padding" Value="14,9" />
+        <Setter Property="MinHeight" Value="{DynamicResource RdControlHeight}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusSmall}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.dangerQuiet /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Button.dangerQuiet:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource RdDangerSoftBrush}" />
+    </Style>
+
     <Style Selector="Button.danger">
         <Setter Property="Background" Value="{DynamicResource RdDangerSoftBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource RdDangerBrush}" />
@@ -503,6 +560,41 @@
         <Setter Property="FontSize" Value="12" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="LetterSpacing" Value="0.8" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+    </Style>
+
+    <!--
+        Evidence disclosure. Progressive disclosure should look progressive: the old card
+        used a bordered box captioned WHY?, which carried the same visual weight as the
+        action beside it and read as a second button. This is a line of quiet text with a
+        chevron, and it opens onto the same content.
+    -->
+    <Style Selector="Expander.evidence">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="Expander.evidence /template/ ToggleButton">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="LetterSpacing" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0,4" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+
+    <Style Selector="Expander.evidence /template/ ToggleButton /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Expander.evidence /template/ ToggleButton:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Expander.evidence:pointerover /template/ ToggleButton">
         <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
     </Style>
 

@@ -35,34 +35,66 @@
                     </Panel>
                 </Border>
 
+                <!-- The same reading order as the card, at a higher density: name, then
+                     publisher and purpose sharing a line because a row has one to spare. -->
                 <StackPanel Grid.Row="0" Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding FriendlyName}" Classes="cardTitle" />
-                    <TextBlock Text="{Binding Purpose}" Classes="muted"
-                               TextTrimming="CharacterEllipsis" MaxLines="1" />
+                    <TextBlock Text="{Binding FriendlyName}" Classes="cardTitle"
+                               ToolTip.Tip="{Binding FriendlyName}"
+                               AutomationProperties.Name="{Binding FriendlyName}" />
+
+                    <!-- A Grid, not a StackPanel. A horizontal StackPanel measures its
+                         children with unbounded width, so the purpose never reached its
+                         trimming width and drew straight through the pills beside it. The
+                         star column gives the publisher what it needs and the purpose takes
+                         what is left. -->
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Text="{Binding Owner}" Classes="muted"
+                                   TextTrimming="CharacterEllipsis" MaxLines="1"
+                                   Margin="0,0,8,0"
+                                   ToolTip.Tip="Who publishes this" />
+                        <TextBlock Grid.Column="1" Text="{Binding Purpose}" Classes="muted"
+                                   TextTrimming="CharacterEllipsis" MaxLines="1"
+                                   ToolTip.Tip="{Binding Purpose}" />
+                    </Grid>
                 </StackPanel>
 
-                <!-- One pill, always with words in it. Unknown is the commonest answer by
-                     far, and it reads neutral: RepoDeck not having looked yet is not a
-                     warning about the software. -->
-                <Border Grid.Row="0" Grid.Column="2" Margin="14,0"
-                        Classes="statusPill"
-                        Classes.positive="{Binding InstallabilityIsPositive}"
-                        Classes.caution="{Binding InstallabilityIsCaution}"
-                        Classes.danger="{Binding InstallabilityIsDanger}"
-                        Classes.neutral="{Binding InstallabilityIsNeutral}"
-                        ToolTip.Tip="{Binding InstallabilityExplanation}">
-                    <TextBlock Text="{Binding InstallabilityLabel}" />
-                </Border>
+                <!-- Status, in the same vocabulary as the card but trimmed to what fits:
+                     setup where it is known, and what RepoDeck can do about installing. -->
+                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="6"
+                            Margin="14,0" VerticalAlignment="Center">
+                    <Border Classes="statusPill"
+                            Classes.positive="{Binding SetupIsPositive}"
+                            Classes.caution="{Binding SetupIsCaution}"
+                            Classes.neutral="{Binding SetupIsNeutral}"
+                            IsVisible="{Binding ShowSetupLabel}"
+                            ToolTip.Tip="{Binding SetupExplanation}">
+                        <TextBlock Text="{Binding SetupLabel}" />
+                    </Border>
 
-                <Button Grid.Row="0" Grid.Column="3" Classes="quiet" Content="WHY?"
-                        Margin="0,0,8,0" VerticalAlignment="Center"
-                        Command="{Binding ToggleWhyCommand}" />
+                    <Border Classes="statusPill"
+                            Classes.positive="{Binding InstallabilityIsPositive}"
+                            Classes.caution="{Binding InstallabilityIsCaution}"
+                            Classes.danger="{Binding InstallabilityIsDanger}"
+                            Classes.neutral="{Binding InstallabilityIsNeutral}"
+                            IsVisible="{Binding ShowInstallabilityPill}"
+                            ToolTip.Tip="{Binding InstallabilityExplanation}">
+                        <TextBlock Text="{Binding InstallabilityPillText}" />
+                    </Border>
+                </StackPanel>
 
-                <Button Grid.Row="0" Grid.Column="4" Classes="primary"
+                <Button Grid.Row="0" Grid.Column="3" Classes="link" Content="Why this match"
+                        Margin="0,0,10,0" VerticalAlignment="Center"
+                        Command="{Binding ToggleWhyCommand}"
+                        AutomationProperties.Name="Why this is a match for your search" />
+
+                <Button Grid.Row="0" Grid.Column="4"
+                        Classes.primary="{Binding CanInstallDirectly}"
+                        Classes.secondary="{Binding !CanInstallDirectly}"
                         Content="{Binding PrimaryActionLabel}"
                         VerticalAlignment="Center"
                         Command="{Binding ActivateCommand}"
-                        ToolTip.Tip="{Binding PrimaryActionTooltip}" />
+                        ToolTip.Tip="{Binding PrimaryActionTooltip}"
+                        AutomationProperties.Name="{Binding PrimaryActionTooltip}" />
 
                 <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5"
                         Classes="inset" Margin="52,8,0,0" Padding="10"

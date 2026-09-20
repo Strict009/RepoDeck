@@ -133,8 +133,12 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:MediaTileViewModel">
+                                <!-- A tile whose picture never arrived draws nothing at all.
+                                     An empty frame reads as broken; absence reads as
+                                     absence. -->
                                 <Border Width="74" Height="48"
                                         ClipToBounds="True"
+                                        IsVisible="{Binding IsLoaded}"
                                         Background="{DynamicResource RdPanelInsetBrush}"
                                         CornerRadius="{DynamicResource RdRadiusSmall}"
                                         ToolTip.Tip="{Binding AccessibleName}"
@@ -161,10 +165,11 @@
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0" Text="WORKS ON THIS PC" Classes="microLabel"
                                                    VerticalAlignment="Center" />
-                                        <Button Grid.Column="1" Classes="why" Content="WHY?"
+                                        <Button Grid.Column="1" Classes="link" Content="How do we know?"
                                                 Command="{Binding $parent[UserControl].((vm:QuickLookViewModel)DataContext).WhyCommand}"
                                                 CommandParameter="Will it work on this PC?"
-                                                ToolTip.Tip="Show the evidence behind this answer" />
+                                                ToolTip.Tip="Show the evidence behind this answer"
+                                                AutomationProperties.Name="How do we know this? Show the evidence" />
                                     </Grid>
                                     <TextBlock Text="{Binding CompatibilityText}" Classes="secondary"
                                                TextWrapping="Wrap" />
@@ -178,10 +183,11 @@
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0" Text="SETUP" Classes="microLabel"
                                                    VerticalAlignment="Center" />
-                                        <Button Grid.Column="1" Classes="why" Content="WHY?"
+                                        <Button Grid.Column="1" Classes="link" Content="How do we know?"
                                                 Command="{Binding $parent[UserControl].((vm:QuickLookViewModel)DataContext).WhyCommand}"
                                                 CommandParameter="How much setup?"
-                                                ToolTip.Tip="Show the evidence behind this answer" />
+                                                ToolTip.Tip="Show the evidence behind this answer"
+                                                AutomationProperties.Name="How do we know this? Show the evidence" />
                                     </Grid>
                                     <TextBlock Text="{Binding SetupLabel}" Classes="body" />
                                     <TextBlock Text="{Binding SetupSummary}" Classes="muted"
@@ -198,10 +204,11 @@
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0" Text="REPODECK CAN" Classes="microLabel"
                                                    VerticalAlignment="Center" />
-                                        <Button Grid.Column="1" Classes="why" Content="WHY?"
+                                        <Button Grid.Column="1" Classes="link" Content="How do we know?"
                                                 Command="{Binding $parent[UserControl].((vm:QuickLookViewModel)DataContext).WhyCommand}"
                                                 CommandParameter="Can RepoDeck install it?"
-                                                ToolTip.Tip="Show the evidence behind this answer" />
+                                                ToolTip.Tip="Show the evidence behind this answer"
+                                                AutomationProperties.Name="How do we know this? Show the evidence" />
                                     </Grid>
                                     <TextBlock Text="{Binding InstallabilityLabel}" Classes="body" />
                                     <TextBlock Text="{Binding InstallabilitySummary}" Classes="muted"

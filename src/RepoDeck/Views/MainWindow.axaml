@@ -10,8 +10,44 @@
         Title="RepoDeck"
         Icon="avares://RepoDeck/Assets/RepoDeck.ico"
         Width="1320" Height="860"
-        MinWidth="880" MinHeight="600"
+        MinWidth="720" MinHeight="600"
         Background="{DynamicResource RdPageBackgroundBrush}">
+
+    <Window.Styles>
+        <!--
+            One responsive state, and only one. Below the threshold the sidebar becomes an
+            icon rail: the same list, the same commands, the same selection and the same
+            keyboard behaviour, with the labels hidden and the tooltips doing their work.
+            No drawer, no overlay, no breakpoint framework.
+        -->
+        <Style Selector="Border.sidebar">
+            <Setter Property="Width" Value="232" />
+        </Style>
+
+        <Style Selector="Grid.compact Border.sidebar">
+            <Setter Property="Width" Value="64" />
+        </Style>
+
+        <Style Selector="Grid.compact StackPanel.wordmark">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <Style Selector="Grid.compact TextBlock.navLabel">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <Style Selector="Grid.compact Border.systemPanel">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <!-- Centre the icons once the labels have gone. The horizontal inset goes, the
+             vertical rhythm stays: five icons stacked with no breathing room between them
+             read as one object rather than five destinations. -->
+        <Style Selector="Grid.compact ListBox.nav ListBoxItem">
+            <Setter Property="Padding" Value="0,11" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+    </Window.Styles>
 
     <Panel>
 
@@ -22,41 +58,35 @@
     <ContentControl Content="{Binding Onboarding}"
                     IsVisible="{Binding ShowOnboarding}" />
 
-    <Grid ColumnDefinitions="232,*" IsVisible="{Binding ShowShell}">
+    <Grid Name="ShellGrid" ColumnDefinitions="Auto,*" IsVisible="{Binding ShowShell}">
 
         <!-- ==================== Control strip ==================== -->
         <Border Grid.Column="0"
+                Classes="sidebar"
                 Background="{DynamicResource RdSidebarBrush}"
                 BorderBrush="{DynamicResource RdBorderBrush}"
                 BorderThickness="0,0,1,0">
             <Grid RowDefinitions="Auto,*,Auto">
 
-                <!-- Wordmark: a lime bar, the name, a running light -->
+                <!-- Wordmark: a lime bar and the name.
+                     The READY pill that used to sit here is gone. It was directly under the
+                     wordmark, said READY almost always, and the status strip at the foot of
+                     the window says the same thing. A permanent indicator that nothing is
+                     wrong is furniture. -->
                 <Border Grid.Row="0"
                         BorderBrush="{DynamicResource RdBorderBrush}"
                         BorderThickness="0,0,0,1"
                         Padding="18,20,18,16">
-                    <StackPanel Spacing="10">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <Border Width="4" Height="26"
-                                    Background="{DynamicResource RdAccentBrush}"
-                                    CornerRadius="{DynamicResource RdRadiusSharp}" />
-                            <StackPanel Spacing="0" VerticalAlignment="Center">
-                                <TextBlock Text="RepoDeck" FontSize="20" FontWeight="Bold"
-                                           LetterSpacing="0.4" />
-                                <TextBlock Text="GITHUB, MADE APPROACHABLE"
-                                           Classes="microLabel" />
-                            </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="4" Height="26"
+                                Background="{DynamicResource RdAccentBrush}"
+                                CornerRadius="{DynamicResource RdRadiusSharp}" />
+                        <StackPanel Classes="wordmark" Spacing="0" VerticalAlignment="Center">
+                            <TextBlock Text="RepoDeck" FontSize="20" FontWeight="Bold"
+                                       LetterSpacing="0.4" />
+                            <TextBlock Text="GITHUB, MADE APPROACHABLE"
+                                       Classes="microLabel" />
                         </StackPanel>
-
-                        <Border Classes="inset" Padding="8,5">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Ellipse Classes="led ledOn"
-                                         ToolTip.Tip="RepoDeck is running normally" />
-                                <TextBlock Text="{Binding SystemStateText}" Classes="microLabel"
-                                           Foreground="{DynamicResource RdAccentBrush}" />
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
                 </Border>
 
@@ -69,13 +99,20 @@
                          SelectedItem="{Binding SelectedNavigationItem}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:NavigationItem">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <!-- The tooltip and the accessible name are always set, not only
+                                 in the rail: when the label is hidden they are the only way
+                                 to know what this is, and a name that appears conditionally
+                                 is a name a screen reader cannot rely on. -->
+                            <StackPanel Orientation="Horizontal" Spacing="12"
+                                        ToolTip.Tip="{Binding Title}"
+                                        AutomationProperties.Name="{Binding Title}">
                                 <Path Data="{Binding Icon}"
                                       Fill="{Binding $parent[ListBoxItem].Foreground}"
                                       Width="16" Height="16"
                                       Stretch="Uniform"
                                       VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding Title}"
+                                           Classes="navLabel"
                                            FontSize="13"
                                            FontWeight="SemiBold"
                                            Foreground="{Binding $parent[ListBoxItem].Foreground}"
@@ -85,33 +122,38 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <!-- System panel: the machine, the connection, the allowance -->
+                <!--
+                    The sidebar foot, which now appears only when something is wrong.
+
+                    It used to carry a SYSTEM heading, a connection light, a fourteen-segment
+                    allowance meter reading ALLOWANCE OK, and the machine's architecture -
+                    permanently, below the navigation, for somebody who came here to find
+                    software. All of it is still in Settings and in the diagnostic report,
+                    where troubleshooting belongs. What survives here is the part that is
+                    genuinely urgent: the allowance running out, or GitHub being unreachable.
+                -->
                 <Border Grid.Row="2"
+                        Classes="systemPanel"
                         BorderBrush="{DynamicResource RdBorderBrush}"
                         BorderThickness="0,1,0,0"
-                        Padding="14,14,14,16">
+                        Padding="14,14,14,16"
+                        IsVisible="{Binding ShowSystemPanel}">
                     <StackPanel Spacing="9">
-                        <TextBlock Text="SYSTEM" Classes="microLabel" />
-
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Ellipse Classes="led"
-                                     Classes.ledOn="{Binding IsConnected}"
-                                     Classes.ledWarn="{Binding !IsConnected}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8"
+                                    IsVisible="{Binding ShowConnectionProblem}">
+                            <Ellipse Classes="led ledWarn" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding ConnectionText}" Classes="muted"
                                        VerticalAlignment="Center" />
                         </StackPanel>
 
-                        <!-- The meter shows the allowance at a glance; numbers on hover -->
-                        <StackPanel Spacing="4" IsVisible="{Binding HasRateLimit}"
+                        <StackPanel Spacing="4" IsVisible="{Binding AllowanceNeedsAttention}"
                                     ToolTip.Tip="{Binding RateLimitDetail}">
                             <TextBlock Text="{Binding RateLimitLabel}" Classes="muted" />
                             <controls:SegmentedMeter Height="6" SegmentCount="14"
                                                      Value="{Binding RateLimitPercent}"
-                                                     OnBrush="{DynamicResource RdAccentBrush}"
+                                                     OnBrush="{DynamicResource RdCautionBrush}"
                                                      OffBrush="{DynamicResource RdPanelInsetBrush}" />
                         </StackPanel>
-
-                        <TextBlock Text="{Binding PlatformText}" Classes="muted" />
                     </StackPanel>
                 </Border>
             </Grid>

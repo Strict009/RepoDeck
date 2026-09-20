@@ -27,7 +27,10 @@ public sealed partial class MainWindowViewModel
     public bool IsReady => !IsBusy;
 
     // ---- Connection -------------------------------------------------------
-    [ObservableProperty] private bool _isConnected = true;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowConnectionProblem))]
+    [NotifyPropertyChangedFor(nameof(ShowSystemPanel))]
+    private bool _isConnected = true;
     [ObservableProperty] private string _connectionText = "GitHub";
 
     // ---- Allowance --------------------------------------------------------
@@ -63,11 +66,31 @@ public sealed partial class MainWindowViewModel
             : $"{installed} installed · {downloaded} downloaded";
     }
 
+    /// <summary>
+    /// True only when the allowance is low or used up.
+    /// </summary>
+    /// <remarks>
+    /// A healthy allowance used to occupy the sidebar permanently: a label reading
+    /// ALLOWANCE OK and a fourteen-segment meter, below a SYSTEM heading, under the
+    /// navigation. That is RepoDeck's accounting, shown to somebody who came to find
+    /// software. It now appears only when it is about to matter - which is the only time it
+    /// answers a question the user has.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSystemPanel))]
+    private bool _allowanceNeedsAttention;
+
+    public bool ShowConnectionProblem => !IsConnected;
+
+    /// <summary>The sidebar foot appears only when it has something to warn about.</summary>
+    public bool ShowSystemPanel => AllowanceNeedsAttention || ShowConnectionProblem;
+
     private void ApplyRateLimit(RateLimitStatus status)
     {
         var view = RateLimitPresentation.From(status);
 
         HasRateLimit = view.IsKnown;
+        AllowanceNeedsAttention = view.IsKnown && view.IsLow;
         RateLimitLabel = view.Label;
         RateLimitPercent = view.Percent;
         RateLimitDetail = view.Detail;

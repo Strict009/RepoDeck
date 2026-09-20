@@ -152,7 +152,7 @@
                                                         Command="{Binding CheckForUpdatesCommand}"
                                                         ToolTip.Tip="Ask GitHub whether there is a newer release" />
 
-                                                <Button Classes="primary" Content="UPDATE"
+                                                <Button Classes="caution" Content="UPDATE"
                                                         IsVisible="{Binding CanUpdate}"
                                                         Command="{Binding BeginUpdateCommand}" />
                                             </StackPanel>
@@ -400,10 +400,10 @@
                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                         <Button Classes="secondary" Content="OPEN FOLDER"
                                                 Command="{Binding OpenFolderCommand}" />
-                                        <Button Classes="quiet" Content="SOURCE"
+                                        <Button Classes="link" Content="SOURCE"
                                                 Command="{Binding ViewRepositoryCommand}"
                                                 ToolTip.Tip="Open this project's page on GitHub" />
-                                        <Button Classes="danger" Content="REMOVE"
+                                        <Button Classes="dangerQuiet" Content="REMOVE"
                                                 IsVisible="{Binding ShowUninstallButton}"
                                                 Command="{Binding BeginUninstallCommand}" />
                                     </StackPanel>
