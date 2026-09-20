@@ -1,6 +1,6 @@
 # RepoDeck status
 
-_Last updated: 2026-09-18_
+_Last updated: 2026-09-19_
 
 ## Current milestone
 
@@ -215,17 +215,29 @@ edit to the manifest, noted here so the result is not mistaken for an unprompted
 10. **Transfers are in memory only**, so the Downloads page starts empty each run. This is
    deliberate - an "active download" cannot survive the process performing it - but it means
    a failed download is forgotten on restart.
-11. Earlier weaknesses remain: badge rejection is a blocklist; Quick Look costs requests with
+11. **An installed directory exists that no record claims.** `Apps\KytyPS5__KytyPS5` (57 MB)
+    is present on the development machine. The log shows it was installed there and launched
+    successfully, but it appears in neither `installed.json` nor the activity history — not
+    as a failed install, not as anything. A backup taken later the same evening also lacks
+    it, so it predates the 0.1.1 work. **Cause undetermined**, and not reproduced. Recorded
+    here rather than explained. One thing it did establish: RepoDeck left it untouched
+    through two application removals and a full uninstall, which is unplanned evidence that
+    it only acts on what it claims.
+12. **Upgrade while RepoDeck is running has not been tested.** Every installer run so far was
+    made with the application closed.
+13. Earlier weaknesses remain: badge rejection is a blocklist; Quick Look costs requests with
     no debounce; relevance works from a one-line description; collections are searches rather
     than curation; compact view cannot be sorted; the light theme is untested in practice;
     image decoding has no automated test and no disk cache.
 
-## Clean-environment evidence (second PC)
+## Physical-machine evidence
+
+Two runs on hardware, covering different halves of the question.
+
+### Install and first use — 0.1.0-alpha, second PC
 
 RepoDeck 0.1.0-alpha was installed and used on a second physical Windows machine, from the
 public installer on the GitHub release rather than a local build.
-
-**Verified on that machine:**
 
 | Step | Result |
 |---|---|
@@ -241,28 +253,60 @@ That settles the question 0.1.0-alpha could not answer about itself: **a self-co
 build does start on a machine that is not the one it was built on**, and the installer works
 end to end for a first-time user.
 
-**Not verified on that machine**, and therefore not claimed:
+### Lifecycle — 0.1.1-alpha
 
-- The first-run welcome
-- Opening a project and using Back to return to results
-- **Running** the installed application - it was installed, not launched
-- Closing and reopening RepoDeck and finding the application still listed
-- Checking for updates, and Repair
-- Removing the application, and uninstalling RepoDeck
-- That `%LOCALAPPDATA%\RepoDeck` survives uninstalling RepoDeck
+The half that decides whether RepoDeck is worth keeping on a machine rather than merely
+installable onto one. Run on the second physical PC, and also walked through on the machine
+RepoDeck is built on.
 
-Roughly steps 1-4, 6 and 8 of the twelve in `docs/CLEAN-MACHINE-TEST.md`. The remaining six
-are the lifecycle half - run, persist, update, repair, remove, uninstall - and they are the
-half that decides whether RepoDeck is worth keeping on a machine rather than merely
-installable onto one.
+| Step | Result |
+|---|---|
+| Launch installed application from RepoDeck | PASS — SharpEmu ran |
+| Persistence after RepoDeck restart | PASS — still recognised, including "Last run just now" |
+| Upgrade 0.1.0-alpha → 0.1.1-alpha | PASS |
+| Windows registration after upgrade | PASS — one Start Menu entry, one uninstall registration, same GUID, no elevation, no unusual prompts |
+| Version reporting | PASS — Settings shows 0.1.1-alpha |
+| RepoDeck self-update check | PASS — reports up to date; does not offer the older public release and does not confuse prerelease ordering |
+| Repair | PASS — after an executable was deliberately deleted, RepoDeck detected "Program missing, 2 things are wrong" and repaired it |
+| Repair data preservation | PASS — application-owned `gui-settings.json` and `user/` retained their original timestamps |
+| Remove | PASS — RepoDeck removed only the installation folder it owns |
+| Removed-state persistence | PASS — searching again showed no installed marker |
+| Diagnostic report privacy | PASS — mechanically checked for Windows username, token patterns, installed application names and literal profile paths; zero matches |
+| Windows uninstall | PASS — program files, Start Menu entry and uninstall registration removed |
+| User data after uninstall | `%LOCALAPPDATA%\RepoDeck` remained completely untouched |
 
-**The 0.1.x gate is therefore not complete.** What has been proven is that RepoDeck installs
-and works; what has not is that it can be lived with and removed cleanly.
+**The 0.1.x gate is complete.** RepoDeck installs on a machine that is not its own, is
+usable there, and removes itself without taking anything with it.
 
-## 0.1.1-alpha — in preparation, not released
+### Three defects the lifecycle run found
 
-Version raised to `0.1.1-alpha`. It is **deliberately unreleased**: the clean-machine run
-decides what else belongs in it. Notes accumulate in `docs/release-notes/0.1.1-alpha.md`.
+Found by doing it, not by reading the code.
+
+1. **The count at the bottom of the window was decided once and never revisited.**
+   `RefreshLibraryCount` had a single caller: the shell's constructor. It was right at
+   startup and drifted from then on, in both directions. Removing the only installed
+   application left the strip saying "1 installed" while the library file said `[]` and the
+   application's own diagnostic report, generated seconds later, correctly said
+   "Installed: 0 application(s)". `IInstalledAppStore` now announces changes and the shell
+   recounts — raised outside the lock, and only after the write succeeded.
+2. **Uninstalling RepoDeck asked the wrong question.** Windows asked whether to "completely
+   remove RepoDeck and all of its components", then left 134.2 MB behind — 73 files,
+   identical before and after — most of it the applications RepoDeck had installed, with
+   nothing pointing at it. Keeping it is correct and was already deliberate; not saying so
+   was not. The question now describes what it does, and the uninstaller ends by naming the
+   folder it kept and why. It does not offer to delete it as well.
+3. **The release notes had gone stale on privacy**, still telling people the diagnostic
+   report contains the Windows user name after the audit had fixed exactly that.
+
+Also cleared in the same pass: four `\x27` escapes left in comments by a shell-quoting
+mishap, and a nullable warning in the one sweep that deletes directories inside `Apps` —
+the guard was correct but the compiler could not prove it, so it is now an explicit `if`
+rather than a condition buried in a ternary.
+
+## 0.1.1-alpha — released
+
+A stabilisation release, held back until hardware agreed with it. Notes in
+`docs/release-notes/0.1.1-alpha.md`.
 
 ### Failing loudly
 
@@ -313,21 +357,23 @@ The content holds up: no repository, release, asset, architecture, token or chec
 vocabulary anywhere. One layout defect fixed - the welcome sat in the top third of the
 window and left two thirds empty, reading as a page that had failed to load.
 
-### Still owed
+### The gate it was waiting on
 
-**The clean-machine run itself.** `docs/CLEAN-MACHINE-TEST.md` is the twelve-step script;
-`build/clean-machine-report.ps1` captures the machine state a report needs. Until that
-passes, 0.1.1 stays unreleased.
+Passed. Both halves are recorded under **Physical-machine evidence** above: install and
+first use on a second physical PC for 0.1.0-alpha, and the full lifecycle — run, persist,
+upgrade, self-update check, repair, remove, uninstall — for 0.1.1-alpha. Three defects came
+out of the lifecycle run and are fixed in this release.
+
+`docs/CLEAN-MACHINE-TEST.md` remains the script to re-run against future builds.
 
 ## Next task
 
-**0.1.x — Prove it.** Fix what real machines disagree with. This is priority zero and
-everything below waits on it.
+**0.1.x — done.** Real machines were consulted and disagreed in three places; those are
+fixed and shipped in 0.1.1-alpha. `docs/CLEAN-MACHINE-TEST.md` and
+`build/clean-machine-report.ps1` stay as the script and the state capture for future builds.
 
-The one claim 0.1.0-alpha makes and has never demonstrated is that it runs on a Windows
-machine with no development tooling on it. `docs/CLEAN-MACHINE-TEST.md` is the twelve-step
-run; `build/clean-machine-report.ps1` captures the machine state a failure needs to be
-described properly. Anything that fails becomes 0.1.1.
+What that leaves is the honest limit of the evidence: the lifecycle has been proven on two
+machines, both of them this project's own. It has not been through a stranger's.
 
 Startup failures now produce evidence rather than silence. `CrashReporter` is installed
 before Avalonia and writes a readable report to the Logs folder, with a native message box
@@ -583,12 +629,14 @@ of a `sha256sum -c` check fail.
 
 ### Still owed
 
-1. **Clean-machine verification.** Everything above ran on a computer with the .NET SDK
-   installed. The build is self-contained and references no shared runtime, but "runs
-   without .NET installed" has not been demonstrated anywhere it was genuinely absent.
+1. ~~**Clean-machine verification.**~~ Settled: 0.1.0-alpha was installed from the published
+   installer onto a second physical Windows PC with no development tooling, and 0.1.1-alpha
+   went through the whole lifecycle there. See **Physical-machine evidence**.
 2. **No code signing.** SmartScreen will warn about both artifacts, correctly: they are
    unsigned binaries from an unknown publisher.
-3. **Nothing is published.** No GitHub release, no upload, no update feed.
+3. ~~**Nothing is published.**~~ Settled at 0.1.1-alpha: both artifacts and a SHA-256 file
+   are attached to a public GitHub release, and RepoDeck's self-update check reads it. There
+   is still no update *feed* beyond the releases API.
 4. **win-x64 only.** The application runs on Linux; there is no Linux packaging.
 5. **Upgrade while running was not tested.** Both installer runs were made with RepoDeck
    closed.
