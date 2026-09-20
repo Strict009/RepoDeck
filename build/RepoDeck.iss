@@ -89,6 +89,14 @@ InfoBeforeFile=alpha-notice.txt
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[Messages]
+; Inno's stock wording asks whether to "completely remove RepoDeck and all of its
+; components", which is not what happens and contradicts what the uninstaller says a
+; moment later. It removes the program; the applications RepoDeck installed for you stay
+; where they are. Somebody deciding whether to click Yes should be told that before they
+; click it, not after.
+ConfirmUninstall=Remove %1?%n%nThis removes the program itself. The applications RepoDeck installed for you, your favourites and its record of what it did are left where they are, and you will be told where to find them.
+
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 
@@ -124,4 +132,41 @@ end;
 function InitializeUninstall(): Boolean;
 begin
   Result := True;
+end;
+
+// Say what was kept.
+//
+// Uninstalling RepoDeck leaves %LOCALAPPDATA%\RepoDeck alone on purpose - see
+// [UninstallDelete] above - because removing RepoDeck must not remove the programs
+// somebody used it to install. But leaving it alone silently means they are told
+// RepoDeck is gone while a folder of applications, downloads and cache stays behind
+// with nothing to point at it. That folder is routinely the larger half of the
+// installation.
+//
+// So this states what was kept and where, and leaves the decision where it belongs.
+// It does not offer to delete it: a prompt that can wipe the applications somebody
+// installed does not belong at the end of a wizard they are already clicking through.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir: String;
+begin
+  if CurUninstallStep <> usPostUninstall then
+    Exit;
+
+  if UninstallSilent then
+    Exit;
+
+  DataDir := ExpandConstant('{localappdata}\RepoDeck');
+
+  if not DirExists(DataDir) then
+    Exit;
+
+  MsgBox('RepoDeck has been removed.'#13#10#13#10 +
+         'What RepoDeck installed for you has been left where it was, along with your ' +
+         'favourites and its record of what it did:'#13#10#13#10 +
+         DataDir + #13#10#13#10 +
+         'Nothing in there was deleted, because uninstalling RepoDeck should not ' +
+         'uninstall the programs you used it to install. If you want that space back, ' +
+         'delete the folder yourself.',
+         mbInformation, MB_OK);
 end;
