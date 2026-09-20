@@ -114,6 +114,11 @@ public static class RelevanceScorer
                 reasons.Add("It looks like a tool for software development.");
                 break;
 
+            case ProjectKind.ThemeOrSkin:
+                score -= 18;
+                reasons.Add("It looks like a theme or skin for another application.");
+                break;
+
             case ProjectKind.Unknown:
                 score -= 6;
                 reasons.Add("RepoDeck could not tell what kind of project this is.");

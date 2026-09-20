@@ -269,6 +269,83 @@ public class DiscoverUxTests
 
         Assert.True(vm.IsCompactView);
     }
+
+    [Fact]
+    public async Task Enrichment_of_the_selected_card_preserves_selection_scroll_and_visual_place()
+    {
+        var selectedRepository = TestRepositories.Create(
+            "music-player", description: "A desktop music player.",
+            topics: ["desktop", "music-player"]);
+        var otherRepository = TestRepositories.Create(
+            "other-player", description: "Another desktop music player.",
+            topics: ["desktop", "music-player"]);
+        var github = new FakeGitHubClient
+        {
+            DefaultResults = [selectedRepository, otherRepository]
+        };
+        var vm = Discover(github);
+        vm.SearchText = "music player";
+        await vm.SearchCommand.ExecuteAsync(null);
+
+        var selected = vm.Results.Single(card => card.Repository.Name == "music-player");
+        var next = vm.Results.Single(card => card.Repository.Name == "other-player");
+        vm.SelectedResult = selected;
+        vm.ResultsScrollOffset = 640;
+        var groupEvents = 0;
+        selected.SearchResultGroupChanged += _ => groupEvents++;
+
+        selected.ApplyAnalysis(
+            new Installability
+            {
+                State = InstallabilityState.DeveloperFocused,
+                Confidence = Confidence.Confirmed,
+                Reasons = ["The inspected project is a library."]
+            },
+            new ProjectClassification
+            {
+                Kind = ProjectKind.Library,
+                Confidence = Confidence.Confirmed,
+                Reasons = ["RepoDeck found a library manifest."]
+            });
+
+        Assert.Equal(SearchResultGroup.OtherResult, selected.SearchMatch.Group);
+        Assert.Equal(1, groupEvents);
+        Assert.Same(selected, vm.SelectedResult);
+        Assert.Equal(640, vm.ResultsScrollOffset);
+        Assert.Contains(selected, vm.BestMatches);
+        Assert.DoesNotContain(selected, vm.OtherResults);
+
+        vm.SelectedResult = next;
+
+        Assert.Contains(selected, vm.OtherResults);
+        Assert.DoesNotContain(selected, vm.BestMatches);
+        Assert.Same(next, vm.SelectedResult);
+    }
+
+    [Fact]
+    public async Task Loading_more_preserves_existing_results_and_ranks_only_the_new_page()
+    {
+        var first = TestRepositories.Create(
+            "music-player", description: "A desktop music player.",
+            topics: ["desktop", "music-player"]);
+        var second = TestRepositories.Create("unrelated", description: "A source project.");
+        var github = new FakeGitHubClient { DefaultResults = [second, first], TotalCount = 32 };
+        var vm = Discover(github);
+        vm.SearchText = "music player";
+        await vm.SearchCommand.ExecuteAsync(null);
+        var firstPage = vm.Results.ToList();
+
+        var third = TestRepositories.Create("another", description: "Another source project.");
+        var fourth = TestRepositories.Create(
+            "music-player-two", description: "A desktop music player.",
+            topics: ["desktop", "music-player"]);
+        github.DefaultResults = [third, fourth];
+        await vm.LoadMoreCommand.ExecuteAsync(null);
+
+        Assert.Equal(firstPage, vm.Results.Take(2));
+        Assert.Same(fourth, vm.Results[2].Repository);
+        Assert.Same(third, vm.Results[3].Repository);
+    }
 }
 
 /// <summary>Preferences held in memory, so a test never touches the user's own file.</summary>

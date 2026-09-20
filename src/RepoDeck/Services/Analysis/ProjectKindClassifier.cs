@@ -121,6 +121,19 @@ public static class ProjectKindClassifier
         var description = (repository.Description ?? "").ToLowerInvariant();
         var haystack = name + " " + description;
 
+        // A theme can mention the application it customizes often enough to otherwise win
+        // that application's category. Require wording that identifies the project itself
+        // as a theme/skin; merely saying an application "supports themes" is not enough.
+        if (IsThemeOrSkin(name, description, topics))
+        {
+            return new ProjectClassification
+            {
+                Kind = ProjectKind.ThemeOrSkin,
+                Confidence = Confidence.Likely,
+                Reasons = ["Its name, description or GitHub tags identify it as a theme or skin for another application."]
+            };
+        }
+
         // Single words are matched whole. Substring matching found "rom" inside "from"
         // and classified a command-line search tool as an emulator.
         var words = Tokenise(haystack);
@@ -226,9 +239,27 @@ public static class ProjectKindClassifier
         ProjectKind.Video => "video program",
         ProjectKind.Utility => "utility",
         ProjectKind.DeveloperTool => "developer tool",
+        ProjectKind.ThemeOrSkin => "theme or skin",
         ProjectKind.Library => "library",
         _ => "project of some other kind"
     };
+
+    private static bool IsThemeOrSkin(
+        string name, string description, IReadOnlySet<string> topics)
+    {
+        var namedAsCustomization = Tokenise(name).Overlaps(["theme", "themes", "skin", "skins"]);
+        var describedAsCustomization = new[]
+        {
+            "theme for ", "themes for ", "skin for ", "skins for ",
+            "color scheme for ", "colour scheme for ", "icon pack for "
+        }.Any(phrase => description.Contains(phrase, StringComparison.Ordinal));
+        var taggedAsCustomization = new[]
+        {
+            "theme", "themes", "skin", "skins", "color-scheme", "colour-scheme", "icon-theme"
+        }.Any(topics.Contains);
+
+        return describedAsCustomization || (taggedAsCustomization && namedAsCustomization);
+    }
 
     /// <summary>
     /// Refines a metadata classification once the analyzer has looked inside. The

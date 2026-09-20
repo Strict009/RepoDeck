@@ -38,6 +38,9 @@ public enum ProjectKind
     /// <summary>Editors, terminals, debuggers - software for making software.</summary>
     DeveloperTool,
 
+    /// <summary>A visual customization for another application, not that application itself.</summary>
+    ThemeOrSkin,
+
     /// <summary>A building block for programmers rather than a program.</summary>
     Library
 }
@@ -66,6 +69,7 @@ public sealed record ProjectClassification
         ProjectKind.Video => "Video",
         ProjectKind.Utility => "Utility",
         ProjectKind.DeveloperTool => "Developer tool",
+        ProjectKind.ThemeOrSkin => "Theme or skin",
         ProjectKind.Library => "Library",
         _ => "Project"
     };

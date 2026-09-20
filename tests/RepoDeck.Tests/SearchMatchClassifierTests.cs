@@ -28,7 +28,7 @@ public class SearchMatchClassifierTests
             repository, query, classification, capability, Windows);
 
         return SearchMatchClassifier.Assess(
-            repository, query, likelihood, classification, capability, relevance);
+            repository, query, likelihood, classification, capability, relevance, Windows);
     }
 
     [Fact]
@@ -143,6 +143,72 @@ public class SearchMatchClassifierTests
             Assert.DoesNotContain(word, reason, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    [Theory]
+    [InlineData("android-player", "An Android-only music player app.", "android-app")]
+    [InlineData("ios-player", "A music player app only for iOS.", "ios-app")]
+    public void Explicit_mobile_only_apps_are_not_best_matches_on_windows(
+        string name, string description, string topic)
+    {
+        var result = Assess(TestRepositories.Create(
+            name, description: description, topics: [topic, "music-player"]), "music player");
+
+        Assert.Equal(SearchResultGroup.OtherResult, result.Group);
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains("Windows", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains("has not been checked", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.Reasons,
+            reason => reason.Contains("No compatible package", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Missing_platform_evidence_does_not_rule_out_a_best_match()
+    {
+        var result = Assess(TestRepositories.Create(
+            "player", description: "A desktop music player.",
+            topics: ["desktop", "music-player"]), "music player");
+
+        Assert.Equal(SearchResultGroup.BestMatch, result.Group);
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains("has not been checked", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void A_theme_is_not_promoted_as_the_application_it_customizes()
+    {
+        var result = Assess(TestRepositories.Create(
+            "spotify-theme", description: "A dark theme for the Spotify music player.",
+            topics: ["theme", "music", "spotify"]), "music player");
+
+        Assert.Equal(SearchResultGroup.OtherResult, result.Group);
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains("theme", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("desktop-app", "A desktop app for notes.", "desktop", "desktop application")]
+    [InlineData("ripgrep", "A command line search program.", "cli", "command-line program")]
+    [InlineData("arcade-game", "An arcade game.", "game", "game or emulator")]
+    [InlineData("music-player", "An audio music player.", "music-player", "audio or music application")]
+    [InlineData("video-player", "A desktop video player.", "video-player", "video application")]
+    [InlineData("file-manager", "A file manager utility.", "utility", "end-user utility")]
+    public void Best_match_kind_explanations_are_intentional_prose(
+        string name, string description, string topic, string expectedPhrase)
+    {
+        var result = Assess(TestRepositories.Create(
+                name, description: description, topics: [topic]), name.Replace('-', ' '),
+            new Installability
+            {
+                State = InstallabilityState.ReadyToInstall,
+                Confidence = Confidence.Confirmed,
+                Reasons = ["A matching package was inspected."]
+            });
+
+        Assert.Equal(SearchResultGroup.BestMatch, result.Group);
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains(expectedPhrase, StringComparison.OrdinalIgnoreCase));
+    }
 }
 
 public class SearchDiscoveryPresentationTests
@@ -153,7 +219,7 @@ public class SearchDiscoveryPresentationTests
         var discover = File.ReadAllText(Path.Combine(SourceViews(), "DiscoverView.axaml"));
         var card = File.ReadAllText(Path.Combine(SourceViews(), "RepositoryCardView.axaml"));
 
-        Assert.Contains("BEST MATCHES", discover);
+        Assert.Contains("BEST SEARCH MATCHES", discover);
         Assert.Contains("OTHER RESULTS", discover);
         Assert.Contains("BestMatches", discover);
         Assert.Contains("OtherResults", discover);

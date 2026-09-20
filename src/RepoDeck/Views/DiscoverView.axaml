@@ -532,7 +532,7 @@
                     <StackPanel IsVisible="{Binding ShowGroupedResults}" Spacing="24">
                         <StackPanel IsVisible="{Binding HasBestMatches}" Spacing="10">
                             <StackPanel Spacing="3">
-                                <TextBlock Text="BEST MATCHES" Classes="sectionLabel" />
+                                <TextBlock Text="BEST SEARCH MATCHES" Classes="sectionLabel" />
                                 <TextBlock Text="Projects with evidence that they are end-user applications relevant to this search."
                                            Classes="muted" TextWrapping="Wrap" />
                             </StackPanel>
@@ -540,7 +540,8 @@
                             <ListBox Classes="cards" IsVisible="{Binding IsCardView}"
                                      ItemsSource="{Binding BestMatches}"
                                      ItemTemplate="{StaticResource CardResultTemplate}"
-                                     SelectedItem="{Binding SelectedResult}" SelectionMode="Single">
+                                     SelectedItem="{Binding SelectedResult, Mode=OneWay}" SelectionMode="Single"
+                                     SelectionChanged="OnResultSelectionChanged">
                                 <ListBox.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <controls:ResponsiveCardsPanel
@@ -553,7 +554,8 @@
                             <ListBox Classes="rows" IsVisible="{Binding IsCompactView}"
                                      ItemsSource="{Binding BestMatches}"
                                      ItemTemplate="{StaticResource CompactResultTemplate}"
-                                     SelectedItem="{Binding SelectedResult}" SelectionMode="Single" />
+                                     SelectedItem="{Binding SelectedResult, Mode=OneWay}" SelectionMode="Single"
+                                     SelectionChanged="OnResultSelectionChanged" />
                         </StackPanel>
 
                         <StackPanel IsVisible="{Binding HasOtherResults}" Spacing="10">
@@ -566,7 +568,8 @@
                             <ListBox Classes="cards" IsVisible="{Binding IsCardView}"
                                      ItemsSource="{Binding OtherResults}"
                                      ItemTemplate="{StaticResource CardResultTemplate}"
-                                     SelectedItem="{Binding SelectedResult}" SelectionMode="Single">
+                                     SelectedItem="{Binding SelectedResult, Mode=OneWay}" SelectionMode="Single"
+                                     SelectionChanged="OnResultSelectionChanged">
                                 <ListBox.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <controls:ResponsiveCardsPanel
@@ -579,7 +582,8 @@
                             <ListBox Classes="rows" IsVisible="{Binding IsCompactView}"
                                      ItemsSource="{Binding OtherResults}"
                                      ItemTemplate="{StaticResource CompactResultTemplate}"
-                                     SelectedItem="{Binding SelectedResult}" SelectionMode="Single" />
+                                     SelectedItem="{Binding SelectedResult, Mode=OneWay}" SelectionMode="Single"
+                                     SelectionChanged="OnResultSelectionChanged" />
                         </StackPanel>
                     </StackPanel>
 
@@ -588,7 +592,8 @@
                         <ListBox Classes="cards" IsVisible="{Binding IsCardView}"
                                  ItemsSource="{Binding Results}"
                                  ItemTemplate="{StaticResource CardResultTemplate}"
-                                 SelectedItem="{Binding SelectedResult}" SelectionMode="Single">
+                                 SelectedItem="{Binding SelectedResult, Mode=OneWay}" SelectionMode="Single"
+                                 SelectionChanged="OnResultSelectionChanged">
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <controls:ResponsiveCardsPanel
@@ -601,7 +606,8 @@
                         <ListBox Classes="rows" IsVisible="{Binding IsCompactView}"
                                  ItemsSource="{Binding Results}"
                                  ItemTemplate="{StaticResource CompactResultTemplate}"
-                                 SelectedItem="{Binding SelectedResult}" SelectionMode="Single" />
+                                 SelectedItem="{Binding SelectedResult, Mode=OneWay}" SelectionMode="Single"
+                                 SelectionChanged="OnResultSelectionChanged" />
                     </Panel>
 
                     <Button Classes="secondary"

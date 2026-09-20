@@ -218,6 +218,80 @@ public class QuickLookTests : IDisposable
     }
 
     [Fact]
+    public async Task One_completed_enrichment_publishes_one_coherent_group_change()
+    {
+        _github.Releases =
+        [
+            TestRepositories.Release("v2.0", false, "player-linux-x64.AppImage")
+        ];
+        var card = Card(TestRepositories.Create(
+            "music-player", description: "A desktop music player.",
+            topics: ["desktop", "music-player"]));
+        card.ApplySearchContext(
+            "music player", MachineProfile.For(OsPlatform.Windows, CpuArchitecture.X64));
+        Assert.Equal(SearchResultGroup.BestMatch, card.SearchMatch.Group);
+
+        var assessments = new List<(SearchResultGroup Group, ProjectKind Kind, InstallabilityState State)>();
+        card.SearchResultGroupChanged += changed => assessments.Add(
+            (changed.SearchMatch.Group, changed.Kind, changed.Installability.State));
+
+        var panel = Create();
+        await panel.ShowAsync(card);
+
+        var assessment = Assert.Single(assessments);
+        Assert.Equal(SearchResultGroup.OtherResult, assessment.Group);
+        Assert.Equal(card.Kind, assessment.Kind);
+        Assert.Equal(card.Installability.State, assessment.State);
+        Assert.NotEqual(InstallabilityState.Unknown, assessment.State);
+    }
+
+    [Fact]
+    public async Task Music_player_quick_look_stays_open_when_enrichment_changes_its_group()
+    {
+        _github.DefaultResults =
+        [
+            TestRepositories.Create(
+                "music-player", description: "A desktop music player.",
+                topics: ["desktop", "music-player"]),
+            TestRepositories.Create(
+                "other-player", description: "Another desktop music player.",
+                topics: ["desktop", "music-player"])
+        ];
+        _github.Releases =
+        [
+            TestRepositories.Release("v2.0", false, "player-linux-x64.AppImage")
+        ];
+        var panel = Create();
+        var discover = new DiscoverViewModel(
+            _github,
+            new HeuristicRepositoryExplanationService(),
+            new RepositoryMediaService(NullAppLog.Instance),
+            NullAppLog.Instance,
+            quickLook: panel,
+            machine: MachineProfile.For(OsPlatform.Windows, CpuArchitecture.X64));
+        discover.SearchText = "music player";
+        await discover.SearchCommand.ExecuteAsync(null);
+        var card = discover.Results.Single(c => c.Repository.Name == "music-player");
+        Assert.Contains(card, discover.BestMatches);
+        discover.ResultsScrollOffset = 480;
+
+        discover.SelectedResult = card;
+        await panel.ShowAsync(card);
+
+        Assert.True(panel.IsOpen);
+        Assert.Same(card, discover.SelectedResult);
+        Assert.Equal(SearchResultGroup.OtherResult, card.SearchMatch.Group);
+        Assert.Contains(card, discover.BestMatches);
+        Assert.DoesNotContain(card, discover.OtherResults);
+        Assert.Equal(480, discover.ResultsScrollOffset);
+
+        discover.SelectedResult = discover.Results.Single(c => c.Repository.Name == "other-player");
+
+        Assert.Contains(card, discover.OtherResults);
+        Assert.DoesNotContain(card, discover.BestMatches);
+    }
+
+    [Fact]
     public async Task GitHub_vocabulary_is_confined_to_the_technical_section()
     {
         var card = Card(TestRepositories.Create("tool", "someone"));

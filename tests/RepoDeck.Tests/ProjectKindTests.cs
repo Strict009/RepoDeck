@@ -63,6 +63,27 @@ public class ProjectKindTests
     }
 
     [Fact]
+    public void A_theme_for_an_application_is_not_classified_as_that_application()
+    {
+        var classified = Classify(
+            "spotify-theme", "A dark theme for the Spotify music player.", "theme", "music");
+
+        Assert.Equal(ProjectKind.ThemeOrSkin, classified.Kind);
+        Assert.False(classified.IsRunnableSoftware);
+    }
+
+    [Fact]
+    public void An_application_that_supports_themes_is_still_an_application()
+    {
+        var classified = Classify(
+            "player", "A desktop music player that supports themes.",
+            "desktop", "music-player", "themes");
+
+        Assert.Equal(ProjectKind.Audio, classified.Kind);
+        Assert.True(classified.IsRunnableSoftware);
+    }
+
+    [Fact]
     public void Reading_material_is_not_given_a_kind_at_all()
     {
         // "Awesome video tools" is a list. Calling it a video program would be worse than
@@ -119,6 +140,7 @@ public class ProjectKindTests
     [InlineData(ProjectKind.Video, true)]
     [InlineData(ProjectKind.Utility, true)]
     [InlineData(ProjectKind.CommandLineTool, true)]
+    [InlineData(ProjectKind.ThemeOrSkin, false)]
     [InlineData(ProjectKind.Library, false)]
     [InlineData(ProjectKind.Unknown, false)]
     public void Only_some_kinds_are_things_a_person_runs(ProjectKind kind, bool runnable)

@@ -504,10 +504,8 @@ public sealed partial class QuickLookViewModel : ViewModelBase
 
         // The card in the grid gets the authoritative answers too, so the grid stops
         // saying "Unknown" about something the user has just had explained to them.
-        card.ApplyAnalysedInstallability(Installability);
-
         var classification = ProjectKindClassifier.Refine(card.Classification, analysis.ApplicationType);
-        card.ApplyRefinedClassification(classification);
+        card.ApplyAnalysis(Installability, classification);
         OnPropertyChanged(nameof(FallbackKind));
         OnPropertyChanged(nameof(FallbackCaption));
 

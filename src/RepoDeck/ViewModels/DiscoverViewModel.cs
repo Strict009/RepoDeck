@@ -34,6 +34,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     private readonly IUserPreferences? _preferences;
     private readonly MachineProfile _machine;
     private readonly IFavoritesStore? _favorites;
+    private readonly HashSet<RepositoryCardViewModel> _deferredGroupMoves = [];
 
     public DiscoverViewModel(
         IGitHubClient github,
@@ -162,6 +163,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         Results.Clear();
         BestMatches.Clear();
         OtherResults.Clear();
+        _deferredGroupMoves.Clear();
         SearchText = "";
         ErrorMessage = null;
         ResultSummary = "";
@@ -293,6 +295,7 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         Results.Clear();
         BestMatches.Clear();
         OtherResults.Clear();
+        _deferredGroupMoves.Clear();
         RaiseResultStates();
 
         try
@@ -553,6 +556,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     /// </summary>
     partial void OnSelectedResultChanged(RepositoryCardViewModel? value)
     {
+        ApplyDeferredGroupMoves(value);
+
         if (QuickLook is null) return;
 
         if (value is null)
@@ -681,7 +686,10 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         foreach (var card in added) Results.Add(card);
 
         // Classification is presentation, not filtering: every result stays reachable.
-        RebuildResultGroups();
+        // Pages are appended in their existing per-page rank order; loading another page
+        // does not reshuffle results the user has already been reading.
+        foreach (var card in added) AddToResultGroup(card);
+        RaiseGroupStates();
 
         // Pictures arrive afterwards and never hold up the results.
         StartLoadingImages(added);
@@ -689,20 +697,55 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
     private void OnSearchResultGroupChanged(RepositoryCardViewModel card)
     {
-        if (Results.Contains(card)) RebuildResultGroups();
-    }
+        if (!Results.Contains(card)) return;
 
-    private void RebuildResultGroups()
-    {
-        BestMatches.Clear();
-        OtherResults.Clear();
-
-        foreach (var card in Results)
+        // Moving the card that opened Quick Look would remove selection from the source
+        // ListBox, close the panel, and shift content under the reader. Its assessment is
+        // already current on the card; visual re-homing waits until they move away.
+        if (ReferenceEquals(SelectedResult, card))
         {
-            if (card.IsBestMatch) BestMatches.Add(card);
-            else OtherResults.Add(card);
+            _deferredGroupMoves.Add(card);
+            return;
         }
 
+        MoveToCurrentGroup(card);
+    }
+
+    private void ApplyDeferredGroupMoves(RepositoryCardViewModel? stillSelected)
+    {
+        foreach (var card in _deferredGroupMoves
+                     .Where(card => !ReferenceEquals(card, stillSelected))
+                     .ToList())
+        {
+            _deferredGroupMoves.Remove(card);
+            if (Results.Contains(card)) MoveToCurrentGroup(card);
+        }
+    }
+
+    private void MoveToCurrentGroup(RepositoryCardViewModel card)
+    {
+        BestMatches.Remove(card);
+        OtherResults.Remove(card);
+        AddToResultGroup(card);
+        RaiseGroupStates();
+    }
+
+    private void AddToResultGroup(RepositoryCardViewModel card)
+    {
+        var target = card.IsBestMatch ? BestMatches : OtherResults;
+        var resultIndex = Results.IndexOf(card);
+        var insertionIndex = target
+            .Select((existing, index) => (ResultIndex: Results.IndexOf(existing), index))
+            .Where(item => item.ResultIndex > resultIndex)
+            .Select(item => item.index)
+            .DefaultIfEmpty(target.Count)
+            .First();
+
+        target.Insert(insertionIndex, card);
+    }
+
+    private void RaiseGroupStates()
+    {
         OnPropertyChanged(nameof(HasBestMatches));
         OnPropertyChanged(nameof(HasOtherResults));
     }

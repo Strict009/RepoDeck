@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Selection;
 using Avalonia.Threading;
 using RepoDeck.ViewModels;
 
@@ -38,5 +39,17 @@ public partial class DiscoverView : UserControl
         if (DataContext is not DiscoverViewModel model) return;
 
         model.ResultsScrollOffset = ResultsScroller.Offset.Y;
+    }
+
+    private void OnResultSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        // Six visual lists represent two view styles and three result sources. A list that
+        // does not contain the active card reports a null selection; only an affirmative
+        // user selection may change the shared view-model selection.
+        if (DataContext is DiscoverViewModel model
+            && e.AddedItems.OfType<RepositoryCardViewModel>().FirstOrDefault() is { } selected)
+        {
+            model.SelectedResult = selected;
+        }
     }
 }

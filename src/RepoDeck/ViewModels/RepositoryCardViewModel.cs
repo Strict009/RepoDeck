@@ -185,6 +185,7 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(Kind))]
     [NotifyPropertyChangedFor(nameof(KindLabel))]
     [NotifyPropertyChangedFor(nameof(KindExplanation))]
+    [NotifyPropertyChangedFor(nameof(FallbackCaption))]
     private ProjectClassification _classification;
 
     public ProjectKind Kind => Classification.Kind;
@@ -209,12 +210,6 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     /// described as a rating - it orders results and nothing else.
     /// </summary>
     [ObservableProperty] private Relevance _relevance = Relevance.Neutral;
-
-    public void ApplyRelevance(Relevance relevance)
-    {
-        Relevance = relevance;
-        RefreshSearchMatch();
-    }
 
     /// <summary>
     /// Supplies the search context once, allowing confirmed Quick Look evidence to refine
@@ -324,6 +319,39 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
         RefreshSearchIntelligence();
     }
 
+    /// <summary>
+    /// Applies the related conclusions from one completed deep analysis as one search
+    /// assessment. Property notifications remain available to the card, but grouping is
+    /// recalculated only after both conclusions are current and can fire at most once.
+    /// </summary>
+    public void ApplyAnalysis(
+        Installability installability, ProjectClassification classification)
+    {
+        // Assign both backing fields before raising either notification. An observer that
+        // reacts to the first notification therefore cannot see new installability paired
+        // with the old classification (or vice versa).
+#pragma warning disable MVVMTK0034 // Deliberate atomic update; generated setters notify too early.
+        _installability = installability;
+        _classification = classification;
+#pragma warning restore MVVMTK0034
+
+        OnPropertyChanged(nameof(Installability));
+        OnPropertyChanged(nameof(InstallabilityLabel));
+        OnPropertyChanged(nameof(InstallabilityExplanation));
+        OnPropertyChanged(nameof(IsReadyToInstall));
+        OnPropertyChanged(nameof(IsNotCompatible));
+        OnPropertyChanged(nameof(IsDeveloperFocused));
+        OnPropertyChanged(nameof(IsInstallabilityKnown));
+        OnPropertyChanged(nameof(PrimaryActionLabel));
+        OnPropertyChanged(nameof(PrimaryActionTooltip));
+        OnPropertyChanged(nameof(Classification));
+        OnPropertyChanged(nameof(Kind));
+        OnPropertyChanged(nameof(KindLabel));
+        OnPropertyChanged(nameof(KindExplanation));
+        OnPropertyChanged(nameof(FallbackCaption));
+        RefreshSearchIntelligence();
+    }
+
     private void RefreshSearchIntelligence()
     {
         if (_searchQuery is null || _searchMachine is null) return;
@@ -339,7 +367,8 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
 
         var previous = SearchMatch.Group;
         SearchMatch = SearchMatchClassifier.Assess(
-            Repository, _searchQuery, Likelihood, Classification, Installability, Relevance);
+            Repository, _searchQuery, Likelihood, Classification, Installability, Relevance,
+            _searchMachine!);
 
         if (previous != SearchMatch.Group) SearchResultGroupChanged?.Invoke(this);
     }
