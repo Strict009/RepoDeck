@@ -89,7 +89,10 @@ public sealed class InstalledAppStore : IInstalledAppStore
         try
         {
             var json = File.ReadAllText(_path);
-            _cache = JsonSerializer.Deserialize<List<ApplicationManifest>>(json, JsonOptions) ?? [];
+            // A file that parses but contains nulls - "[null,null]" is valid JSON -
+            // would otherwise hand out entries that crash whoever touches them next.
+            _cache = JsonSerializer.Deserialize<List<ApplicationManifest>>(json, JsonOptions)
+                ?.Where(entry => entry is not null).ToList() ?? [];
         }
         catch (Exception ex)
         {

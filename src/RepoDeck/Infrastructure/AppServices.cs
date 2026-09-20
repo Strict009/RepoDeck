@@ -64,6 +64,7 @@ public sealed class AppServices : IDisposable
         RunningApplications = new RunningApplicationDetector(Log);
         HealthChecker = new InstallationHealthChecker(Paths, Log);
         UpdateChecker = new UpdateChecker(GitHub, Machine, Log);
+        SelfUpdate = new SelfUpdateService(GitHub, Log);
 
         var updater = new UpdateService(
             Downloads, new ExtractionService(Log), InstalledApps, RunningApplications,
@@ -120,6 +121,9 @@ public sealed class AppServices : IDisposable
     public IRunningApplicationDetector RunningApplications { get; }
     public IInstallationHealthChecker HealthChecker { get; }
     public IUpdateChecker UpdateChecker { get; }
+
+    /// <summary>Whether a newer RepoDeck exists. Tells; never installs.</summary>
+    public ISelfUpdateService SelfUpdate { get; }
     public IUpdateService Updater { get; }
 
     private static HttpClient CreateHttpClient()

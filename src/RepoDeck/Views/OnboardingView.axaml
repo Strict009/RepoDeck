@@ -14,8 +14,15 @@
         install four other things.
     -->
     <Border Background="{DynamicResource RdPageBackgroundBrush}">
-        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-            <Grid RowDefinitions="*,Auto" MaxWidth="820" Margin="40,48,40,32">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalAlignment="Stretch">
+            <!--
+                Centred rather than pinned to the top. On a desktop window the welcome
+                occupied the first third and left two thirds empty, which reads as a page
+                that failed to finish loading rather than as breathing room.
+            -->
+            <Grid RowDefinitions="*,Auto" MaxWidth="820" Margin="40,48,40,32"
+                  VerticalAlignment="Center">
 
                 <!-- ==================== Step one ==================== -->
                 <StackPanel Grid.Row="0" Spacing="28" IsVisible="{Binding IsWelcomeStep}">

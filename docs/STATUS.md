@@ -168,7 +168,7 @@ Seven of these were found by running the application, not by reading it.
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - **1040 passed, 0 failed** (up from 798; 242 new tests).
+- `dotnet test` - **1123 passed, 0 failed** (up from 798; 325 new tests).
 - Every new guard was confirmed to **fail without its fix**, not merely to pass with it.
 
 **Driven on screen, against real GitHub and a real installation:**
@@ -219,6 +219,66 @@ edit to the manifest, noted here so the result is not mistaken for an unprompted
     no debounce; relevance works from a one-line description; collections are searches rather
     than curation; compact view cannot be sorted; the light theme is untested in practice;
     image decoding has no automated test and no disk cache.
+
+## 0.1.1-alpha — in preparation, not released
+
+Version raised to `0.1.1-alpha`. It is **deliberately unreleased**: the clean-machine run
+decides what else belongs in it. Notes accumulate in `docs/release-notes/0.1.1-alpha.md`.
+
+### Failing loudly
+
+`CrashReporter` runs before Avalonia and writes a readable report with a native message box
+for failures that happen before there is a window. It recognises a missing native library,
+an architecture mismatch, a refused folder and a full disk; anything else gets no invented
+explanation.
+
+### Reporting a problem
+
+**Settings → Copy diagnostic report.** Version, OS, both architectures, runtime, paths,
+whether the data folder is actually writable, token *presence*, allowance, and a count of
+installed applications. A test sets a token in the environment and asserts it does not reach
+the output, because the failure that matters here is a helpful diagnostic quietly publishing
+somebody's credentials.
+
+### RepoDeck finds itself
+
+`SelfUpdateService` compares RepoDeck against its own published releases using the same
+conservative comparison applied to everything else, then offers the release page. Verified
+live against the real 0.1.0-alpha release: RepoDeck reported itself up to date, spending
+exactly one request.
+
+It deliberately does not self-install. The update transaction moves the live installation
+aside and promotes a validated copy; a running process cannot have its own executable moved.
+A second mechanism is real work, and a half-built one would mean the component responsible
+for recovering from bad updates is itself the thing that breaks.
+
+### Recovery paths exercised
+
+Every file RepoDeck writes was fed empty, whitespace, truncated JSON, HTML, the wrong shape,
+`null`, `[null,null]`, 200 nested brackets and raw bytes. Malformed GitHub responses, absurd
+and pathological version tags, and abandoned staging and rollback directories were exercised
+too.
+
+**Two real defects found by doing it:**
+
+1. **An asset with no download address was treated as installable**, so RepoDeck could offer
+   an update it had nowhere to fetch. Assets without a URL are now excluded in
+   `ReleaseAnalyzer`.
+2. **`[null,null]` parsed into a list of nulls** in four stores - installed applications,
+   favourites, activity history and recently viewed - which would have been handed out and
+   dereferenced later. Null entries are now filtered on load.
+
+### First run, reviewed
+
+The content holds up: no repository, release, asset, architecture, token or checksum
+vocabulary anywhere. One layout defect fixed - the welcome sat in the top third of the
+window and left two thirds empty, reading as a page that had failed to load.
+
+### Still owed
+
+**The clean-machine run itself.** `docs/CLEAN-MACHINE-TEST.md` is the twelve-step script;
+`build/clean-machine-report.ps1` captures the machine state a report needs. Until that
+passes, 0.1.1 stays unreleased.
 
 ## Next task
 

@@ -168,7 +168,9 @@ public sealed class RecentlyViewed : IRecentlyViewed
             var json = File.ReadAllText(_path);
             var entries = JsonSerializer.Deserialize<List<RecentProject>>(json, JsonOptions);
 
-            return _cache = entries ?? [];
+            // A file that parses but contains nulls - "[null,null]" is valid JSON -
+            // would otherwise hand out entries that crash whoever touches them next.
+            return _cache = entries?.Where(entry => entry is not null).ToList() ?? [];
         }
         catch (Exception ex)
         {

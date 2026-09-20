@@ -45,6 +45,96 @@
                 </StackPanel>
             </Border>
 
+
+            <!--
+                A newer RepoDeck. A notification, never an installation: a running process
+                cannot have its own executable replaced underneath it, so this checks, says
+                what it found, and opens the release page.
+            -->
+            <Border Classes="panel">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3">
+                            <TextBlock Text="REPODECK ITSELF" Classes="sectionLabel" />
+                            <TextBlock Text="{Binding VersionText}" Classes="body" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                    VerticalAlignment="Top">
+                            <Button Classes="secondary" Content="CHECK FOR UPDATE"
+                                    IsVisible="{Binding CanCheckForSelfUpdate}"
+                                    Command="{Binding CheckForSelfUpdateCommand}"
+                                    ToolTip.Tip="Ask GitHub whether a newer RepoDeck has been published" />
+
+                            <Button Classes="secondary" Content="STOP"
+                                    IsVisible="{Binding IsCheckingForSelfUpdate}"
+                                    Command="{Binding CheckForSelfUpdateCancelCommand}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Spacing="8" IsVisible="{Binding HasCheckedForSelfUpdate}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Ellipse Classes="led" Classes.ledWarn="{Binding HasSelfUpdate}"
+                                     Classes.ledOn="{Binding !HasSelfUpdate}"
+                                     VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding SelfUpdateHeading}" Classes="body"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding SelfUpdateExplanation}" Classes="secondary"
+                                   TextWrapping="Wrap" />
+
+                        <TextBlock Text="{Binding SelfUpdateReleasedText}" Classes="muted"
+                                   IsVisible="{Binding HasSelfUpdate}" />
+
+                        <!--
+                            Release notes are untrusted remote text. Plain, read-only, and
+                            never rendered as markup, so nothing in them can become a link.
+                        -->
+                        <Expander Header="WHAT CHANGED" IsVisible="{Binding HasSelfUpdateNotes}">
+                            <SelectableTextBlock Text="{Binding SelfUpdateNotes}"
+                                                 FontSize="12" TextWrapping="Wrap"
+                                                 Margin="0,8,0,0"
+                                                 Foreground="{DynamicResource RdTextSecondaryBrush}" />
+                        </Expander>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10"
+                                    IsVisible="{Binding HasSelfUpdate}">
+                            <Button Classes="primary" Content="DOWNLOAD UPDATE"
+                                    Command="{Binding OpenReleasePageCommand}"
+                                    ToolTip.Tip="Opens the release page in your browser. RepoDeck does not update itself." />
+                            <TextBlock Classes="muted" VerticalAlignment="Center"
+                                       Text="Opens your browser. RepoDeck will not replace itself while running." />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!--
+                The report somebody pastes into an issue. Assembled here because asking a
+                non-technical user to find their OS build, architecture and log folder is
+                not a reasonable thing to ask.
+            -->
+            <Border Classes="panel">
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="REPORTING A PROBLEM" Classes="sectionLabel" />
+                        <TextBlock Classes="muted" TextWrapping="Wrap"
+                                   Text="Copies your version, this computer's details, where RepoDeck keeps its files and how the GitHub allowance looks. No tokens, no personal files, and no list of what you have installed." />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="secondary" Content="COPY DIAGNOSTIC REPORT"
+                                Command="{Binding CopyDiagnosticsCommand}" />
+                        <Button Classes="quiet" Content="OPEN ISSUES"
+                                Command="{Binding OpenIssuesCommand}"
+                                ToolTip.Tip="Opens RepoDeck's issue tracker in your browser" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding DiagnosticStatus}" Classes="muted"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
             <!--
                 What RepoDeck has done. Written for somebody to read, not to diagnose: no
                 paths, no stack traces, and nothing from a token ever reaches this list.

@@ -42,6 +42,11 @@ public static class ReleaseAnalyzer
         }
 
         var analyzed = release.Assets
+            // An asset RepoDeck cannot fetch is not a candidate, whatever else it looks
+            // like. GitHub normally supplies a download URL for everything it lists, but
+            // "normally" is not a guarantee about a remote API, and offering to install
+            // something with nowhere to get it from produces a button that cannot work.
+            .Where(asset => !string.IsNullOrWhiteSpace(asset.BrowserDownloadUrl))
             .Select(AssetNameParser.Parse)
             .Select(asset => CompatibilityAnalyzer.Evaluate(asset, machine))
             .OrderByDescending(asset => asset.Score)

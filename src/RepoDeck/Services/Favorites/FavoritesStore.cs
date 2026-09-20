@@ -161,7 +161,10 @@ public sealed class FavoritesStore : IFavoritesStore
             if (!File.Exists(_path)) return _cache = [];
 
             var json = File.ReadAllText(_path);
-            return _cache = JsonSerializer.Deserialize<List<FavoriteEntry>>(json, JsonOptions) ?? [];
+            // A file that parses but contains nulls - "[null,null]" is valid JSON -
+            // would otherwise hand out entries that crash whoever touches them next.
+            return _cache = JsonSerializer.Deserialize<List<FavoriteEntry>>(json, JsonOptions)
+                ?.Where(entry => entry is not null).ToList() ?? [];
         }
         catch (Exception ex)
         {

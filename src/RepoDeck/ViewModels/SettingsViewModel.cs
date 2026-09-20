@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RepoDeck.Infrastructure;
 using RepoDeck.Services.GitHub;
+using RepoDeck.Services.Update;
 
 namespace RepoDeck.ViewModels;
 
@@ -14,11 +15,16 @@ public sealed partial class SettingsViewModel : ViewModelBase
 {
     private readonly AppServices _services;
     private readonly IUiDispatcher _dispatcher;
+    private readonly IClipboardWriter _clipboard;
 
-    public SettingsViewModel(AppServices services, IUiDispatcher? dispatcher = null)
+    public SettingsViewModel(
+        AppServices services,
+        IUiDispatcher? dispatcher = null,
+        IClipboardWriter? clipboard = null)
     {
         _services = services;
         _dispatcher = dispatcher ?? new AvaloniaUiDispatcher();
+        _clipboard = clipboard ?? new AvaloniaClipboardWriter();
         RefreshRateLimit();
         RefreshActivity();
 
@@ -33,6 +39,113 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     /// <summary>Which build this is, so a problem report can name it.</summary>
     public string VersionText => AppVersion.Description;
+
+    // ---- A newer RepoDeck -------------------------------------------------
+
+    /// <summary>
+    /// What RepoDeck knows about a newer RepoDeck. A notification, never an installation:
+    /// a running process cannot have its own executable replaced underneath it, so this
+    /// checks, says what it found, and opens the release page.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelfUpdate))]
+    [NotifyPropertyChangedFor(nameof(SelfUpdateExplanation))]
+    [NotifyPropertyChangedFor(nameof(SelfUpdateHeading))]
+    [NotifyPropertyChangedFor(nameof(HasSelfUpdateNotes))]
+    [NotifyPropertyChangedFor(nameof(SelfUpdateNotes))]
+    [NotifyPropertyChangedFor(nameof(SelfUpdateReleasedText))]
+    [NotifyPropertyChangedFor(nameof(HasCheckedForSelfUpdate))]
+    private SelfUpdate _selfUpdate = SelfUpdate.NotChecked;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCheckForSelfUpdate))]
+    private bool _isCheckingForSelfUpdate;
+
+    public bool HasSelfUpdate => SelfUpdate.HasUpdate;
+    public bool HasCheckedForSelfUpdate => SelfUpdate.State != SelfUpdateState.NotChecked;
+    public bool CanCheckForSelfUpdate => !IsCheckingForSelfUpdate;
+
+    public string SelfUpdateHeading => SelfUpdate.State switch
+    {
+        SelfUpdateState.UpdateAvailable => $"RepoDeck {SelfUpdate.LatestVersion} is available",
+        SelfUpdateState.UpToDate => "RepoDeck is up to date",
+        SelfUpdateState.Unknown => "Could not check",
+        _ => ""
+    };
+
+    public string SelfUpdateExplanation => SelfUpdate.Explanation;
+
+    public string SelfUpdateNotes => SelfUpdate.ReleaseNotes ?? "";
+    public bool HasSelfUpdateNotes => SelfUpdateNotes.Length > 0;
+
+    public string SelfUpdateReleasedText => SelfUpdate.PublishedAt is { } published
+        ? "Released " + Humanize.RelativeTime(published)
+        : "";
+
+    [RelayCommand(CanExecute = nameof(CanCheckForSelfUpdate), IncludeCancelCommand = true)]
+    private async Task CheckForSelfUpdateAsync(CancellationToken cancellationToken)
+    {
+        IsCheckingForSelfUpdate = true;
+
+        try
+        {
+            SelfUpdate = await _services.SelfUpdate.CheckAsync(cancellationToken)
+                .ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // Asked to stop. Nothing to report.
+        }
+        finally
+        {
+            IsCheckingForSelfUpdate = false;
+        }
+    }
+
+    /// <summary>
+    /// Opens the release page. RepoDeck does not download or install itself; the installer
+    /// already upgrades in place, and the user decides when.
+    /// </summary>
+    [RelayCommand]
+    private void OpenReleasePage() =>
+        SystemBrowser.OpenUrl(SelfUpdate.ReleaseUrl ?? RepoDeckProject.ReleasesUrl, _services.Log);
+
+    // ---- Diagnostics ------------------------------------------------------
+
+    [ObservableProperty] private string _diagnosticStatus = "";
+
+    /// <summary>
+    /// Puts a report on the clipboard that somebody can paste into an issue without having
+    /// to find any of it themselves. Deliberately contains no token and no list of what is
+    /// installed - only how many.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyDiagnosticsAsync()
+    {
+        try
+        {
+            var report = DiagnosticReport.Compose(
+                _services.Paths,
+                _services.GitHub.RateLimit,
+                _services.Tokens.HasToken,
+                _services.InstalledApps.GetAll().Count,
+                CrashReporter.LastReportPath);
+
+            var copied = await _clipboard.SetTextAsync(report).ConfigureAwait(true);
+
+            DiagnosticStatus = copied
+                ? "Copied. Paste it into your report."
+                : "Could not reach the clipboard. The same information is in the log folder.";
+        }
+        catch (Exception ex)
+        {
+            _services.Log.Warn("Settings", "Could not copy diagnostics: " + ex.Message);
+            DiagnosticStatus = "Could not build the report.";
+        }
+    }
+
+    [RelayCommand]
+    private void OpenIssues() => SystemBrowser.OpenUrl(RepoDeckProject.IssuesUrl, _services.Log);
 
     public bool HasToken => _services.Tokens.HasToken;
 
