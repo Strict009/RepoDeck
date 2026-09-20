@@ -192,13 +192,16 @@ public static class SearchMatchClassifier
 
         var androidOnly = text.Contains("android only", StringComparison.Ordinal)
                           || text.Contains("only for android", StringComparison.Ordinal)
+                          || text.Contains("for android", StringComparison.Ordinal)
                           || text.Contains("android app", StringComparison.Ordinal)
-                          || topics.Overlaps(["android-app", "android-application"]);
+                          || topics.Overlaps(["android", "android-app", "android-application"]);
         var iosOnly = text.Contains("ios only", StringComparison.Ordinal)
                       || text.Contains("only for ios", StringComparison.Ordinal)
+                      || text.Contains("for ios", StringComparison.Ordinal)
+                      || text.Contains("ios music player", StringComparison.Ordinal)
                       || text.Contains("iphone app", StringComparison.Ordinal)
                       || text.Contains("ipad app", StringComparison.Ordinal)
-                      || topics.Overlaps(["ios-app", "iphone-app", "ipad-app"]);
+                      || topics.Overlaps(["ios", "ios-app", "iphone-app", "ipad-app"]);
 
         if (!androidOnly && !iosOnly) return false;
 

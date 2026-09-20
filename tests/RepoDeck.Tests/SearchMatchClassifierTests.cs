@@ -162,6 +162,65 @@ public class SearchMatchClassifierTests
             reason => reason.Contains("No compatible package", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("material-player", "Best Material You Design music player for Android", null)]
+    [InlineData("elegant-player", "An elegant and simple iOS music player", null)]
+    [InlineData("mobile-player", "A polished music player.", "android")]
+    [InlineData("mobile-player", "A polished music player.", "ios")]
+    public void Common_explicit_mobile_metadata_is_not_a_best_match_on_windows(
+        string name, string description, string? mobileTopic)
+    {
+        var topics = mobileTopic is null
+            ? new[] { "music-player" }
+            : new[] { "music-player", mobileTopic };
+
+        var result = Assess(TestRepositories.Create(
+            name, description: description, topics: topics), "music player");
+
+        Assert.Equal(SearchResultGroup.OtherResult, result.Group);
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains("Windows", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains("has not been checked", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.Reasons,
+            reason => reason.Contains("No compatible package", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("An Android music player for Windows.", "android", "windows")]
+    [InlineData("A cross-platform iOS music player.", "ios", "cross-platform")]
+    [InlineData("An Android music player for desktop computers.", "android", "desktop")]
+    [InlineData("A music player for Windows and Android.", "android", "music-player")]
+    [InlineData("A cross-platform music player for iOS and Windows.", "ios", "music-player")]
+    [InlineData("An iOS music player also published for PCs.", "ios", "win64")]
+    public void Explicit_windows_or_cross_platform_evidence_protects_mobile_mentions(
+        string description, string mobileTopic, string protectingTopic)
+    {
+        var result = Assess(TestRepositories.Create(
+            "music-player", description: description,
+            topics: ["music-player", mobileTopic, protectingTopic]), "music player");
+
+        Assert.Equal(SearchResultGroup.BestMatch, result.Group);
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains("has not been checked", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void No_platform_metadata_remains_unknown_rather_than_negative()
+    {
+        var result = Assess(TestRepositories.Create(
+            "music-player", description: "A polished music player.",
+            topics: ["music-player"]), "music player");
+
+        Assert.Equal(SearchResultGroup.BestMatch, result.Group);
+        Assert.Contains(result.Reasons,
+            reason => reason.Contains("has not been checked", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.Reasons,
+            reason => reason.Contains("Windows", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.Reasons,
+            reason => reason.Contains("No compatible package", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public void Missing_platform_evidence_does_not_rule_out_a_best_match()
     {
