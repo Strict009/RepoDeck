@@ -55,8 +55,7 @@ public static class DiagnosticReport
 
         try
         {
-            var location = Environment.ProcessPath;
-            text.AppendLine($"Running:    {Describe(location)}");
+            text.AppendLine($"Running:    {Shorten(Describe(Environment.ProcessPath))}");
         }
         catch
         {
@@ -83,13 +82,12 @@ public static class DiagnosticReport
         text.AppendLine();
         text.AppendLine("Where RepoDeck keeps its files");
         text.AppendLine("------------------------------");
-        text.AppendLine("(these contain your Windows user name, which is why they are shown as paths)");
         text.AppendLine();
 
         try
         {
-            text.AppendLine($"Root:       {paths.Root}");
-            text.AppendLine($"Logs:       {paths.Logs}");
+            text.AppendLine($"Root:       {Shorten(paths.Root)}");
+            text.AppendLine($"Logs:       {Shorten(paths.Logs)}");
             text.AppendLine($"Exists:     {Directory.Exists(paths.Root)}");
             text.AppendLine($"Writable:   {Describe(CanWrite(paths.Root))}");
         }
@@ -143,7 +141,8 @@ public static class DiagnosticReport
 
         text.AppendLine();
         text.AppendLine("This report contains no tokens, credentials, file contents, search");
-        text.AppendLine("history or list of installed applications. It is safe to paste into");
+        text.AppendLine("history, list of installed applications, or your Windows user name.");
+        text.AppendLine("It is safe to paste into");
         text.AppendLine($"an issue at {Services.Update.RepoDeckProject.IssuesUrl}");
 
         return text.ToString();
@@ -157,7 +156,7 @@ public static class DiagnosticReport
             return;
         }
 
-        text.AppendLine($"Folder:     {logDirectory}");
+        text.AppendLine($"Folder:     {Shorten(logDirectory)}");
 
         var files = new DirectoryInfo(logDirectory)
             .GetFiles()
@@ -204,6 +203,48 @@ public static class DiagnosticReport
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Replaces the user profile with the variable that stands for it, so the common
+    /// paths carry no user name at all.
+    /// </summary>
+    /// <remarks>
+    /// The point of printing a path is to say which location RepoDeck is using, and
+    /// "%LOCALAPPDATA%\RepoDeck" says that better than a path with somebody\x27s name in it.
+    /// A path outside the profile is left alone: if RepoDeck has ended up somewhere
+    /// unexpected, that is the very thing the report exists to show.
+    /// </remarks>
+    internal static string Shorten(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return "unknown";
+
+        // Longest first, because LocalApplicationData sits inside UserProfile.
+        foreach (var (folder, name) in new[]
+                 {
+                     (Environment.SpecialFolder.LocalApplicationData, "%LOCALAPPDATA%"),
+                     (Environment.SpecialFolder.ApplicationData, "%APPDATA%"),
+                     (Environment.SpecialFolder.UserProfile, "%USERPROFILE%")
+                 })
+        {
+            string root;
+
+            try
+            {
+                root = Environment.GetFolderPath(folder);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (root.Length > 0 && path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                return name + path[root.Length..];
+            }
+        }
+
+        return path;
     }
 
     private static string Describe(bool? value) => value switch

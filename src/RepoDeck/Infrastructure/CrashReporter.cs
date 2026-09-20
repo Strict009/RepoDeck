@@ -56,13 +56,20 @@ public static class CrashReporter
     /// Writes a report and, for a failure that stopped RepoDeck from starting, tells the
     /// user where it went. Returns the path, or null if nothing could be written.
     /// </summary>
-    public static string? Report(Exception exception, string what, bool notifyUser = false)
+    /// <param name="paths">
+    /// Where to write. Null means RepoDeck\x27s real folder, which is what the application
+    /// wants and what a test must not have: a test suite writing crash reports into the
+    /// developer\x27s live log folder leaves a healthy installation looking like it has been
+    /// falling over.
+    /// </param>
+    public static string? Report(
+        Exception exception, string what, bool notifyUser = false, AppPaths? paths = null)
     {
         string? path = null;
 
         try
         {
-            path = Write(exception, what);
+            path = Write(exception, what, paths);
             LastReportPath = path;
         }
         catch
@@ -86,9 +93,9 @@ public static class CrashReporter
         return path;
     }
 
-    private static string Write(Exception exception, string what)
+    private static string Write(Exception exception, string what, AppPaths? paths)
     {
-        var directory = ReportDirectory();
+        var directory = ReportDirectory(paths);
         Directory.CreateDirectory(directory);
 
         var name = $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.log";
@@ -138,14 +145,30 @@ public static class CrashReporter
 
         while (current is not null && depth < 10)
         {
-            text.AppendLine($"{current.GetType().FullName}: {current.Message}");
+            // Every one of these can throw. Message and StackTrace are overridable, and an
+            // exception type that misbehaves is exactly the sort of thing that brought
+            // RepoDeck down in the first place. A partial report is worth far more than an
+            // exception thrown while trying to explain an exception.
+            text.AppendLine($"{Safely(() => current.GetType().FullName)}: {Safely(() => current.Message)}");
 
-            if (!string.IsNullOrWhiteSpace(current.StackTrace))
+            var trace = Safely(() => current.StackTrace);
+            if (!string.IsNullOrWhiteSpace(trace) && trace != Unavailable)
             {
-                text.AppendLine(current.StackTrace);
+                text.AppendLine(trace);
             }
 
-            current = current.InnerException;
+            Exception? inner;
+
+            try
+            {
+                inner = current.InnerException;
+            }
+            catch
+            {
+                break;
+            }
+
+            current = inner;
             depth++;
 
             if (current is not null)
@@ -163,6 +186,23 @@ public static class CrashReporter
         return text.ToString();
     }
 
+    private const string Unavailable = "(unavailable)";
+
+    /// <summary>
+    /// Reads one field of an exception that may not want to be read.
+    /// </summary>
+    private static string Safely(Func<string?> read)
+    {
+        try
+        {
+            return read() ?? Unavailable;
+        }
+        catch
+        {
+            return Unavailable;
+        }
+    }
+
     /// <summary>
     /// Recognises the failures a first run on an unprepared machine actually produces.
     /// Returns null rather than guessing when the shape is not familiar.
@@ -170,8 +210,9 @@ public static class CrashReporter
     internal static string? Diagnose(Exception exception)
     {
         var current = exception;
+        var depth = 0;
 
-        while (current is not null)
+        while (current is not null && depth++ < 10)
         {
             switch (current)
             {
@@ -195,7 +236,14 @@ public static class CrashReporter
                     return "The disk appears to be full.";
             }
 
-            current = current.InnerException;
+            try
+            {
+                current = current.InnerException;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         return null;
@@ -204,11 +252,11 @@ public static class CrashReporter
     /// <summary>
     /// RepoDeck's own log folder, or the temporary directory if that cannot be reached.
     /// </summary>
-    private static string ReportDirectory()
+    private static string ReportDirectory(AppPaths? paths)
     {
         try
         {
-            return new AppPaths().Logs;
+            return (paths ?? new AppPaths()).Logs;
         }
         catch
         {

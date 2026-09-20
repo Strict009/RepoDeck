@@ -143,19 +143,35 @@ public sealed class SelfUpdateService : ISelfUpdateService
             };
         }
 
+        // The same rule RepoDeck applies to everybody else it applies to itself: somebody
+        // already running a pre-release is evidently following them, and somebody on a
+        // finished version is not quietly moved onto an alpha. Applying a conservative rule
+        // to other projects and a looser one to itself would be the worst of both.
+        var installedIsPrerelease = installed.LooksLikePrerelease;
+
         var candidates = releases
             .Where(r => !r.Draft)
+            .Where(r => installedIsPrerelease || !r.Prerelease)
             .Select(r => (Release: r, Version: ReleaseVersion.TryParse(r.TagName)))
             .Where(c => c.Version is not null)
+            .Where(c => installedIsPrerelease || !c.Version!.LooksLikePrerelease)
             .ToList();
 
         if (candidates.Count == 0)
         {
+            // Saying "you are up to date" here would be the friendly lie: RepoDeck has not
+            // established that, it has simply found nothing it is willing to compare.
+            var hadAny = releases.Any(r => !r.Draft);
+
             return new SelfUpdate
             {
                 State = SelfUpdateState.Unknown,
                 InstalledVersion = installedVersion,
-                Explanation = "RepoDeck found no published releases of itself to compare against."
+                Explanation = hadAny
+                    ? "RepoDeck found published releases, but none it can compare against "
+                      + $"{installedVersion}. Check the releases page yourself if you think "
+                      + "you are behind."
+                    : "RepoDeck found no published releases of itself to compare against."
             };
         }
 

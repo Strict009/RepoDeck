@@ -167,3 +167,113 @@ public class CrashReporterTests
         Assert.DoesNotContain("gho_", report);
     }
 }
+
+/// <summary>
+/// The crash reporter cannot itself become the crash.
+/// </summary>
+/// <remarks>
+/// This runs when RepoDeck is already failing, often before any of its services exist. A
+/// reporter that throws would replace a diagnosable failure with an undiagnosable one, and
+/// it would do so at the exact moment there is nothing left to catch it.
+/// </remarks>
+public class CrashReporterSafetyTests : IDisposable
+{
+    private readonly string _root = Path.Combine(
+        Path.GetTempPath(), "repodeck-crash-" + Guid.NewGuid().ToString("N"));
+
+    private readonly AppPaths _paths;
+
+    public CrashReporterSafetyTests()
+    {
+        _paths = new AppPaths(_root);
+        _paths.EnsureCreated();
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(_root, recursive: true); } catch { /* a temp folder */ }
+    }
+
+    [Fact]
+    public void Reporting_never_throws_even_for_an_exception_that_misbehaves()
+    {
+        // A type whose Message and StackTrace are hostile. Real ones exist.
+        var nasty = new HostileException();
+
+        var exception = Record.Exception(() => CrashReporter.Report(nasty, "A problem", paths: _paths));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Reporting_a_null_message_does_not_throw()
+    {
+        var exception = Record.Exception(
+            () => CrashReporter.Report(new Exception(null), "A problem", paths: _paths));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void A_deeply_nested_chain_is_bounded_rather_than_walked_forever()
+    {
+        Exception deep = new("bottom");
+
+        for (var i = 0; i < 500; i++) deep = new Exception($"layer {i}", deep);
+
+        var report = CrashReporter.Compose(deep, "A problem");
+
+        // Bounded: the report stays a report rather than becoming a transcript.
+        Assert.True(report.Length < 200_000, $"report was {report.Length} characters");
+    }
+
+    [Fact]
+    public void Composing_never_throws_for_a_hostile_exception()
+    {
+        var exception = Record.Exception(
+            () => CrashReporter.Compose(new HostileException(), "A problem"));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Diagnosing_a_hostile_exception_does_not_throw()
+    {
+        var exception = Record.Exception(() => CrashReporter.Diagnose(new HostileException()));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Reporting_works_before_any_application_service_exists()
+    {
+        // The whole point: this path runs before AppPaths, the log, or Avalonia are set up.
+        // Nothing here may depend on them having been created.
+        var path = CrashReporter.Report(new DllNotFoundException("libSkiaSharp"), "A problem", paths: _paths);
+
+        if (path is not null)
+        {
+            Assert.True(File.Exists(path));
+            Assert.Contains("libSkiaSharp", File.ReadAllText(path));
+        }
+    }
+
+    [Fact]
+    public void Installing_the_handlers_twice_is_harmless()
+    {
+        // Defensive: a future caller doing this must not double-report or throw.
+        var exception = Record.Exception(() =>
+        {
+            CrashReporter.Install();
+            CrashReporter.Install();
+        });
+
+        Assert.Null(exception);
+    }
+
+    private sealed class HostileException : Exception
+    {
+        public override string Message => throw new InvalidOperationException("no message for you");
+        public override string? StackTrace => throw new InvalidOperationException("no trace either");
+    }
+}

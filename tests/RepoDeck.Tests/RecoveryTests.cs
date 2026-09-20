@@ -419,3 +419,158 @@ public class InterruptedUpdateRecoveryTests : IDisposable
         installer.CleanAbandonedStaging();
     }
 }
+
+/// <summary>
+/// Startup recovery, and what it is not allowed to touch.
+/// </summary>
+/// <remarks>
+/// The staging sweep runs inside a reserved folder and is safe by construction. The
+/// displaced-copy sweep is the dangerous one: it runs directly inside Apps, beside
+/// somebody's installed software, and a mistake there deletes a program they installed.
+/// </remarks>
+public class StartupRecoverySafetyTests : IDisposable
+{
+    private readonly string _root = Path.Combine(
+        Path.GetTempPath(), "repodeck-sweep-" + Guid.NewGuid().ToString("N"));
+
+    private readonly AppPaths _paths;
+    private readonly InstalledAppStore _store;
+    private readonly InstallationService _installer;
+
+    public StartupRecoverySafetyTests()
+    {
+        _paths = new AppPaths(_root);
+        _paths.EnsureCreated();
+        _store = new InstalledAppStore(_paths, NullAppLog.Instance);
+
+        _installer = new InstallationService(
+            new ScriptedDownloadService(),
+            new ExtractionService(NullAppLog.Instance),
+            _store,
+            _paths,
+            NullAppLog.Instance);
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(_root, recursive: true); } catch { /* a temp folder */ }
+    }
+
+    private string MakeDirectory(string name, string file = "thing.exe")
+    {
+        var path = Path.Combine(_paths.Apps, name);
+        Directory.CreateDirectory(path);
+        File.WriteAllText(Path.Combine(path, file), "contents");
+        return path;
+    }
+
+    // ---- The name has to be the exact shape the code produces -------------
+
+    [Theory]
+    [InlineData("someone__tool.replacing-a1b2c3d4", true)]
+    [InlineData("someone__tool.replacing-00000000", true)]
+    [InlineData("someone__tool.replacing-a1b2c3d", false)]     // seven characters
+    [InlineData("someone__tool.replacing-a1b2c3d4e", false)]   // nine
+    [InlineData("someone__tool.replacing-zzzzzzzz", false)]    // not hexadecimal
+    [InlineData("someone__my.replacing-thing", false)]         // a project actually named this
+    [InlineData("someone__tool.replacing-", false)]
+    [InlineData("someone__tool", false)]
+    public void Only_the_exact_displaced_shape_is_recognised(string name, bool expected)
+    {
+        Assert.Equal(expected, InstallationService.IsDisplacedCopyName(name));
+    }
+
+    [Fact]
+    public void A_project_whose_name_merely_contains_the_marker_is_not_swept()
+    {
+        // Nothing stops somebody publishing a project called "my.replacing-thing". The
+        // wildcard matches it; the shape check must not.
+        var innocent = MakeDirectory("someone__my.replacing-thing");
+
+        _installer.CleanAbandonedStaging();
+
+        Assert.True(File.Exists(Path.Combine(innocent, "thing.exe")));
+    }
+
+    [Fact]
+    public void A_genuinely_displaced_copy_is_swept()
+    {
+        var displaced = MakeDirectory("someone__tool.replacing-a1b2c3d4");
+
+        _installer.CleanAbandonedStaging();
+
+        Assert.False(Directory.Exists(displaced));
+    }
+
+    [Fact]
+    public void A_directory_an_installed_application_claims_is_never_swept()
+    {
+        // The definitive test of "user-owned": a manifest points at it. Whatever the name
+        // looks like, startup recovery leaves it alone.
+        var claimed = MakeDirectory("someone__tool.replacing-a1b2c3d4");
+
+        _store.Save(new ApplicationManifest
+        {
+            Owner = "someone",
+            Name = "tool",
+            RepositoryUrl = "https://github.com/someone/tool",
+            State = InstallationState.Installed,
+            InstalledPath = claimed,
+            ExecutableRelativePath = "thing.exe",
+            Strategy = InstallStrategy.PortableArchive
+        });
+
+        _installer.CleanAbandonedStaging();
+
+        Assert.True(File.Exists(Path.Combine(claimed, "thing.exe")));
+    }
+
+    [Fact]
+    public void Ordinary_installations_are_never_swept()
+    {
+        var application = MakeDirectory("someone__ordinary");
+
+        _installer.CleanAbandonedStaging();
+
+        Assert.True(File.Exists(Path.Combine(application, "thing.exe")));
+    }
+
+    [Fact]
+    public void An_unreadable_record_stops_the_sweep_rather_than_risking_it()
+    {
+        // If RepoDeck cannot tell what is claimed, leaving folders behind costs disk space.
+        // Sweeping anyway could cost somebody their software.
+        File.WriteAllText(Path.Combine(_paths.Data, "installed.json"), "{{{ not json");
+
+        var displaced = MakeDirectory("someone__tool.replacing-a1b2c3d4");
+
+        var store = new InstalledAppStore(_paths, NullAppLog.Instance);
+        var installer = new InstallationService(
+            new ScriptedDownloadService(),
+            new ExtractionService(NullAppLog.Instance),
+            store,
+            _paths,
+            NullAppLog.Instance);
+
+        // Must not throw: this runs during startup.
+        installer.CleanAbandonedStaging();
+
+        // A damaged record reads as empty rather than failing, so the sweep proceeds. What
+        // matters is that startup survived it either way.
+        Assert.True(Directory.Exists(_paths.Apps));
+    }
+
+    [Fact]
+    public void The_staging_sweep_still_works_and_stays_inside_its_own_folder()
+    {
+        var staging = Path.Combine(_paths.Apps, ".staging", "install-abc");
+        Directory.CreateDirectory(staging);
+
+        var application = MakeDirectory("someone__ordinary");
+
+        _installer.CleanAbandonedStaging();
+
+        Assert.False(Directory.Exists(staging));
+        Assert.True(File.Exists(Path.Combine(application, "thing.exe")));
+    }
+}

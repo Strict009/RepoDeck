@@ -19,6 +19,10 @@ internal sealed class FakeGitHubClient : IGitHubClient
     public int RepositoryCallCount { get; private set; }
     public int ReadmeCallCount { get; private set; }
     public int ReleaseCallCount { get; private set; }
+
+    /// <summary>Which project the last release query actually asked about.</summary>
+    public string? LastReleasesOwner { get; private set; }
+    public string? LastReleasesName { get; private set; }
     public int TreeCallCount { get; private set; }
     public int TextFileCallCount { get; private set; }
 
@@ -114,6 +118,8 @@ internal sealed class FakeGitHubClient : IGitHubClient
         string owner, string name, int limit = 10, CancellationToken cancellationToken = default)
     {
         ReleaseCallCount++;
+        LastReleasesOwner = owner;
+        LastReleasesName = name;
         cancellationToken.ThrowIfCancellationRequested();
         if (ReleasesThrows is not null) throw ReleasesThrows;
         return Task.FromResult<IReadOnlyList<GitHubRelease>>(Releases);

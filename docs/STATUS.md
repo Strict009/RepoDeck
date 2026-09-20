@@ -168,7 +168,7 @@ Seven of these were found by running the application, not by reading it.
 ## Verification performed
 
 - `dotnet build` - clean, 0 errors, 0 warnings.
-- `dotnet test` - **1123 passed, 0 failed** (up from 798; 325 new tests).
+- `dotnet test` - **1171 passed, 0 failed** (up from 798; 373 new tests).
 - Every new guard was confirmed to **fail without its fix**, not merely to pass with it.
 
 **Driven on screen, against real GitHub and a real installation:**
@@ -219,6 +219,45 @@ edit to the manifest, noted here so the result is not mistaken for an unprompted
     no debounce; relevance works from a one-line description; collections are searches rather
     than curation; compact view cannot be sorted; the light theme is untested in practice;
     image decoding has no automated test and no disk cache.
+
+## Clean-environment evidence (second PC)
+
+RepoDeck 0.1.0-alpha was installed and used on a second physical Windows machine, from the
+public installer on the GitHub release rather than a local build.
+
+**Verified on that machine:**
+
+| Step | Result |
+|---|---|
+| Download the published installer | Worked |
+| SmartScreen warning | Appeared, as expected for an unsigned build |
+| Install | Completed |
+| Launch | RepoDeck started |
+| Search GitHub | Returned results |
+| Find a specific project (KYTYPS5) | Found |
+| Install that application | Completed |
+
+That settles the question 0.1.0-alpha could not answer about itself: **a self-contained
+build does start on a machine that is not the one it was built on**, and the installer works
+end to end for a first-time user.
+
+**Not verified on that machine**, and therefore not claimed:
+
+- The first-run welcome
+- Opening a project and using Back to return to results
+- **Running** the installed application - it was installed, not launched
+- Closing and reopening RepoDeck and finding the application still listed
+- Checking for updates, and Repair
+- Removing the application, and uninstalling RepoDeck
+- That `%LOCALAPPDATA%\RepoDeck` survives uninstalling RepoDeck
+
+Roughly steps 1-4, 6 and 8 of the twelve in `docs/CLEAN-MACHINE-TEST.md`. The remaining six
+are the lifecycle half - run, persist, update, repair, remove, uninstall - and they are the
+half that decides whether RepoDeck is worth keeping on a machine rather than merely
+installable onto one.
+
+**The 0.1.x gate is therefore not complete.** What has been proven is that RepoDeck installs
+and works; what has not is that it can be lived with and removed cleanly.
 
 ## 0.1.1-alpha — in preparation, not released
 

@@ -144,14 +144,72 @@ public sealed partial class InstallationService
     /// startup: an installation that never promoted is not an installation, and its
     /// remains should not accumulate.
     /// </summary>
+    /// <summary>
+    /// The exact shape <see cref="DisplacedName"/> produces: a name ending in
+    /// ".replacing-" followed by eight hexadecimal characters and nothing else.
+    /// </summary>
+    internal static bool IsDisplacedCopyName(string name)
+    {
+        const string marker = ".replacing-";
+
+        var at = name.LastIndexOf(marker, StringComparison.Ordinal);
+        if (at < 0) return false;
+
+        var suffix = name[(at + marker.Length)..];
+
+        return suffix.Length == 8 && suffix.All(Uri.IsHexDigit);
+    }
+
+    /// <summary>
+    /// Every directory an installed application currently claims. Startup recovery never
+    /// deletes one of these, whatever its name looks like.
+    /// </summary>
+    private HashSet<string>? ClaimedInstallationPaths()
+    {
+        var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            foreach (var manifest in _store.GetAll())
+            {
+                if (string.IsNullOrWhiteSpace(manifest.InstalledPath)) continue;
+
+                try
+                {
+                    claimed.Add(Path.GetFullPath(manifest.InstalledPath));
+                }
+                catch
+                {
+                    // An unusable path claims nothing, and is somebody else\x27s problem.
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Null means "do not sweep". Throwing here would take down startup, which runs
+            // this; sweeping anyway would risk deleting something a record it could not
+            // read was protecting. Leaving the folders alone costs disk space and nothing
+            // else, and the next run can try again.
+            _log.Warn("Install", "Could not read installed applications before cleaning: " + ex.Message);
+            return null;
+        }
+
+        return claimed;
+    }
+
     public int CleanAbandonedStaging()
     {
-        var root = Path.Combine(_paths.Apps, StagingFolderName);
-        if (!Directory.Exists(root)) return 0;
-
         var removed = 0;
 
-        foreach (var directory in Directory.EnumerateDirectories(root))
+        // Two independent sweeps. The early return that used to sit here meant displaced
+        // copies were only ever cleaned when a staging folder happened to exist alongside
+        // them - so an update interrupted after promotion had begun, with staging already
+        // gone, left its displaced copy on disk forever.
+        var root = Path.Combine(_paths.Apps, StagingFolderName);
+
+        foreach (var directory in Directory.Exists(root)
+                     ? Directory.EnumerateDirectories(root)
+                     : [])
         {
             try
             {
@@ -165,8 +223,29 @@ public sealed partial class InstallationService
         }
 
         // Displaced copies from an interrupted promotion are also dead weight.
-        foreach (var directory in Directory.EnumerateDirectories(_paths.Apps, "*.replacing-*"))
+        //
+        // Two guards, because this is the one sweep that runs directly inside Apps rather
+        // than inside a reserved folder, and a mistake here deletes somebody\x27s software.
+        //
+        // The wildcard alone is not enough: "*.replacing-*" would also match an installed
+        // application whose own name happened to contain that text, and nothing stops a
+        // project being called "my.replacing-thing". So the name must match the exact shape
+        // this code produces, and the directory must not be one any manifest claims.
+        var claimed = ClaimedInstallationPaths();
+
+        foreach (var directory in claimed is not null && Directory.Exists(_paths.Apps)
+                     ? Directory.EnumerateDirectories(_paths.Apps, "*.replacing-*")
+                     : [])
         {
+            if (!IsDisplacedCopyName(Path.GetFileName(directory))) continue;
+
+            if (claimed.Contains(Path.GetFullPath(directory)))
+            {
+                _log.Warn("Install",
+                    $"Not removing {directory}: an installed application claims it.");
+                continue;
+            }
+
             try
             {
                 DeleteManagedDirectory(directory);
