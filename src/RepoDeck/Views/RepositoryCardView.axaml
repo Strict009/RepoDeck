@@ -128,10 +128,10 @@
                         <TextBlock Text="CAN INSTALL" Classes="microLabel" Width="74"
                                    TextWrapping="NoWrap" VerticalAlignment="Center" />
                         <Border Classes="statusPill"
-                                Classes.positive="{Binding IsReadyToInstall}"
-                                Classes.caution="{Binding IsDeveloperFocused}"
-                                Classes.danger="{Binding IsNotCompatible}"
-                                Classes.neutral="{Binding !IsInstallabilityKnown}">
+                                Classes.positive="{Binding InstallabilityIsPositive}"
+                                Classes.caution="{Binding InstallabilityIsCaution}"
+                                Classes.danger="{Binding InstallabilityIsDanger}"
+                                Classes.neutral="{Binding InstallabilityIsNeutral}">
                             <TextBlock Text="{Binding InstallabilityLabel}" />
                         </Border>
                     </StackPanel>

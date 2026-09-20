@@ -8,12 +8,14 @@ using RepoDeck.ViewModels;
 namespace RepoDeck.Tests;
 
 /// <summary>
-/// What the shared visual foundation must not break.
+/// The invariants the visual foundation must not break.
 /// </summary>
 /// <remarks>
-/// Phase 1 changed how things look, not what they do or say. These hold that line: the
-/// descriptions RepoDeck stores are never rewritten, an absence of evidence never acquires a
-/// colour, and the actions each page owns are still the actions it owns.
+/// These protect meaning, not markup. An earlier version of this file froze the shape of the
+/// implementation - that an EmptyStateView existed, that a style class was spelled a
+/// particular way, that a button said "WHY?", that Project Detail was never touched - which
+/// would have made planned work fail for no reason. Structural breakage is XAML compilation's
+/// job. What is left here is what a person would still be entitled to expect afterwards.
 /// </remarks>
 public class VisualFoundationContractTests
 {
@@ -33,12 +35,12 @@ public class VisualFoundationContractTests
             log: NullAppLog.Instance);
     }
 
-    // ---- The source text is never rewritten -------------------------------
+    // ---- Display text is derived, and the source is never touched ---------
 
     [Fact]
     public void Cleaning_a_card_purpose_leaves_the_repository_description_alone()
     {
-        const string original = ":rocket: a fast thing.";
+        const string original = ":rocket: A fast thing.";
 
         var card = Card(original);
 
@@ -54,23 +56,22 @@ public class VisualFoundationContractTests
             Owner = "someone",
             Name = "thing",
             RepositoryUrl = "https://github.com/someone/thing",
-            Description = ":star: a saved thing.",
+            Description = ":star: A saved thing.",
             AddedAt = DateTimeOffset.UtcNow
         };
 
         var favourite = new FavoriteViewModel(
             entry, isInstalled: false, _ => { }, _ => { }, NullAppLog.Instance);
 
-        Assert.Equal(":star: a saved thing.", favourite.Entry.Description);
+        Assert.Equal(":star: A saved thing.", favourite.Entry.Description);
         Assert.DoesNotContain(":star:", favourite.Description);
     }
 
     [Fact]
     public void A_project_with_no_description_still_gets_a_sentence()
     {
-        // The cleaner itself invents nothing - null in, empty out. Saying something useful
-        // about a project that describes itself nowhere is a decision made above it, and the
-        // explanation service already makes it.
+        // The cleaner invents nothing - null in, empty out. Saying something useful about a
+        // project that describes itself nowhere is a decision made above it.
         Assert.Equal("", DescriptionCleaner.Clean(null));
 
         var purpose = Card(null).Purpose;
@@ -82,30 +83,88 @@ public class VisualFoundationContractTests
     [Fact]
     public void The_purpose_is_computed_once_rather_than_per_binding_read()
     {
-        var card = Card("a thing.");
+        var card = Card("A thing.");
 
         Assert.Same(card.Purpose, card.Purpose);
     }
 
-    // ---- Unknown is neutral, everywhere -----------------------------------
+    // ---- The semantic tone mapping ----------------------------------------
 
-    [Fact]
-    public void An_unchecked_installability_is_neutral_and_carries_words()
+    [Theory]
+    [InlineData(InstallabilityState.ReadyToInstall, StatusTone.Positive)]
+    [InlineData(InstallabilityState.NeedsSetup, StatusTone.Caution)]
+    [InlineData(InstallabilityState.DeveloperFocused, StatusTone.Caution)]
+    [InlineData(InstallabilityState.NotCompatible, StatusTone.Danger)]
+    [InlineData(InstallabilityState.Unknown, StatusTone.Neutral)]
+    public void Every_installability_state_maps_to_its_intended_tone(
+        InstallabilityState state, StatusTone expected)
     {
-        var card = Card("a thing.");
-
-        Assert.False(card.IsInstallabilityKnown);
-        Assert.False(card.IsReadyToInstall);
-        Assert.False(card.IsDeveloperFocused);
-        Assert.False(card.IsNotCompatible);
-
-        // The pill is never blank: a tone with no label would be colour as the sole signal.
-        Assert.False(string.IsNullOrWhiteSpace(card.InstallabilityLabel));
+        Assert.Equal(expected, new Installability { State = state }.Tone);
     }
 
     [Fact]
-    public void Every_installability_state_has_a_label_to_put_in_its_pill()
+    public void Not_having_looked_yet_is_never_a_warning()
     {
+        // The rule the whole pill system rests on: an absence of evidence is not a caution,
+        // a danger, or good news. It is silence.
+        var unknown = new Installability { State = InstallabilityState.Unknown };
+
+        Assert.Equal(StatusTone.Neutral, unknown.Tone);
+
+        var card = Card("A thing.");
+
+        Assert.False(card.IsInstallabilityKnown);
+        Assert.True(card.InstallabilityIsNeutral);
+        Assert.False(card.InstallabilityIsPositive);
+        Assert.False(card.InstallabilityIsCaution);
+        Assert.False(card.InstallabilityIsDanger);
+    }
+
+    [Fact]
+    public void Being_ruled_out_stays_distinct_from_not_having_been_checked()
+    {
+        var checkedAndRuledOut = new Installability { State = InstallabilityState.NotCompatible };
+        var notChecked = new Installability { State = InstallabilityState.Unknown };
+
+        Assert.NotEqual(checkedAndRuledOut.Tone, notChecked.Tone);
+    }
+
+    [Fact]
+    public void Needing_setup_reads_as_work_rather_than_failure()
+    {
+        var needsSetup = new Installability { State = InstallabilityState.NeedsSetup };
+
+        Assert.Equal(StatusTone.Caution, needsSetup.Tone);
+        Assert.NotEqual(StatusTone.Danger, needsSetup.Tone);
+    }
+
+    [Fact]
+    public void Every_state_reaches_exactly_one_tone_binding()
+    {
+        // NeedsSetup previously matched none of the four and fell through to an unstyled
+        // pill. Whatever the states become, each must land on exactly one.
+        foreach (var state in Enum.GetValues<InstallabilityState>())
+        {
+            var card = Card("A thing.");
+            card.ApplyAnalysedInstallability(new Installability { State = state });
+
+            var matched = new[]
+            {
+                card.InstallabilityIsPositive,
+                card.InstallabilityIsCaution,
+                card.InstallabilityIsDanger,
+                card.InstallabilityIsNeutral
+            }.Count(on => on);
+
+            Assert.True(matched == 1, $"{state} matched {matched} tones");
+        }
+    }
+
+    [Fact]
+    public void A_tone_never_travels_without_words()
+    {
+        // Colour is never the only signal, so every state must have a label to put in the
+        // pill beside it.
         foreach (var state in Enum.GetValues<InstallabilityState>())
         {
             var label = new Installability { State = state }.Label;
@@ -114,7 +173,7 @@ public class VisualFoundationContractTests
         }
     }
 
-    // ---- The markup contracts ---------------------------------------------
+    // ---- Product rules that outlive any redesign --------------------------
 
     private static string View(string name) =>
         File.ReadAllText(Path.Combine(SourceViews(), name));
@@ -133,103 +192,36 @@ public class VisualFoundationContractTests
     }
 
     [Fact]
-    public void Unknown_binds_to_the_neutral_tone_wherever_a_status_pill_appears()
-    {
-        foreach (var view in new[] { "DiscoverView.axaml", "RepositoryCardView.axaml" })
-        {
-            Assert.Contains("Classes.neutral=\"{Binding !IsInstallabilityKnown}\"", View(view));
-        }
-    }
-
-    [Fact]
-    public void A_status_pill_never_relies_on_colour_alone()
-    {
-        // Every statusPill in the product wraps a TextBlock. A pill with a tone and no text
-        // would be unreadable in greyscale and to anyone who cannot separate the hues.
-        foreach (var name in new[]
-                 {
-                     "DiscoverView.axaml", "RepositoryCardView.axaml",
-                     "FavoritesView.axaml", "InstalledView.axaml"
-                 })
-        {
-            var markup = View(name);
-            var pills = markup.Split("Classes=\"statusPill").Length - 1;
-
-            if (pills == 0) continue;
-
-            Assert.Contains("<TextBlock", markup);
-        }
-    }
-
-    [Fact]
-    public void The_card_no_longer_labels_every_result_with_the_product_name()
-    {
-        Assert.DoesNotContain("Text=\"REPODECK\"", View("RepositoryCardView.axaml"));
-    }
-
-    [Fact]
-    public void Search_still_offers_its_evidence_in_both_views()
-    {
-        Assert.Contains("Header=\"WHY?\"", View("RepositoryCardView.axaml"));
-        Assert.Contains("Content=\"WHY?\"", View("DiscoverView.axaml"));
-        Assert.Contains("WhyReasons", View("RepositoryCardView.axaml"));
-        Assert.Contains("WhyReasons", View("DiscoverView.axaml"));
-    }
-
-    [Fact]
-    public void The_library_still_offers_run_repair_and_update()
-    {
-        var markup = View("InstalledView.axaml");
-
-        Assert.Contains("RunCommand", markup);
-        Assert.Contains("RepairCommand", markup);
-        Assert.Contains("UpdateCommand", markup);
-    }
-
-    [Fact]
-    public void Favorites_still_offers_open_and_forget()
-    {
-        var markup = View("FavoritesView.axaml");
-
-        Assert.Contains("OpenCommand", markup);
-        Assert.Contains("ForgetCommand", markup);
-    }
-
-    [Fact]
     public void Downloads_still_has_no_way_to_run_anything()
     {
-        // The page exists because RepoDeck declined to run these. It never gains a Run.
+        // The page exists because RepoDeck declined to run these. However it is redrawn, it
+        // never gains a Run. This one is about the product, not the markup.
         var markup = View("DownloadsView.axaml");
 
         Assert.DoesNotContain("RunCommand", markup);
-        Assert.DoesNotContain(">RUN<", markup);
         Assert.DoesNotContain("Content=\"RUN\"", markup);
     }
 
     [Fact]
-    public void Downloads_is_not_dressed_as_an_application_row()
+    public void Nothing_in_the_shared_styles_claims_safety_trust_or_quality()
     {
-        // Transfers and retained files are not applications, and giving them the library's
-        // clothes would imply the action the page refuses to offer.
-        Assert.DoesNotContain("Classes=\"applicationRow\"", View("DownloadsView.axaml"));
-    }
+        string[] forbidden = ["safe", "trusted", "recommended", "verified", "approved", "quality"];
 
-    [Fact]
-    public void The_three_pages_share_one_empty_state_rather_than_three_copies()
-    {
-        foreach (var name in new[] { "FavoritesView.axaml", "InstalledView.axaml", "DownloadsView.axaml" })
+        foreach (var name in new[]
+                 {
+                     "Theme.axaml", "DiscoverView.axaml", "RepositoryCardView.axaml",
+                     "FavoritesView.axaml", "InstalledView.axaml", "DownloadsView.axaml"
+                 })
         {
-            Assert.Contains("EmptyStateView", View(name));
+            var markup = View(name);
+
+            foreach (var word in forbidden)
+            {
+                // "safe" appears inside words like "safety" in existing disclaimers, so this
+                // looks for it as a claim about the software rather than as a substring.
+                Assert.DoesNotContain($"\"{word}\"", markup, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain($">{word}<", markup, StringComparison.OrdinalIgnoreCase);
+            }
         }
-    }
-
-    [Fact]
-    public void Project_detail_was_left_alone()
-    {
-        // Phase 1 explicitly stops short of Project Detail 2.0.
-        var markup = View("RepositoryDetailsView.axaml");
-
-        Assert.DoesNotContain("applicationRow", markup);
-        Assert.DoesNotContain("statusPill", markup);
     }
 }

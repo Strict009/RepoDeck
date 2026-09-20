@@ -87,10 +87,13 @@
                                                 <TextBlock Text="{Binding VersionText}" />
                                             </Border>
 
-                                            <!-- Something wants doing: an update, or a
-                                                 repair. The one place on this page where
-                                                 colour is earning its keep. -->
-                                            <Border Classes="statusPill caution"
+                                            <!-- Something wants doing. Damaged is danger,
+                                                 because files are missing; anything else
+                                                 needing attention is work rather than
+                                                 breakage, so it reads caution. -->
+                                            <Border Classes="statusPill"
+                                                    Classes.danger="{Binding IsDamaged}"
+                                                    Classes.caution="{Binding !IsDamaged}"
                                                     IsVisible="{Binding NeedsAttention}">
                                                 <TextBlock Text="{Binding StatusText}" />
                                             </Border>

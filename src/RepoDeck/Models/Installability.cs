@@ -31,6 +31,32 @@ public enum InstallabilityState
     Unknown
 }
 
+/// <summary>
+/// How a status should read, independent of which surface is drawing it.
+/// </summary>
+/// <remarks>
+/// The tone reinforces a label and never replaces it: every pill in RepoDeck carries words,
+/// so the meaning survives greyscale, colour-blindness and a screenshot in a bug report.
+///
+/// <see cref="Neutral"/> is the one that matters most. Not having looked yet is the
+/// commonest state by far, and it is not a warning about the software - colouring it is what
+/// turns a page of ordinary results into a page that looks like a list of problems.
+/// </remarks>
+public enum StatusTone
+{
+    /// <summary>Nothing is known, or nothing needs saying. Quiet, never coloured.</summary>
+    Neutral,
+
+    /// <summary>It is ready, current, or done.</summary>
+    Positive,
+
+    /// <summary>Work is needed, or RepoDeck cannot do this part for you.</summary>
+    Caution,
+
+    /// <summary>Positively ruled out, or broken.</summary>
+    Danger
+}
+
 /// <summary>An installability answer together with the evidence behind it.</summary>
 /// <remarks>
 /// <see cref="Reasons"/> is never empty for a state other than <see cref="InstallabilityState.Unknown"/>.
@@ -81,6 +107,31 @@ public sealed record Installability
     public const string NotASafetyJudgement =
         "This describes what RepoDeck can do, not whether the software is safe. "
         + "RepoDeck cannot tell you that.";
+
+    /// <summary>
+    /// How this state should read on a card or a row. Every state is mapped deliberately.
+    /// </summary>
+    /// <remarks>
+    /// <list type="bullet">
+    /// <item><see cref="InstallabilityState.ReadyToInstall"/> is the good outcome.</item>
+    /// <item><see cref="InstallabilityState.NeedsSetup"/> is caution: known extra work, not
+    /// a failure. RepoDeck can still fetch it.</item>
+    /// <item><see cref="InstallabilityState.DeveloperFocused"/> is caution rather than
+    /// neutral, because "this is a building block, not a program" is something RepoDeck
+    /// worked out - conflating it with "not looked at yet" would lose that.</item>
+    /// <item><see cref="InstallabilityState.NotCompatible"/> is the only danger: it is the
+    /// one verdict that is positively ruled out rather than merely unhelpful.</item>
+    /// <item><see cref="InstallabilityState.Unknown"/> is neutral, always.</item>
+    /// </list>
+    /// </remarks>
+    public StatusTone Tone => State switch
+    {
+        InstallabilityState.ReadyToInstall => StatusTone.Positive,
+        InstallabilityState.NeedsSetup => StatusTone.Caution,
+        InstallabilityState.DeveloperFocused => StatusTone.Caution,
+        InstallabilityState.NotCompatible => StatusTone.Danger,
+        _ => StatusTone.Neutral
+    };
 
     /// <summary>True when the interface may offer INSTALL rather than DETAILS.</summary>
     public bool AllowsDirectInstall => State == InstallabilityState.ReadyToInstall;

@@ -122,6 +122,11 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsNotCompatible))]
     [NotifyPropertyChangedFor(nameof(IsDeveloperFocused))]
     [NotifyPropertyChangedFor(nameof(IsInstallabilityKnown))]
+    [NotifyPropertyChangedFor(nameof(InstallabilityTone))]
+    [NotifyPropertyChangedFor(nameof(InstallabilityIsPositive))]
+    [NotifyPropertyChangedFor(nameof(InstallabilityIsCaution))]
+    [NotifyPropertyChangedFor(nameof(InstallabilityIsDanger))]
+    [NotifyPropertyChangedFor(nameof(InstallabilityIsNeutral))]
     [NotifyPropertyChangedFor(nameof(PrimaryActionLabel))]
     [NotifyPropertyChangedFor(nameof(PrimaryActionTooltip))]
     private Installability _installability;
@@ -149,6 +154,24 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     public bool IsNotCompatible => Installability.State == InstallabilityState.NotCompatible;
     public bool IsDeveloperFocused => Installability.State == InstallabilityState.DeveloperFocused;
     public bool IsInstallabilityKnown => Installability.State != InstallabilityState.Unknown;
+
+    /// <summary>
+    /// How the installability pill should read. The decision lives on
+    /// <see cref="Models.Installability.Tone"/>, so it is made once and can be tested
+    /// directly rather than inferred from a label or re-derived in each view.
+    /// </summary>
+    /// <remarks>
+    /// Avalonia cannot switch a style class on an enum, so the four booleans below exist for
+    /// binding. They are the only place the enum is unpacked, and every state reaches exactly
+    /// one of them - including NeedsSetup, which previously matched none and fell through to
+    /// an unstyled pill.
+    /// </remarks>
+    public StatusTone InstallabilityTone => Installability.Tone;
+
+    public bool InstallabilityIsPositive => InstallabilityTone == StatusTone.Positive;
+    public bool InstallabilityIsCaution => InstallabilityTone == StatusTone.Caution;
+    public bool InstallabilityIsDanger => InstallabilityTone == StatusTone.Danger;
+    public bool InstallabilityIsNeutral => InstallabilityTone == StatusTone.Neutral;
 
     // ---- 7. The action ----------------------------------------------------
 
@@ -357,6 +380,11 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsNotCompatible));
         OnPropertyChanged(nameof(IsDeveloperFocused));
         OnPropertyChanged(nameof(IsInstallabilityKnown));
+        OnPropertyChanged(nameof(InstallabilityTone));
+        OnPropertyChanged(nameof(InstallabilityIsPositive));
+        OnPropertyChanged(nameof(InstallabilityIsCaution));
+        OnPropertyChanged(nameof(InstallabilityIsDanger));
+        OnPropertyChanged(nameof(InstallabilityIsNeutral));
         OnPropertyChanged(nameof(PrimaryActionLabel));
         OnPropertyChanged(nameof(PrimaryActionTooltip));
         OnPropertyChanged(nameof(Classification));

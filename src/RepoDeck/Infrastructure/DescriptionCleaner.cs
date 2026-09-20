@@ -1,24 +1,32 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace RepoDeck.Infrastructure;
 
 /// <summary>
-/// Tidies a project description for display, without ever rewriting what the project said.
+/// Removes presentation artefacts from a project description. Never rewrites the words.
 /// </summary>
 /// <remarks>
 /// <para>
 /// A GitHub description is written for a repository page, not for a card in somebody else's
 /// application. It arrives with emoji shortcodes GitHub would have rendered, with newlines
-/// and runs of spaces, and at whatever length the author felt like. Shown raw it produces
-/// lines like ":lollipop: Wow, such a beautiful HTML5 music player." and sentences that stop
-/// mid-clause.
+/// and runs of spaces. Shown raw it produces lines like ":lollipop: Wow, such a beautiful
+/// HTML5 music player."
 /// </para>
 /// <para>
-/// This is deliberately conservative. It removes things that are markup rather than words,
-/// and it shortens. It does not paraphrase, does not title-case, and never invents a
-/// description for a project that has none: an empty result comes back empty, and the view
-/// model decides what to say about that. The original text is never modified - callers
-/// expose the result as a separate display property.
+/// The line this draws: it removes things that are <em>markup</em> and normalises
+/// <em>whitespace</em>, both of which can be decided objectively. It does not touch letters.
+/// An earlier version capitalised the first word of all-lowercase descriptions and was
+/// wrong: "ffmpeg wrapper for the terminal." became "Ffmpeg wrapper...", "ripgrep searches
+/// files." became "Ripgrep...", and "ios music player." became "Ios...". No rule can tell a
+/// lowercase product name from a lowercase word by looking at the word, so RepoDeck does not
+/// try. Casing chosen by the people who wrote the project is preserved exactly - ffmpeg,
+/// ripgrep, iOS, .NET, C#, C++, acronyms and deliberately lowercase names all survive.
+/// </para>
+/// <para>
+/// The original text is never modified. Callers expose the result as a separate display
+/// property, and an empty result stays empty: inventing a description for a project that has
+/// none would be putting words in a stranger's mouth.
 /// </para>
 /// </remarks>
 public static class DescriptionCleaner
@@ -27,15 +35,20 @@ public static class DescriptionCleaner
     private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
-    /// One or more emoji shortcodes standing as their own token.
+    /// A run of emoji shortcodes, including any punctuation or spacing holding them
+    /// together.
     /// </summary>
     /// <remarks>
-    /// Anchored to whitespace on both sides so that a colon inside a URL, a namespace or a
-    /// time cannot be mistaken for one. The inner group repeats because GitHub descriptions
-    /// really do carry ":notes::arrow_forward:" as a single run.
+    /// The run matters. Descriptions carry ":notes::arrow_forward:" with nothing between,
+    /// ":rocket: :fire:" with a space, and ":rocket:,:fire:" with a comma. Matching one
+    /// shortcode at a time left the separator and the next shortcode stranded, because the
+    /// second one no longer began at a token boundary.
+    ///
+    /// The leading boundary is what keeps a URL, a namespace like std::vector and a time
+    /// like 12:30 out of this: none of them starts a colon-delimited token after whitespace.
     /// </remarks>
-    private static readonly Regex Shortcodes = new(
-        @"(?<=^|\s)(?::[a-z0-9_+\-]+:)+(?=$|\s|[.,;:!?)\]])",
+    private static readonly Regex ShortcodeRun = new(
+        @"(?<=^|\s)(?::[a-z0-9_+\-]+:)(?:[\s,;]*:[a-z0-9_+\-]+:)*(?=$|\s|[.,;:!?)\]])",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         MatchTimeout);
 
@@ -50,26 +63,14 @@ public static class DescriptionCleaner
         @" +([.,;:!?)\]])", RegexOptions.CultureInvariant, MatchTimeout);
 
     /// <summary>
-    /// Words that end in a full stop without ending a sentence. Cutting after one of these
-    /// produces "Works with Node.js, npm, etc." followed by nothing.
+    /// Cleans a description for display. Returns an empty string when there is nothing left
+    /// to show, which is not the same as a sentence saying so.
     /// </summary>
-    private static readonly string[] Abbreviations =
-    [
-        "e.g.", "i.e.", "etc.", "vs.", "cf.", "al.", "approx.", "fig.", "no.", "vol.",
-        "dr.", "mr.", "mrs.", "ms.", "prof.", "st.", "inc.", "ltd.", "co.", "jr.", "sr."
-    ];
-
-    /// <summary>
-    /// A sentence may be dropped to reach the limit only if what remains is at least this
-    /// much of it. Below that, trimming mid-sentence keeps more meaning than cutting early.
-    /// </summary>
-    private const double SentenceKeepRatio = 0.6;
-
-    /// <summary>
-    /// Cleans a description for display. Returns an empty string when there is nothing to
-    /// show, which is not the same as a sentence saying so.
-    /// </summary>
-    /// <param name="maxLength">Zero or less leaves the length alone.</param>
+    /// <param name="maxLength">
+    /// Zero or less leaves the length alone, which is what every caller in RepoDeck does
+    /// today. When a limit is given the result may be one character longer, because the
+    /// ellipsis marking the cut is added after trimming to it.
+    /// </param>
     public static string Clean(string? description, int maxLength = 0)
     {
         if (string.IsNullOrWhiteSpace(description)) return "";
@@ -78,7 +79,7 @@ public static class DescriptionCleaner
 
         try
         {
-            text = Shortcodes.Replace(description, " ");
+            text = ShortcodeRun.Replace(description, " ");
             text = Whitespace.Replace(text, " ");
             text = SpaceBeforePunctuation.Replace(text, "$1");
         }
@@ -91,105 +92,55 @@ public static class DescriptionCleaner
 
         text = text.Trim();
 
-        if (text.Length == 0) return "";
-
-        text = SentenceCase(text);
-
+        // Whatever is left is the project's own words, in the project's own casing.
         return maxLength > 0 && text.Length > maxLength ? Shorten(text, maxLength) : text;
     }
 
     /// <summary>
-    /// Capitalises the first letter, but only where the text is plainly ordinary prose that
-    /// happens to have been typed in lower case.
+    /// Shortens at a word boundary, and never in the middle of a character.
     /// </summary>
     /// <remarks>
-    /// The risk here is damage, not missed polish: "ffmpeg wrapper for the terminal" must
-    /// never become "Ffmpeg wrapper for the terminal", and no rule can tell a lowercase
-    /// product name from a lowercase word by looking at the word. So this asks for three
-    /// things at once, and leaves the text alone when any of them is missing:
-    /// <list type="number">
-    /// <item>no capital anywhere - one capital means somebody cased this deliberately;</item>
-    /// <item>a first word that is nothing but letters, ruling out slugs, versions and URLs;</item>
-    /// <item>closing sentence punctuation, which is what separates a sentence somebody wrote
-    /// from a label like "ffmpeg wrapper" that was never meant to be one.</item>
-    /// </list>
-    /// The third is the one that does the real work, and it is why a lowercase label keeps
-    /// its case while a lowercase sentence gets its capital back.
+    /// Deliberately simple. An earlier version tried to stop where the author's last
+    /// sentence stopped, which meant knowing that "U.S." and "etc." are not sentence
+    /// endings - a natural-language problem, taken on for a parameter no production caller
+    /// passes. A word boundary and an ellipsis is honest about having cut something.
     /// </remarks>
-    private static string SentenceCase(string text)
-    {
-        if (text.Any(char.IsUpper)) return text;
-        if (text[^1] is not ('.' or '!' or '?')) return text;
-
-        var firstWord = text.AsSpan(0, IndexOfSpaceOrEnd(text));
-
-        // Anything that is not purely alphabetic is a name, a slug, a version or a path.
-        if (firstWord.Length < 2) return text;
-        foreach (var c in firstWord)
-        {
-            if (!char.IsLetter(c)) return text;
-        }
-
-        return char.ToUpperInvariant(text[0]) + text[1..];
-    }
-
-    private static int IndexOfSpaceOrEnd(string text)
-    {
-        var space = text.IndexOf(' ');
-        return space < 0 ? text.Length : space;
-    }
-
-    /// <summary>
-    /// Shortens to the limit, preferring to stop where the author stopped.
-    /// </summary>
     private static string Shorten(string text, int maxLength)
     {
-        var sentenceEnd = LastSentenceEnd(text, maxLength);
+        var ceiling = BoundaryAtOrBefore(text, maxLength);
+        var space = text.LastIndexOf(' ', Math.Max(0, ceiling - 1));
 
-        if (sentenceEnd > 0 && sentenceEnd >= (int)(maxLength * SentenceKeepRatio))
-        {
-            return text[..sentenceEnd].TrimEnd();
-        }
-
-        var cut = text.LastIndexOf(' ', Math.Min(maxLength, text.Length - 1));
-
-        // One very long word, so there is no word boundary to fall back to.
-        if (cut <= 0) return text[..maxLength].TrimEnd() + "…";
+        // A single very long word: no boundary to fall back to, so cut the word itself -
+        // still on a character boundary.
+        var cut = space > 0 ? space : ceiling;
 
         return text[..cut].TrimEnd(' ', ',', ';', ':', '-') + "…";
     }
 
     /// <summary>
-    /// The end of the last sentence that finishes at or before <paramref name="limit"/>,
-    /// or 0 when there is none. The returned index is just past the punctuation.
+    /// The largest index at or before <paramref name="index"/> that does not fall inside a
+    /// character.
     /// </summary>
-    private static int LastSentenceEnd(string text, int limit)
+    /// <remarks>
+    /// A .NET string is UTF-16, so an emoji is two chars and a flag or a skin-toned emoji is
+    /// several joined together. Slicing at an arbitrary index can split a surrogate pair and
+    /// produce text that is not valid Unicode at all. Text elements are the unit a reader
+    /// would call a character, so cuts land between them.
+    /// </remarks>
+    private static int BoundaryAtOrBefore(string text, int index)
     {
-        var best = 0;
-        var ceiling = Math.Min(limit, text.Length);
+        if (index >= text.Length) return text.Length;
+        if (index <= 0) return 0;
 
-        for (var i = 0; i < ceiling; i++)
+        var boundary = 0;
+        var elements = StringInfo.GetTextElementEnumerator(text);
+
+        while (elements.MoveNext())
         {
-            if (text[i] is not ('.' or '!' or '?')) continue;
-
-            // A sentence ends where the next thing is a space, or nothing at all. This is
-            // also what keeps "1.5", "example.com" and "Node.js" from splitting.
-            var isLast = i == text.Length - 1;
-            if (!isLast && text[i + 1] != ' ') continue;
-
-            if (text[i] == '.' && EndsWithAbbreviation(text, i)) continue;
-
-            best = i + 1;
+            if (elements.ElementIndex > index) break;
+            boundary = elements.ElementIndex;
         }
 
-        return best;
-    }
-
-    private static bool EndsWithAbbreviation(string text, int dotIndex)
-    {
-        var wordStart = text.LastIndexOf(' ', dotIndex) + 1;
-        var word = text[wordStart..(dotIndex + 1)];
-
-        return Abbreviations.Contains(word, StringComparer.OrdinalIgnoreCase);
+        return boundary;
     }
 }

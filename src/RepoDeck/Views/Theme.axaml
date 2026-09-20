@@ -874,14 +874,24 @@
         <Setter Property="Foreground" Value="{DynamicResource RdCautionBrush}" />
     </Style>
 
-    <!-- Neutral keeps the default chip surface: present, readable, and quiet. -->
+    <!--
+        Neutral keeps the default chip surface: present, readable, and quiet.
+
+        The foreground is the secondary text brush rather than the muted one. Muted on the
+        chip surface measures 3.75:1 in dark and 3.61:1 in light, which fails WCAG AA for
+        11px text; secondary measures 6.16:1 and 6.17:1. This is the commonest pill in the
+        product, so it was also the least readable thing in it.
+
+        Secondary is still well below primary (12.86:1 and 14.76:1), so Unknown stays quiet.
+        Readability is not the same as emphasis, and this must never read as a verdict.
+    -->
     <Style Selector="Border.statusPill.neutral">
         <Setter Property="Background" Value="{DynamicResource RdChipBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
     </Style>
 
     <Style Selector="Border.statusPill.neutral > TextBlock">
-        <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
     </Style>
 
     <Style Selector="Border.statusPill.danger">

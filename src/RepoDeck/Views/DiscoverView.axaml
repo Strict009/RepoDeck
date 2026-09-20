@@ -46,10 +46,10 @@
                      warning about the software. -->
                 <Border Grid.Row="0" Grid.Column="2" Margin="14,0"
                         Classes="statusPill"
-                        Classes.positive="{Binding IsReadyToInstall}"
-                        Classes.caution="{Binding IsDeveloperFocused}"
-                        Classes.danger="{Binding IsNotCompatible}"
-                        Classes.neutral="{Binding !IsInstallabilityKnown}"
+                        Classes.positive="{Binding InstallabilityIsPositive}"
+                        Classes.caution="{Binding InstallabilityIsCaution}"
+                        Classes.danger="{Binding InstallabilityIsDanger}"
+                        Classes.neutral="{Binding InstallabilityIsNeutral}"
                         ToolTip.Tip="{Binding InstallabilityExplanation}">
                     <TextBlock Text="{Binding InstallabilityLabel}" />
                 </Border>

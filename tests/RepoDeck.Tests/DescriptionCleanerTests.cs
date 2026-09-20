@@ -64,6 +64,42 @@ public class DescriptionCleanerTests
         Assert.Equal("Fast and small", DescriptionCleaner.Clean("Fast :zap: and small"));
     }
 
+    // Adjacent shortcodes with punctuation between them were the defect: matching one at a
+    // time removed the first, after which the second no longer began at a token boundary and
+    // survived. ":rocket:,:fire:" left ",:fire:" on the card.
+
+    [Theory]
+    [InlineData(":rocket:,:fire:")]
+    [InlineData(":rocket::fire:")]
+    [InlineData(":rocket: :fire:")]
+    [InlineData(":rocket:, :fire:")]
+    [InlineData(":rocket:;:fire:")]
+    [InlineData(":rocket:  :fire:  :zap:")]
+    [InlineData(":a::b::c::d:")]
+    public void A_run_of_shortcodes_leaves_nothing_behind(string text)
+    {
+        Assert.Equal("", DescriptionCleaner.Clean(text));
+    }
+
+    [Theory]
+    [InlineData(":rocket:,:fire: A fast thing", "A fast thing")]
+    [InlineData("A fast thing :rocket:,:fire:", "A fast thing")]
+    [InlineData("Fast :rocket:,:fire: and small", "Fast and small")]
+    public void A_run_of_shortcodes_beside_real_words_leaves_only_the_words(
+        string text, string expected)
+    {
+        Assert.Equal(expected, DescriptionCleaner.Clean(text));
+    }
+
+    [Fact]
+    public void Punctuation_that_belongs_to_the_sentence_survives_a_neighbouring_run()
+    {
+        // The comma here separates clauses; the one inside a run does not.
+        Assert.Equal(
+            "Fast, small and free",
+            DescriptionCleaner.Clean("Fast :zap:, small and free"));
+    }
+
     // ---- Things that merely contain colons --------------------------------
 
     [Fact]
@@ -98,52 +134,57 @@ public class DescriptionCleanerTests
             DescriptionCleaner.Clean("  A video   editor\r\n  that runs\tin the browser  "));
     }
 
-    // ---- Sentence casing --------------------------------------------------
+    // ---- Casing is never touched ------------------------------------------
+    //
+    // An earlier version capitalised the first word of all-lowercase descriptions, guarded
+    // by "only if it ends in sentence punctuation". That guard was not enough: it renamed
+    // ffmpeg, ripgrep and ios, all of which write themselves in lower case and all of which
+    // punctuate their descriptions. No rule can tell a lowercase product name from a
+    // lowercase word by looking at the word, so RepoDeck stopped trying.
 
-    [Fact]
-    public void Ordinary_lower_case_prose_gets_its_first_letter_back()
+    [Theory]
+    [InlineData("ffmpeg wrapper for the terminal.")]
+    [InlineData("ripgrep searches files.")]
+    [InlineData("ios music player.")]
+    [InlineData("npm install helper.")]
+    [InlineData("curl for humans.")]
+    [InlineData("youtube-dl fork with extra features.")]
+    [InlineData("nginx configuration generator!")]
+    [InlineData("kubectl plugin manager?")]
+    public void A_punctuated_lower_case_product_name_is_never_recased(string text)
     {
-        Assert.Equal(
-            "Open source short video automatic generation tool.",
-            DescriptionCleaner.Clean("open source short video automatic generation tool."));
-    }
-
-    [Fact]
-    public void A_description_that_already_has_capitals_is_left_alone()
-    {
-        // Somebody cased this deliberately, even if oddly.
-        const string text = "ai agent video editor use with ElevenLabs Scribe";
-
         Assert.Equal(text, DescriptionCleaner.Clean(text));
     }
 
     [Theory]
-    [InlineData("ffmpeg wrapper for the terminal")]
-    [InlineData("x11-utils replacement")]
-    [InlineData("node.js bindings for sqlite")]
-    [InlineData("7zip archive tool")]
-    [InlineData("https://example.com is the home page")]
-    public void A_code_like_first_word_is_never_capitalised(string text)
+    [InlineData("iOS and iPadOS media player.")]
+    [InlineData(".NET tooling for the command line.")]
+    [InlineData("C# source generator.")]
+    [InlineData("C++ bindings for SQLite.")]
+    [InlineData("HTTP/2 and gRPC client.")]
+    [InlineData("eBPF observability toolkit.")]
+    [InlineData("macOS menu bar utility.")]
+    public void Mixed_case_names_and_acronyms_survive_exactly(string text)
     {
         Assert.Equal(text, DescriptionCleaner.Clean(text));
     }
 
     [Fact]
-    public void Nothing_else_in_the_sentence_is_recased()
+    public void Ordinary_lower_case_prose_is_also_left_alone()
     {
+        // RepoDeck would rather show a sentence that starts in lower case than rename a
+        // project. The author's casing is the author's business.
         Assert.Equal(
-            "Converts png to webp and avif.",
-            DescriptionCleaner.Clean("converts png to webp and avif."));
+            "open source short video automatic generation tool.",
+            DescriptionCleaner.Clean("open source short video automatic generation tool."));
     }
 
     [Fact]
-    public void A_lower_case_label_that_is_not_a_sentence_keeps_its_case()
+    public void Removing_a_leading_shortcode_does_not_recase_what_follows()
     {
-        // "ffmpeg wrapper for the terminal" has no closing punctuation and is a label, not
-        // a sentence. Capitalising it would rename the tool.
         Assert.Equal(
-            "converts png to webp and avif",
-            DescriptionCleaner.Clean("converts png to webp and avif"));
+            "ffmpeg wrapper.",
+            DescriptionCleaner.Clean(":rocket: ffmpeg wrapper."));
     }
 
     // ---- Shortening -------------------------------------------------------
@@ -162,30 +203,6 @@ public class DescriptionCleanerTests
         var text = new string('a', 500);
 
         Assert.Equal(500, DescriptionCleaner.Clean(text).Length);
-    }
-
-    [Fact]
-    public void Shortening_prefers_to_stop_where_a_sentence_stopped()
-    {
-        const string text = "A lightweight video editor. It also serves as a showcase for the engine.";
-
-        var result = DescriptionCleaner.Clean(text, 40);
-
-        Assert.Equal("A lightweight video editor.", result);
-        Assert.DoesNotContain("…", result);
-    }
-
-    [Fact]
-    public void A_sentence_that_would_cost_too_much_is_trimmed_at_a_word_instead()
-    {
-        // The first sentence ends at 8 characters of a 60 character budget. Stopping there
-        // would throw away most of what the project said, so trim later and mark it.
-        const string text = "Hi there. A capable and pleasant editor for people who edit video often.";
-
-        var result = DescriptionCleaner.Clean(text, 60);
-
-        Assert.EndsWith("…", result);
-        Assert.True(result.Length <= 61, $"was {result.Length}: {result}");
     }
 
     [Fact]
@@ -208,46 +225,89 @@ public class DescriptionCleanerTests
         Assert.True(result.Length <= 41);
     }
 
-    // ---- What must not count as the end of a sentence ---------------------
-
     [Fact]
-    public void A_decimal_point_does_not_end_a_sentence()
+    public void An_abbreviation_near_the_cut_is_not_treated_as_anything_special()
     {
-        const string text = "Requires version 1.5 or newer and a reasonably modern machine.";
+        // Shortening no longer hunts for sentence endings, so "U.S." and "etc." cannot be
+        // mistaken for one. It cuts at a word and says so.
+        const string text = "Works across the U.S. and several other regions besides this one.";
 
-        var result = DescriptionCleaner.Clean(text, 30);
-
-        Assert.DoesNotContain("1.", result[^3..]);
-        Assert.EndsWith("…", result);
-    }
-
-    [Fact]
-    public void A_dot_inside_a_domain_does_not_end_a_sentence()
-    {
-        const string text = "Download from example.com or build it yourself from source today.";
-
-        var result = DescriptionCleaner.Clean(text, 32);
-
-        Assert.EndsWith("…", result);
-        Assert.DoesNotContain("example.com or build it yourself from", result);
-    }
-
-    [Theory]
-    [InlineData("Works with Node.js, npm, etc. and a few other things besides that one.")]
-    [InlineData("Supports PNG, JPEG, e.g. the common ones, and quite a few rarer formats.")]
-    public void A_common_abbreviation_does_not_end_a_sentence(string text)
-    {
         var result = DescriptionCleaner.Clean(text, 40);
 
         Assert.EndsWith("…", result);
+        Assert.True(result.Length <= 41, $"was {result.Length}");
+    }
+
+    // ---- Shortening never produces broken text ----------------------------
+
+    [Fact]
+    public void A_cut_never_splits_a_surrogate_pair()
+    {
+        // Each rocket is two UTF-16 chars. A naive slice at an odd index produces a lone
+        // surrogate, which is not valid Unicode and renders as a replacement character.
+        var text = string.Concat(Enumerable.Repeat("\U0001F680", 40));
+
+        for (var limit = 1; limit <= 40; limit++)
+        {
+            var result = DescriptionCleaner.Clean(text, limit);
+
+            Assert.False(
+                result.Any(char.IsSurrogate) && !IsWellFormed(result),
+                $"limit {limit} produced a broken pair: {result.Length} chars");
+        }
+    }
+
+    [Theory]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    public void A_cut_around_an_emoji_boundary_stays_well_formed(int limit)
+    {
+        var result = DescriptionCleaner.Clean("abc \U0001F680\U0001F680 def ghi jkl", limit);
+
+        Assert.True(IsWellFormed(result), $"limit {limit} gave {result}");
     }
 
     [Fact]
-    public void A_real_sentence_ending_is_still_found_after_an_abbreviation()
+    public void A_cut_does_not_split_a_joined_emoji_sequence()
     {
-        const string text = "Handles PNG, JPEG, etc. quickly. And it does a great deal more besides.";
+        // A family emoji is several code points joined by zero-width joiners. Cutting inside
+        // it leaves orphaned members rather than one character.
+        const string family = "\U0001F468‍\U0001F469‍\U0001F467";
+        var text = family + " a family of tools for doing things";
 
-        Assert.Equal("Handles PNG, JPEG, etc. quickly.", DescriptionCleaner.Clean(text, 40));
+        var result = DescriptionCleaner.Clean(text, 12);
+
+        Assert.True(IsWellFormed(result));
+        Assert.DoesNotContain('‍', result[^1..]);
+    }
+
+    [Fact]
+    public void Non_latin_text_is_cut_without_damage()
+    {
+        var result = DescriptionCleaner.Clean("一个第三方音乐播放器", 5);
+
+        Assert.True(IsWellFormed(result));
+    }
+
+    private static bool IsWellFormed(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (char.IsHighSurrogate(text[i]))
+            {
+                if (i + 1 >= text.Length || !char.IsLowSurrogate(text[i + 1])) return false;
+                i++;
+            }
+            else if (char.IsLowSurrogate(text[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // ---- The source is never touched --------------------------------------
