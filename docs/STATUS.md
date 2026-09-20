@@ -79,6 +79,9 @@ empty directory, inconsistent record, missing owned entries - and the panel name
 rather than only counting them. An inconsistent *record* is not repairable by fetching
 files, so RepoDeck says so instead of offering a button that cannot help.
 
+The check is one level deep and repair is not. See **Repair depth, measured** for exactly
+where that boundary falls and what it costs.
+
 ### Not interrupting a running program
 
 `RunningApplicationDetector` matches by executable name and then by `MainModule.FileName`
@@ -215,7 +218,22 @@ edit to the manifest, noted here so the result is not mistaken for an unprompted
 10. **Transfers are in memory only**, so the Downloads page starts empty each run. This is
    deliberate - an "active download" cannot survive the process performing it - but it means
    a failed download is forgotten on restart.
-11. **An installed directory exists that no record claims.** `Apps\KytyPS5__KytyPS5` (57 MB)
+11. **Damage detection sees the top level only; repair fixes everything.** These are two
+    different depths and the gap between them is worth stating precisely. `Check` looks at
+    four things: the recorded folder exists, is not empty, `ExecutablePath` is present, and
+    every name in `OwnedEntries` still resolves. `OwnedEntries` is the **non-recursive**
+    listing taken at install time, so for a top-level *directory* the check passes as soon
+    as the directory itself exists, whatever has happened inside it. Delete
+    `plugins\avcodec-61.dll` and RepoDeck reports a healthy installation; delete top-level
+    `LICENSE.txt` and it reports "1 file(s) or folder(s) RepoDeck put there are missing".
+    Both measured — see **Repair depth, measured** below. Repair itself has no such limit:
+    it re-fetches and re-extracts the whole recorded release, so once anything triggers it,
+    nested damage is repaired along with the rest. The shallowness is deliberate and
+    documented on the class — RepoDeck cannot tell an application writing its own settings
+    from a file going missing, and a check that called every ordinary write "damage" would
+    teach people to ignore it. It is still a real limit: the most common kind of damage, a
+    missing DLL somewhere inside, is exactly the kind it cannot see.
+12. **An installed directory exists that no record claims.** `Apps\KytyPS5__KytyPS5` (57 MB)
     is present on the development machine. The log shows it was installed there and launched
     successfully, but it appears in neither `installed.json` nor the activity history — not
     as a failed install, not as anything. A backup taken later the same evening also lacks
@@ -223,9 +241,9 @@ edit to the manifest, noted here so the result is not mistaken for an unprompted
     here rather than explained. One thing it did establish: RepoDeck left it untouched
     through two application removals and a full uninstall, which is unplanned evidence that
     it only acts on what it claims.
-12. **Upgrade while RepoDeck is running has not been tested.** Every installer run so far was
+13. **Upgrade while RepoDeck is running has not been tested.** Every installer run so far was
     made with the application closed.
-13. Earlier weaknesses remain: badge rejection is a blocklist; Quick Look costs requests with
+14. Earlier weaknesses remain: badge rejection is a blocklist; Quick Look costs requests with
     no debounce; relevance works from a one-line description; collections are searches rather
     than curation; compact view cannot be sorted; the light theme is untested in practice;
     image decoding has no automated test and no disk cache.
@@ -302,6 +320,118 @@ Also cleared in the same pass: four `\x27` escapes left in comments by a shell-q
 mishap, and a nullable warning in the one sweep that deletes directories inside `Apps` —
 the guard was correct but the compiler could not prove it, so it is now an explicit `if`
 rather than a condition buried in a ternary.
+
+## Repair depth, measured
+
+Prompted by a Wine observation — a file deleted from an installation and no repair offered —
+and measured on **native Windows** to find out whether Wine had anything to do with it. It
+does not.
+
+`InstallationHealthChecker.Check` examines exactly four things:
+
+1. `InstalledPath` parses and resolves inside `Apps` — otherwise `InconsistentRecord`, which
+   is deliberately *not* repairable.
+2. The directory exists.
+3. The directory is not empty.
+4. `ExecutablePath` exists, and every name in `OwnedEntries` resolves as a file *or* a
+   directory.
+
+`OwnedEntries` is `Directory.EnumerateFileSystemEntries(directory)` taken at install time —
+**names only, one level deep, not recursive**. For a top-level directory the check therefore
+passes the moment the directory itself exists, no matter what is missing inside it.
+
+Measured against a real installation of `sharpemu/sharpemu`, whose `OwnedEntries` are
+`LICENSE.txt, licenses, plugins, SharpEmu.exe`:
+
+| Deleted | Detected? | What RepoDeck said |
+|---|---|---|
+| `plugins\avcodec-61.dll` (nested) | **No** | Nothing. No damage, no Repair button |
+| `LICENSE.txt` (top level, not the program) | Yes | "1 file(s) or folder(s) RepoDeck put there are missing: LICENSE.txt" |
+| `SharpEmu.exe` (the program) | Yes | "Program missing", counted among "2 things are wrong" |
+
+The second row was taken with the nested DLL *still missing*, and RepoDeck reported **1**
+missing thing, not 2. That is the boundary, unambiguously.
+
+**Repair has no such limit.** It re-fetches and re-extracts the whole recorded release
+through the update transaction. Triggering repair on the missing `LICENSE.txt` restored the
+nested `avcodec-61.dll` as well, without ever having noticed it was gone. The shortfall is
+entirely in *noticing*, not in *fixing*.
+
+The shallowness is intentional and is documented on the class: RepoDeck cannot distinguish
+an application writing its own settings from a file going missing, and a check that called
+every ordinary write "damage" would train people to ignore it. That reasoning is sound and
+the behaviour is not a bug. It is still a real limitation, and the awkward part is that the
+single most common form of real damage — one DLL missing from somewhere inside — is exactly
+what it cannot see. Deepening it is 0.3's "stronger repair", and needs a way to tell
+RepoDeck-placed files from application-written ones rather than simply recursing.
+
+## Wine and Linux — observed, not supported
+
+**Not a supported environment. Nothing here is a commitment, and none of it gated 0.1.1.**
+
+Reported after the 0.1.1 release gate had already passed: the Windows x64 build installs and
+runs under Wine on Linux. It searches GitHub, returns results, analyses projects and installs
+applications. That is further than anyone designed for, and it is an accident rather than an
+achievement.
+
+Two limitations observed:
+
+1. **RepoDeck believes it is on Windows x64.** It reports the environment the Windows API
+   reports, which under Wine is Windows. It has no idea there is a Linux host underneath, so
+   every compatibility judgement it makes is made as if it were running natively.
+2. **A file deleted from a KYTYPS5 installation produced no repair recommendation.** This is
+   **not Wine-specific** — see **Repair depth, measured** above. The same deletion behaves
+   identically on native Windows, because a nested file is outside what the health check
+   looks at. Wine is incidental; the observation is a real and previously unrecorded limit
+   of the check.
+
+### To investigate later, in this order
+
+Nothing below is scheduled, and none of it is to be implemented before 0.2 ships.
+
+- Reliable Wine detection that cannot break native Windows detection — the failure mode to
+  avoid is a native machine misidentified as Wine, which is worse than not detecting Wine.
+- The real Linux host OS and architecture, read from inside a Wine process.
+- Wine version and prefix, where that is practical to obtain.
+- Whether applications RepoDeck installs launch through the same Wine prefix RepoDeck is in.
+- Install, update, repair and remove behaviour under Wine, run as a full lifecycle rather
+  than sampled.
+- Filesystem and path differences, particularly anything `ArchivePathGuard` depends on.
+- Whether the compatibility analysis currently mistakes Wine for native Windows in a way
+  that produces a wrong answer rather than merely an incomplete one.
+- Whether native Linux releases should ever be offered to a Windows RepoDeck running under
+  Wine — plausibly not, since it could not run them.
+- Where the responsibility line sits between a native Linux RepoDeck and Windows
+  RepoDeck-under-Wine.
+
+### The design this is actually pointing at (post-0.2)
+
+Worth writing down because it is a better idea than making the Windows binary
+"Wine compatible". Three installation targets, understood separately:
+
+```
+Native Linux      Linux application   -> RepoDeck Linux
+Windows via Wine  Windows application -> Wine prefix -> RepoDeck Linux
+Native Windows    Windows application -> RepoDeck Windows
+```
+
+Which would let a native Linux RepoDeck say something genuinely useful about a project that
+ships Windows binaries only:
+
+    No native Linux release found.
+    A Windows x64 release is available and may be usable through Wine.
+
+    Native Linux:  no
+    Wine:          experimental
+    Windows:       publisher release available
+
+That is the RepoDeck argument applied to a harder case. Rather than expecting somebody to
+work out what `win-x64.zip`, `linux-x64.tar.gz`, an AppImage, a Flatpak, Wine and Proton
+each mean for their machine, RepoDeck interprets the release page for them — and says
+"experimental" where that is the honest word, instead of a yes or a no it cannot defend.
+
+**Priority: native Linux support matters more than formal Wine support.** Wine getting this
+far already is an encouraging accident, not a plan. Both sit behind 0.2.
 
 ## 0.1.1-alpha — released
 
@@ -413,6 +543,15 @@ release in 3 years, 1 installation appears damaged".
 Linux packaging, broader package types, and paste-a-GitHub-URL analysis: drop any repository
 link into RepoDeck and have it say what the project is, whether it is an end-user
 application at all, and which asset suits this machine.
+
+**Native Linux first, Wine second.** The Windows build turns out to run under Wine already,
+which is an accident worth investigating and not a supported environment — see **Wine and
+Linux — observed, not supported**. The interesting destination is not a Wine-compatible
+Windows binary but RepoDeck understanding three targets (native Linux, Windows-via-Wine,
+native Windows) well enough to tell somebody that a project shipping only `win-x64.zip` has
+no native Linux release, has a Windows one, and *might* work through Wine — with
+"experimental" written where that is the honest word. Nothing in it is scheduled, and none
+of it starts before 0.2 ships.
 
 ### Updating RepoDeck itself
 
