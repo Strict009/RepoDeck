@@ -36,23 +36,23 @@
                 </Border>
 
                 <StackPanel Grid.Row="0" Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding FriendlyName}" Classes="body"
-                               FontWeight="SemiBold"
-                               TextTrimming="CharacterEllipsis" MaxLines="1" />
+                    <TextBlock Text="{Binding FriendlyName}" Classes="cardTitle" />
                     <TextBlock Text="{Binding Purpose}" Classes="muted"
                                TextTrimming="CharacterEllipsis" MaxLines="1" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="7"
-                            VerticalAlignment="Center" Margin="14,0"
-                            ToolTip.Tip="{Binding InstallabilityExplanation}">
-                    <Ellipse Classes="led"
-                             Classes.ledOn="{Binding IsReadyToInstall}"
-                             Classes.ledWarn="{Binding IsDeveloperFocused}"
-                             Classes.ledBad="{Binding IsNotCompatible}" />
-                    <TextBlock Text="{Binding InstallabilityLabel}" Classes="muted"
-                               VerticalAlignment="Center" />
-                </StackPanel>
+                <!-- One pill, always with words in it. Unknown is the commonest answer by
+                     far, and it reads neutral: RepoDeck not having looked yet is not a
+                     warning about the software. -->
+                <Border Grid.Row="0" Grid.Column="2" Margin="14,0"
+                        Classes="statusPill"
+                        Classes.positive="{Binding IsReadyToInstall}"
+                        Classes.caution="{Binding IsDeveloperFocused}"
+                        Classes.danger="{Binding IsNotCompatible}"
+                        Classes.neutral="{Binding !IsInstallabilityKnown}"
+                        ToolTip.Tip="{Binding InstallabilityExplanation}">
+                    <TextBlock Text="{Binding InstallabilityLabel}" />
+                </Border>
 
                 <Button Grid.Row="0" Grid.Column="3" Classes="quiet" Content="WHY?"
                         Margin="0,0,8,0" VerticalAlignment="Center"

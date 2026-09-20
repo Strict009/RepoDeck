@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:RepoDeck.Views"
+             x:Class="RepoDeck.Views.EmptyStateView"
+             x:DataType="views:EmptyStateView">
+
+    <!--
+        A page with nothing on it still has to say something. Favorites, Installed and
+        Downloads each wrote the same two lines by hand; this is that shape, once.
+
+        Two properties only. An action slot goes in when a second caller actually needs one,
+        not before.
+    -->
+    <StackPanel Classes="emptyState">
+        <TextBlock Classes="h1" Text="{Binding Title, RelativeSource={RelativeSource AncestorType=views:EmptyStateView}}" />
+        <TextBlock Classes="body emptyStateMessage"
+                   Text="{Binding Message, RelativeSource={RelativeSource AncestorType=views:EmptyStateView}}" />
+    </StackPanel>
+</UserControl>

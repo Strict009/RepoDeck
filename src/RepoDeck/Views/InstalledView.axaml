@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:RepoDeck.ViewModels"
              xmlns:controls="using:RepoDeck.Controls"
+             xmlns:views="using:RepoDeck.Views"
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="RepoDeck.Views.InstalledView"
              x:DataType="vm:InstalledViewModel">
@@ -46,13 +47,10 @@
                        IsVisible="{Binding HasMessage}" TextWrapping="Wrap" />
         </StackPanel>
 
-        <StackPanel Grid.Row="1" Spacing="12" MaxWidth="560" HorizontalAlignment="Left"
-                    VerticalAlignment="Top"
-                    IsVisible="{Binding ShowEmptyState}">
-            <TextBlock Text="Nothing installed yet" Classes="h1" />
-            <TextBlock Classes="body" Foreground="{DynamicResource RdTextSecondaryBrush}"
-                       Text="Find something on the Discover page. RepoDeck shows you exactly what it will download and where it will put it before anything happens." />
-        </StackPanel>
+        <views:EmptyStateView Grid.Row="1"
+                              IsVisible="{Binding ShowEmptyState}"
+                              Title="Nothing installed yet"
+                              Message="Find something on the Discover page. RepoDeck shows you exactly what it will download and where it will put it before anything happens." />
 
         <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowList}"
                       HorizontalScrollBarVisibility="Disabled">
@@ -82,11 +80,17 @@
 
                                     <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="{Binding FriendlyName}" Classes="h1" />
-                                            <Border Classes="chip" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding FriendlyName}" Classes="cardTitle" />
+
+                                            <!-- The version is a fact, not a verdict. -->
+                                            <Border Classes="statusPill neutral">
                                                 <TextBlock Text="{Binding VersionText}" />
                                             </Border>
-                                            <Border Classes="chip chipCaution" VerticalAlignment="Center"
+
+                                            <!-- Something wants doing: an update, or a
+                                                 repair. The one place on this page where
+                                                 colour is earning its keep. -->
+                                            <Border Classes="statusPill caution"
                                                     IsVisible="{Binding NeedsAttention}">
                                                 <TextBlock Text="{Binding StatusText}" />
                                             </Border>

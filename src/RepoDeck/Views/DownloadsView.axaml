@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:RepoDeck.ViewModels"
              xmlns:controls="using:RepoDeck.Controls"
+             xmlns:views="using:RepoDeck.Views"
              mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
              x:Class="RepoDeck.Views.DownloadsView"
              x:DataType="vm:DownloadsViewModel">
@@ -20,13 +21,10 @@
                        IsVisible="{Binding HasMessage}" Margin="0,6,0,0" />
         </StackPanel>
 
-        <StackPanel Grid.Row="1" Spacing="12" MaxWidth="560" HorizontalAlignment="Left"
-                    VerticalAlignment="Top"
-                    IsVisible="{Binding ShowEmptyState}">
-            <TextBlock Text="Nothing here" Classes="h1" />
-            <TextBlock Classes="body" Foreground="{DynamicResource RdTextSecondaryBrush}"
-                       Text="When RepoDeck downloads something it cannot install - a Windows installer, a system package, or an archive with no program inside - it is kept here rather than pretended to be installed." />
-        </StackPanel>
+        <views:EmptyStateView Grid.Row="1"
+                              IsVisible="{Binding ShowEmptyState}"
+                              Title="Nothing here"
+                              Message="When RepoDeck downloads something it cannot install - a Windows installer, a system package, or an archive with no program inside - it is kept here rather than pretended to be installed." />
 
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
                       IsVisible="{Binding ShowAnything}">

@@ -120,17 +120,20 @@
                                    VerticalAlignment="Center" />
                     </StackPanel>
 
+                    <!-- The REPODECK row label is gone: the whole window is RepoDeck, and
+                         repeating it once per card said nothing thirty times. What the
+                         verdict is stays, in a pill that always carries its own words. -->
                     <StackPanel Orientation="Horizontal" Spacing="8"
                                 ToolTip.Tip="{Binding InstallabilityExplanation}">
-                        <TextBlock Text="REPODECK" Classes="microLabel" Width="74"
+                        <TextBlock Text="CAN INSTALL" Classes="microLabel" Width="74"
                                    TextWrapping="NoWrap" VerticalAlignment="Center" />
-                        <Ellipse Classes="led"
-                                 Classes.ledOn="{Binding IsReadyToInstall}"
-                                 Classes.ledWarn="{Binding IsDeveloperFocused}"
-                                 Classes.ledBad="{Binding IsNotCompatible}"
-                                 VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding InstallabilityLabel}" Classes="secondary"
-                                   VerticalAlignment="Center" />
+                        <Border Classes="statusPill"
+                                Classes.positive="{Binding IsReadyToInstall}"
+                                Classes.caution="{Binding IsDeveloperFocused}"
+                                Classes.danger="{Binding IsNotCompatible}"
+                                Classes.neutral="{Binding !IsInstallabilityKnown}">
+                            <TextBlock Text="{Binding InstallabilityLabel}" />
+                        </Border>
                     </StackPanel>
                 </StackPanel>
             </Border>

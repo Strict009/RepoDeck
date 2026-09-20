@@ -767,4 +767,143 @@
         <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
         <Setter Property="SelectionBrush" Value="{DynamicResource RdAccentSoftBrush}" />
     </Style>
+
+
+    <!--
+        ==================== An application, wherever it appears ====================
+
+        Search, Favorites and the Library each keep their own typed template, because the
+        facts they hold are not the same: a search result has evidence and uncertainty, a
+        favourite has neither, an installed application has a version and a last-run time.
+        What they share is how an application should look, and that lives here so the four
+        pages stop drifting apart.
+
+        Downloads deliberately does not use this. It lists transfers and retained files,
+        not applications, and dressing it as a library row would suggest a Run button that
+        must never exist there.
+    -->
+    <Style Selector="TextBlock.cardTitle">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextPrimaryBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="MaxLines" Value="1" />
+    </Style>
+
+    <Style Selector="Border.applicationRow">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusMedium}" />
+        <Setter Property="Padding" Value="16" />
+
+        <!-- No fixed height: descriptions wrap, evidence expands, and text scales up for
+             people who need it to. Padding sets the rhythm and the content sets the rest. -->
+        <Setter Property="MinHeight" Value="72" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Border.applicationRow:pointerover">
+        <Setter Property="Background" Value="{DynamicResource RdSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderStrongBrush}" />
+    </Style>
+
+    <!-- Selection is an edge, not a fill, so that a selected row and a hovered row are
+         never mistaken for each other. -->
+    <Style Selector="Border.applicationRow.selected">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+        <Setter Property="BorderThickness" Value="1,1,1,1" />
+    </Style>
+
+    <Style Selector="Border.applicationRow:focus-within">
+        <Setter Property="BorderBrush" Value="{DynamicResource RdAccentBrush}" />
+    </Style>
+
+    <Style Selector="Border.applicationRow TextBlock.rowPurpose">
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+
+    <!--
+        ==================== Status pills ====================
+
+        One shape for every state RepoDeck reports, in four tones. Every pill carries words:
+        the tone reinforces the label and never replaces it, so the meaning survives
+        greyscale, colour-blindness and a screenshot in a bug report.
+
+        Unchecked and unknown are NEUTRAL. They are the commonest states by far, and giving
+        them a colour is what turns a page of results into a page of warnings. An absence of
+        evidence is not a caution.
+    -->
+    <Style Selector="Border.statusPill">
+        <Setter Property="Background" Value="{DynamicResource RdChipBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource RdRadiusPill}" />
+        <Setter Property="Padding" Value="8,2" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.statusPill > TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+    </Style>
+
+    <Style Selector="Border.statusPill.positive">
+        <Setter Property="Background" Value="{DynamicResource RdPositiveSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdPositiveBrush}" />
+    </Style>
+
+    <Style Selector="Border.statusPill.positive > TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdPositiveBrush}" />
+    </Style>
+
+    <Style Selector="Border.statusPill.caution">
+        <Setter Property="Background" Value="{DynamicResource RdCautionSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdCautionBrush}" />
+    </Style>
+
+    <Style Selector="Border.statusPill.caution > TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdCautionBrush}" />
+    </Style>
+
+    <!-- Neutral keeps the default chip surface: present, readable, and quiet. -->
+    <Style Selector="Border.statusPill.neutral">
+        <Setter Property="Background" Value="{DynamicResource RdChipBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdBorderBrush}" />
+    </Style>
+
+    <Style Selector="Border.statusPill.neutral > TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdTextMutedBrush}" />
+    </Style>
+
+    <Style Selector="Border.statusPill.danger">
+        <Setter Property="Background" Value="{DynamicResource RdDangerSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RdDangerBrush}" />
+    </Style>
+
+    <Style Selector="Border.statusPill.danger > TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource RdDangerBrush}" />
+    </Style>
+
+
+    <!-- ==================== Empty states ==================== -->
+    <Style Selector="StackPanel.emptyState">
+        <Setter Property="Spacing" Value="{DynamicResource RdSpaceMd}" />
+        <Setter Property="MaxWidth" Value="560" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+
+    <Style Selector="StackPanel.emptyState > TextBlock.emptyStateMessage">
+        <Setter Property="Foreground" Value="{DynamicResource RdTextSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
 </Styles>

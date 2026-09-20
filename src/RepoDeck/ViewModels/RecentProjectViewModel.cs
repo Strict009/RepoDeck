@@ -44,8 +44,14 @@ public sealed partial class RecentProjectViewModel : ViewModelBase
     public string Owner => Entry.Owner;
     public string FriendlyName => FriendlyNaming.ForRepository(Entry.Name);
 
-    public string Description => Entry.Description ?? "";
+    /// <summary>
+    /// The remembered description, tidied for display. Empty stays empty here - the shelf
+    /// simply omits the line rather than explaining the absence.
+    /// </summary>
+    public string Description => _description ??= DescriptionCleaner.Clean(Entry.Description);
     public bool HasDescription => Description.Length > 0;
+
+    private string? _description;
 
     public string WhenText => Humanize.RelativeTime(Entry.ViewedAt);
 

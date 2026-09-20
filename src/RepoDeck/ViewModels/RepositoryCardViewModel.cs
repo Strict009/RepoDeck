@@ -74,9 +74,24 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
 
     // ---- 3. What it is for ------------------------------------------------
 
-    public string Purpose => string.IsNullOrWhiteSpace(Explanation.WhatItIs)
-        ? "No description was provided for this project."
-        : Explanation.WhatItIs;
+    /// <summary>
+    /// What this is for, tidied for display. The project's own words are never changed -
+    /// <see cref="Explanation"/> still holds them - but emoji shortcodes and stray newlines
+    /// are markup rather than meaning, and a card is not the place for them.
+    /// </summary>
+    /// <remarks>
+    /// Computed once. <see cref="Explanation"/> is fixed at construction, and thirty cards
+    /// re-running a regex on every binding read would be a cost with nothing to show for it.
+    /// The fallback sentence stays here rather than inside the cleaner: deciding what to say
+    /// about a project with no description is this view model's business, not a text
+    /// utility's.
+    /// </remarks>
+    public string Purpose => _purpose ??=
+        DescriptionCleaner.Clean(Explanation.WhatItIs) is { Length: > 0 } cleaned
+            ? cleaned
+            : "No description was provided for this project.";
+
+    private string? _purpose;
 
     // ---- 4. Where it runs -------------------------------------------------
 

@@ -102,9 +102,16 @@ public sealed partial class FavoriteViewModel : ViewModelBase
     public string Name => Entry.Name;
     public string FriendlyName => FriendlyNaming.ForRepository(Entry.Name);
 
-    public string Description => string.IsNullOrWhiteSpace(Entry.Description)
-        ? "No description was provided for this project."
-        : Entry.Description!;
+    /// <summary>
+    /// The saved description, tidied for display. <see cref="Entry"/> keeps what was stored;
+    /// nothing is written back to the favourites file.
+    /// </summary>
+    public string Description => _description ??=
+        DescriptionCleaner.Clean(Entry.Description) is { Length: > 0 } cleaned
+            ? cleaned
+            : "No description was provided for this project.";
+
+    private string? _description;
 
     public string MetadataLine => Entry.Language is { Length: > 0 } language
         ? Entry.Owner + "  /  " + language
