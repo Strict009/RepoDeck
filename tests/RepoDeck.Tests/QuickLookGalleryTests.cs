@@ -64,6 +64,7 @@ public class QuickLookGalleryTests
         var view = File.ReadAllText(Path.Combine(SourceViews(), "QuickLookView.axaml"));
 
         Assert.Contains("Classes=\"thumbs\"", view);
+        Assert.Contains("ItemsSource=\"{Binding LoadedGallery}\"", view);
         Assert.Contains("SelectedItem=\"{Binding Hero}\"", view);
         Assert.Contains("AutomationProperties.Name", view);
     }

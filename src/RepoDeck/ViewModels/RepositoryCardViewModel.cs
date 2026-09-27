@@ -41,7 +41,8 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
         Action<RepositoryCardViewModel>? quickLook = null,
         Action<RepositoryCardViewModel>? requestInstall = null,
         Func<RepositoryCardViewModel, bool>? toggleFavorite = null,
-        bool isFavorite = false)
+        bool isFavorite = false,
+        bool isInstalled = false)
     {
         _toggleFavorite = toggleFavorite;
         _isFavorite = isFavorite;
@@ -54,6 +55,7 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
         _quickLook = quickLook;
         _requestInstall = requestInstall;
         _log = log;
+        _isInstalled = isInstalled;
 
         _installability = InstallabilityEvaluator.FromMetadata(repository, likelihood, setup);
         _classification = ProjectKindClassifier.Classify(repository);
@@ -217,7 +219,26 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     /// True when this card can offer to install rather than merely to explain. Drives which
     /// button gets the accent, so the accent means "something can happen here".
     /// </summary>
-    public bool CanInstallDirectly => Installability.AllowsDirectInstall;
+    public bool CanInstallDirectly => !IsInstalled && Installability.AllowsDirectInstall;
+
+    /// <summary>
+    /// Whether RepoDeck's local library has an exact owner/name installation for this
+    /// project. This affects only the offered action; it is not compatibility or search
+    /// relevance evidence.
+    /// </summary>
+    public bool IsInstalled => _isInstalled;
+    private bool _isInstalled;
+
+    public void ApplyInstalledState(bool isInstalled)
+    {
+        if (_isInstalled == isInstalled) return;
+
+        _isInstalled = isInstalled;
+        OnPropertyChanged(nameof(IsInstalled));
+        OnPropertyChanged(nameof(CanInstallDirectly));
+        OnPropertyChanged(nameof(PrimaryActionLabel));
+        OnPropertyChanged(nameof(PrimaryActionTooltip));
+    }
 
     // ---- 7. The action ----------------------------------------------------
 
@@ -225,9 +246,9 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     /// INSTALL only once a plan exists and can proceed. Until then the honest offer is to
     /// go and look, because RepoDeck has not yet established there is anything to install.
     /// </summary>
-    public string PrimaryActionLabel => Installability.AllowsDirectInstall ? "INSTALL" : "DETAILS";
+    public string PrimaryActionLabel => CanInstallDirectly ? "INSTALL" : "DETAILS";
 
-    public string PrimaryActionTooltip => Installability.AllowsDirectInstall
+    public string PrimaryActionTooltip => CanInstallDirectly
         ? "Review the installation plan and install this"
         : "Look at this project in detail";
 
@@ -482,7 +503,7 @@ public sealed partial class RepositoryCardViewModel : ViewModelBase
     [RelayCommand]
     private void Activate()
     {
-        if (Installability.AllowsDirectInstall && _requestInstall is not null)
+        if (CanInstallDirectly && _requestInstall is not null)
         {
             _requestInstall(this);
             return;

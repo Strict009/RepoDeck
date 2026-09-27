@@ -40,7 +40,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _discover = new DiscoverViewModel(
             services.GitHub, services.Explanations, services.Media, services.Log, services.Images,
             services.Preferences, _quickLook, services.Machine, services.Favorites,
-            services.RecentlyViewed);
+            services.RecentlyViewed, services.InstalledApps, _dispatcher);
 
         _discover.RepositoryOpenRequested += ShowRepositoryDetails;
         _discover.RepositoryInstallRequested += repository => ShowRepositoryDetails(repository, offerInstall: true);
@@ -123,7 +123,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     // Set from the selected page in the constructor, so the strip never opens showing
     // a placeholder that does not match what is on screen.
     [ObservableProperty] private string _statusText = "";
-    [ObservableProperty] private string _rateLimitText = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowRateLimitWarning))]
+    private string _rateLimitText = "";
+
+    public bool ShowRateLimitWarning => HasRateLimitWarning(RateLimitText);
+
+    internal static bool HasRateLimitWarning(string? warning) =>
+        !string.IsNullOrWhiteSpace(warning);
 
     public string PlatformText => PlatformInfo.CurrentDescription;
 

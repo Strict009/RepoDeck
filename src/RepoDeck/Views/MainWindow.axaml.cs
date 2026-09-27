@@ -35,7 +35,10 @@ public partial class MainWindow : Window
     /// this threshold had a twenty-pixel range to live in, which is not a range anybody can
     /// test, and the rail existed only in theory.
     /// </remarks>
-    private const double RailThreshold = 960;
+    internal const double RailThreshold = 960;
+
+    internal static bool UsesCompactShell(double width) =>
+        width > 0 && width < RailThreshold;
 
     /// <summary>
     /// Responsive state is a view concern, so it lives here rather than in the view model.
@@ -58,7 +61,7 @@ public partial class MainWindow : Window
     {
         if (ShellGrid is null) return;
 
-        var compact = width > 0 && width < RailThreshold;
+        var compact = UsesCompactShell(width);
 
         if (compact == ShellGrid.Classes.Contains("compact")) return;
 

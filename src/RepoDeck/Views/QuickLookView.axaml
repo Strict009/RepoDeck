@@ -121,7 +121,7 @@
                         without a pointer.
                     -->
                     <ListBox Classes="thumbs"
-                             ItemsSource="{Binding Gallery}"
+                             ItemsSource="{Binding LoadedGallery}"
                              SelectedItem="{Binding Hero}"
                              SelectionMode="Single"
                              IsVisible="{Binding ShowScreenshotStrip}"
@@ -133,12 +133,8 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:MediaTileViewModel">
-                                <!-- A tile whose picture never arrived draws nothing at all.
-                                     An empty frame reads as broken; absence reads as
-                                     absence. -->
                                 <Border Width="74" Height="48"
                                         ClipToBounds="True"
-                                        IsVisible="{Binding IsLoaded}"
                                         Background="{DynamicResource RdPanelInsetBrush}"
                                         CornerRadius="{DynamicResource RdRadiusSmall}"
                                         ToolTip.Tip="{Binding AccessibleName}"

@@ -36,6 +36,8 @@ public class ShellAndMediaTests
 
         Assert.True(low.IsLow);
         Assert.Contains("LOW", low.Label);
+        Assert.False(string.IsNullOrWhiteSpace(low.Warning));
+        Assert.True(MainWindowViewModel.HasRateLimitWarning(low.Warning));
     }
 
     [Fact]
@@ -48,6 +50,8 @@ public class ShellAndMediaTests
         });
 
         Assert.True(spent.IsLow);
+        Assert.Contains("reached", spent.Warning, StringComparison.OrdinalIgnoreCase);
+        Assert.True(MainWindowViewModel.HasRateLimitWarning(spent.Warning));
     }
 
     [Fact]
@@ -55,6 +59,20 @@ public class ShellAndMediaTests
     {
         Assert.False(RateLimitPresentation.Unknown.IsKnown);
         Assert.False(RateLimitPresentation.Unknown.IsLow);
+        Assert.Equal("", RateLimitPresentation.Unknown.Warning);
+    }
+
+    [Fact]
+    public void A_healthy_allowance_does_not_enter_the_persistent_status_surface()
+    {
+        var healthy = RateLimitPresentation.From(new RateLimitStatus
+        {
+            Limit = 60,
+            Remaining = 55
+        });
+
+        Assert.Equal("", healthy.Warning);
+        Assert.False(MainWindowViewModel.HasRateLimitWarning(healthy.Warning));
     }
 
     // ---- Media: absence reads as absence ----------------------------------

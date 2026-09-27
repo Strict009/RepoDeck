@@ -46,12 +46,16 @@ public sealed record RateLimitPresentation(
             ? ""
             : $" Resets {Humanize.TimeUntil(status.ResetsAt, now)}.";
 
+        var isLow = status.IsExhausted || fraction < 0.25;
+
         return new RateLimitPresentation(
             IsKnown: true,
             Label: label,
-            IsLow: status.IsExhausted || fraction < 0.25,
+            IsLow: isLow,
             Percent: Math.Clamp(fraction * 100, 0, 100),
             Detail: $"{status.Remaining} of {status.Limit} GitHub requests left. {authentication}{resets}",
-            Warning: status.IsExhausted ? "GitHub limit reached" : "");
+            Warning: status.IsExhausted
+                ? "GitHub limit reached"
+                : isLow ? "GitHub allowance low" : "");
     }
 }

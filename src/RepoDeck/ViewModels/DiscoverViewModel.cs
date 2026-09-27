@@ -7,6 +7,7 @@ using RepoDeck.Services.Analysis;
 using RepoDeck.Services.Explanation;
 using RepoDeck.Services.Favorites;
 using RepoDeck.Services.GitHub;
+using RepoDeck.Services.Install;
 using RepoDeck.Services.Media;
 using RepoDeck.Services.Preferences;
 
@@ -34,6 +35,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
     private readonly IUserPreferences? _preferences;
     private readonly MachineProfile _machine;
     private readonly IFavoritesStore? _favorites;
+    private readonly IInstalledAppStore? _installedApps;
+    private readonly IUiDispatcher _dispatcher;
     private readonly HashSet<RepositoryCardViewModel> _deferredGroupMoves = [];
 
     public DiscoverViewModel(
@@ -46,7 +49,9 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         QuickLookViewModel? quickLook = null,
         MachineProfile? machine = null,
         IFavoritesStore? favorites = null,
-        Services.History.IRecentlyViewed? recentlyViewed = null)
+        Services.History.IRecentlyViewed? recentlyViewed = null,
+        IInstalledAppStore? installedApps = null,
+        IUiDispatcher? dispatcher = null)
     {
         _recentlyViewed = recentlyViewed ?? Services.History.NullRecentlyViewed.Instance;
         _github = github;
@@ -57,6 +62,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         _preferences = preferences;
         _machine = machine ?? PlatformInfo.CurrentMachine();
         _favorites = favorites;
+        _installedApps = installedApps;
+        _dispatcher = dispatcher ?? new AvaloniaUiDispatcher();
 
         QuickLook = quickLook;
 
@@ -64,6 +71,11 @@ public sealed partial class DiscoverViewModel : ViewModelBase
         // something from Discover updates it without a round trip through the shell.
         _recentlyViewed.Changed += RefreshRecentlyViewed;
         RefreshRecentlyViewed();
+
+        // Discover and the store are both application-lifetime services. Keeping this
+        // subscription for that shared lifetime lets visible cards react immediately to
+        // install/remove operations without another GitHub request.
+        if (_installedApps is not null) _installedApps.Changed += OnInstalledAppsChanged;
 
         if (quickLook is not null)
         {
@@ -665,7 +677,8 @@ public sealed partial class DiscoverViewModel : ViewModelBase
                 repository, explanation, likelihood, setup,
                 media.PrimaryArtwork?.Url, OnRepositoryOpenRequested, _log,
                 OpenQuickLook, OnInstallRequested, ToggleFavorite,
-                _favorites?.IsFavorite(repository.OwnerLogin, repository.Name) ?? false);
+                _favorites?.IsFavorite(repository.OwnerLogin, repository.Name) ?? false,
+                IsInstalled(repository));
 
             card.SearchResultGroupChanged += OnSearchResultGroupChanged;
             card.ApplySearchContext(query, _machine);
@@ -693,6 +706,20 @@ public sealed partial class DiscoverViewModel : ViewModelBase
 
         // Pictures arrive afterwards and never hold up the results.
         StartLoadingImages(added);
+    }
+
+    private bool IsInstalled(GitHubRepository repository) =>
+        _installedApps?.Find(repository.OwnerLogin, repository.Name)?.State
+            == InstallationState.Installed;
+
+    private void OnInstalledAppsChanged() => _dispatcher.Post(RefreshInstalledStates);
+
+    internal void RefreshInstalledStates()
+    {
+        foreach (var card in Results)
+        {
+            card.ApplyInstalledState(IsInstalled(card.Repository));
+        }
     }
 
     private void OnSearchResultGroupChanged(RepositoryCardViewModel card)

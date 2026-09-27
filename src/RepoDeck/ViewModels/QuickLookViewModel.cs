@@ -113,22 +113,25 @@ public sealed partial class QuickLookViewModel : ViewModelBase
 
     // ---- Media ------------------------------------------------------------
 
-    /// <summary>Every picture worth showing, best first. The hero is one of these.</summary>
+    /// <summary>Every picture worth trying, best first.</summary>
     public ObservableCollection<MediaTileViewModel> Gallery { get; } = [];
 
     /// <summary>
-    /// The large image. Always a member of <see cref="Gallery"/>, so promoting a thumbnail
-    /// swaps a reference and never fetches anything again.
+    /// Pictures that actually arrived, in candidate order. This is the interactive
+    /// thumbnail source: a failed candidate never becomes a ListBox item, focus target or
+    /// hero choice.
+    /// </summary>
+    public ObservableCollection<MediaTileViewModel> LoadedGallery { get; } = [];
+
+    /// <summary>
+    /// The large image. Always a member of <see cref="LoadedGallery"/>, so promoting a
+    /// thumbnail swaps a reference and never fetches anything again.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowHero))]
     [NotifyPropertyChangedFor(nameof(ShowHeroFallback))]
     [NotifyPropertyChangedFor(nameof(HeroCaption))]
     private MediaTileViewModel? _hero;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowScreenshotStrip))]
-    private bool _hasScreenshots;
 
     /// <summary>
     /// How many pictures actually arrived.
@@ -139,7 +142,7 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     /// reserve a frame for it - which is where the row of empty black boxes came from. Only
     /// loaded tiles count, and only loaded tiles are drawn.
     /// </remarks>
-    public int LoadedPictureCount => Gallery.Count(tile => tile.IsLoaded);
+    public int LoadedPictureCount => LoadedGallery.Count;
 
     /// <summary>
     /// A strip is for choosing between pictures, so it needs at least two to choose from.
@@ -150,8 +153,41 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     public bool ShowHero => Hero is { IsLoaded: true };
     public bool ShowHeroFallback => !ShowHero;
 
-    private void RefreshMediaVisibility()
+    internal void RefreshMediaVisibility()
     {
+        SynchronizeLoadedGallery(Gallery.Where(candidate => candidate.IsLoaded).ToList());
+    }
+
+    internal void SynchronizeLoadedGallery(IReadOnlyList<MediaTileViewModel> usableTiles)
+    {
+        // Keep a stable, candidate-ordered projection rather than binding the ListBox to
+        // candidates and hiding failed item contents. Hiding the contents leaves an empty
+        // ListBoxItem that can still receive focus and selection.
+        for (var index = LoadedGallery.Count - 1; index >= 0; index--)
+        {
+            var tile = LoadedGallery[index];
+            if (!usableTiles.Contains(tile) || !Gallery.Contains(tile))
+            {
+                LoadedGallery.RemoveAt(index);
+            }
+        }
+
+        var loadedIndex = 0;
+        foreach (var tile in Gallery.Where(usableTiles.Contains))
+        {
+            var existingIndex = LoadedGallery.IndexOf(tile);
+            if (existingIndex < 0)
+            {
+                LoadedGallery.Insert(loadedIndex, tile);
+            }
+            else if (existingIndex != loadedIndex)
+            {
+                LoadedGallery.Move(existingIndex, loadedIndex);
+            }
+
+            loadedIndex++;
+        }
+
         OnPropertyChanged(nameof(LoadedPictureCount));
         OnPropertyChanged(nameof(ShowScreenshotStrip));
         OnPropertyChanged(nameof(ShowHero));
@@ -159,10 +195,17 @@ public sealed partial class QuickLookViewModel : ViewModelBase
 
         // If the first candidate never arrived but a later one did, promote it rather than
         // showing the fallback beside a strip of pictures that plainly exist.
-        if (Hero is not { IsLoaded: true })
+        if (Hero is null || !LoadedGallery.Contains(Hero))
         {
-            var arrived = Gallery.FirstOrDefault(tile => tile.IsLoaded);
-            if (arrived is not null) SelectHero(arrived);
+            var arrived = LoadedGallery.FirstOrDefault();
+            if (arrived is not null)
+            {
+                SelectHero(arrived);
+            }
+            else
+            {
+                Hero = null;
+            }
         }
     }
 
@@ -182,9 +225,12 @@ public sealed partial class QuickLookViewModel : ViewModelBase
     [RelayCommand]
     private void SelectHero(MediaTileViewModel? tile)
     {
-        if (tile is null || ReferenceEquals(tile, Hero)) return;
+        if (tile is null || !LoadedGallery.Contains(tile) || ReferenceEquals(tile, Hero)) return;
 
-        foreach (var candidate in Gallery) candidate.IsSelected = ReferenceEquals(candidate, tile);
+        foreach (var candidate in LoadedGallery)
+        {
+            candidate.IsSelected = ReferenceEquals(candidate, tile);
+        }
 
         Hero = tile;
     }
@@ -347,7 +393,7 @@ public sealed partial class QuickLookViewModel : ViewModelBase
         _plan = null;
 
         Gallery.Clear();
-        HasScreenshots = false;
+        LoadedGallery.Clear();
         Hero = null;
 
         Reasoning.Clear();
@@ -761,8 +807,6 @@ public sealed partial class QuickLookViewModel : ViewModelBase
             Gallery.Add(tile);
             _ = tile.LoadAsync(_images, token);
         }
-
-        if (Gallery.Count > 0) SelectHero(Gallery[0]);
 
         RefreshMediaVisibility();
 

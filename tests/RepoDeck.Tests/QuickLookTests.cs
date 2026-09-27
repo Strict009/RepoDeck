@@ -175,6 +175,54 @@ public class QuickLookTests : IDisposable
         Assert.False(panel.IsOpen);
     }
 
+    // ---- Media interaction ----------------------------------------------
+
+    [Fact]
+    public void Mixed_media_exposes_only_usable_candidates_to_thumbnail_selection()
+    {
+        var panel = Create();
+        var first = new MediaTileViewModel("https://example.invalid/first.png", "First");
+        var failed = new MediaTileViewModel("https://example.invalid/failed.png", "Failed");
+        var third = new MediaTileViewModel("https://example.invalid/third.png", "Third");
+        panel.Gallery.Add(first);
+        panel.Gallery.Add(failed);
+        panel.Gallery.Add(third);
+
+        panel.SynchronizeLoadedGallery([first, third]);
+
+        Assert.Equal([first, third], panel.LoadedGallery);
+        Assert.DoesNotContain(failed, panel.LoadedGallery);
+        Assert.True(panel.ShowScreenshotStrip);
+        Assert.Same(first, panel.Hero);
+
+        panel.SelectHeroCommand.Execute(third);
+        Assert.Same(third, panel.Hero);
+
+        panel.SelectHeroCommand.Execute(failed);
+        Assert.Same(third, panel.Hero);
+
+        panel.SynchronizeLoadedGallery([first]);
+        Assert.Same(first, panel.Hero);
+    }
+
+    [Fact]
+    public void Zero_or_one_usable_picture_never_creates_a_thumbnail_strip()
+    {
+        var panel = Create();
+        var candidate = new MediaTileViewModel("https://example.invalid/only.png", "Only");
+        panel.Gallery.Add(candidate);
+
+        panel.SynchronizeLoadedGallery([]);
+        Assert.Empty(panel.LoadedGallery);
+        Assert.Null(panel.Hero);
+        Assert.False(panel.ShowScreenshotStrip);
+
+        panel.SynchronizeLoadedGallery([candidate]);
+        Assert.Single(panel.LoadedGallery);
+        Assert.Same(candidate, panel.Hero);
+        Assert.False(panel.ShowScreenshotStrip);
+    }
+
     // ---- What it says -----------------------------------------------------
 
     [Fact]

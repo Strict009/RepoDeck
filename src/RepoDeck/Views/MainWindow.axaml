@@ -206,6 +206,7 @@
                                Margin="0,0,18,0" VerticalAlignment="Center" />
 
                     <TextBlock Grid.Column="3" Text="{Binding RateLimitText}" Classes="muted"
+                               IsVisible="{Binding ShowRateLimitWarning}"
                                VerticalAlignment="Center"
                                ToolTip.Tip="{Binding RateLimitDetail}" />
                 </Grid>
