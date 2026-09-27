@@ -92,6 +92,35 @@ public static class PackageCapabilities
         _ => new PackageCapability { Type = type }
     };
 
+    /// <summary>
+    /// Whether an install plan with this exact package/strategy pairing can be carried out.
+    /// The strategy is part of the check because an old or externally constructed plan must
+    /// not turn a recognised-but-unsupported format into an executable plan by labelling it
+    /// as a portable archive.
+    /// </summary>
+    public static bool CanExecute(PackageType type, InstallStrategy strategy)
+    {
+        var capability = For(type,
+            installerLikeExecutable: type == PackageType.WindowsExecutable
+                                     && strategy == InstallStrategy.WindowsInstaller);
+
+        return capability.CanExecutePlan && capability.Strategy == strategy;
+    }
+
+    /// <summary>
+    /// Whether this pairing can produce or replace a RepoDeck-managed installation.
+    /// Download-only system installers are executable plans, but they cannot repair or
+    /// replace the files of an existing managed application.
+    /// </summary>
+    public static bool CanInstallManaged(PackageType type, InstallStrategy strategy)
+    {
+        var capability = For(type,
+            installerLikeExecutable: type == PackageType.WindowsExecutable
+                                     && strategy == InstallStrategy.WindowsInstaller);
+
+        return capability.CanInstallDirectly && capability.Strategy == strategy;
+    }
+
     private static PackageCapability Archive(PackageType type, ArchiveExtractionKind extraction) => new()
     {
         Type = type,

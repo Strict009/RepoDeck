@@ -198,6 +198,28 @@ public class InstallationHealthTests : IDisposable
 
         Assert.Contains(plan.WillDo, s => s.Contains("put the old one back", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Theory]
+    [InlineData(PackageType.SevenZip)]
+    [InlineData(PackageType.TarXz)]
+    [InlineData(PackageType.TarBz2)]
+    public void An_unsupported_archive_installation_cannot_offer_repair(PackageType packageType)
+    {
+        var original = Installed();
+        File.Delete(Path.Combine(original.InstalledPath, "tool.exe"));
+
+        var manifest = original with
+        {
+            PackageType = packageType,
+            Strategy = InstallStrategy.PortableArchive
+        };
+
+        var plan = _checker.PlanRepair(manifest, _checker.Check(manifest));
+
+        Assert.False(plan.CanProceed);
+        Assert.Contains(plan.BlockingIssues,
+            reason => reason.Contains("cannot repair", StringComparison.OrdinalIgnoreCase));
+    }
 }
 
 /// <summary>

@@ -114,7 +114,8 @@ public sealed record UpdatePlan
     public bool CanProceed =>
         BlockingIssues.Count == 0
         && AssetUrl is { Length: > 0 }
-        && Strategy == UpdateStrategy.ReplaceManagedInstallation;
+        && Strategy == UpdateStrategy.ReplaceManagedInstallation
+        && PackageCapabilities.CanInstallManaged(PackageType, InstallStrategy);
 
     [JsonIgnore]
     public string StepSummary => "Download -> Verify -> Prepare -> Replace";

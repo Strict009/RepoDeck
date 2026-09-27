@@ -81,7 +81,10 @@ public sealed record RepairPlan
     public IReadOnlyList<string> Reasons { get; init; } = [];
     public IReadOnlyList<string> BlockingIssues { get; init; } = [];
 
-    public bool CanProceed => BlockingIssues.Count == 0 && AssetUrl is { Length: > 0 };
+    public bool CanProceed =>
+        BlockingIssues.Count == 0
+        && AssetUrl is { Length: > 0 }
+        && PackageCapabilities.CanInstallManaged(Current.PackageType, Current.Strategy);
 
     /// <summary>What RepoDeck will do, for the confirmation.</summary>
     public IReadOnlyList<string> WillDo =>

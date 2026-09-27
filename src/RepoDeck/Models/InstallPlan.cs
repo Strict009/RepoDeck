@@ -67,7 +67,10 @@ public sealed record InstallPlan
     public IReadOnlyList<string> BlockingIssues { get; init; } = [];
 
     [JsonIgnore]
-    public bool CanProceed => BlockingIssues.Count == 0 && AssetUrl is not null;
+    public bool CanProceed =>
+        BlockingIssues.Count == 0
+        && AssetUrl is not null
+        && PackageCapabilities.CanExecute(PackageType, Strategy);
 
     /// <summary>
     /// True for a plan that RepoDeck understands but deliberately will not carry out,

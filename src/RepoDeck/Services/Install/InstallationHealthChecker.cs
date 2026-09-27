@@ -154,6 +154,13 @@ public sealed class InstallationHealthChecker : IInstallationHealthChecker
                 + "again. Install it again from its page.");
         }
 
+        if (!PackageCapabilities.CanInstallManaged(manifest.PackageType, manifest.Strategy))
+        {
+            return RepairPlan.NotPossible(manifest, health,
+                $"RepoDeck cannot repair this installation automatically because its recorded "
+                + $"{manifest.PackageType.ToDisplayString()} format is not one this version can install.");
+        }
+
         return new RepairPlan
         {
             Current = manifest,

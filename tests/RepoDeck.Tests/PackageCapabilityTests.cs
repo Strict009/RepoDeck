@@ -107,4 +107,26 @@ public class PackageCapabilityTests
 
         Assert.Equal(InstallStrategy.WindowsInstaller, PackageCapabilityResolver.For(setup).Strategy);
     }
+
+    [Theory]
+    [InlineData(PackageType.SevenZip)]
+    [InlineData(PackageType.TarXz)]
+    [InlineData(PackageType.TarBz2)]
+    public void Unsupported_archives_cannot_be_made_actionable_by_a_mismatched_strategy(
+        PackageType type)
+    {
+        Assert.False(PackageCapabilities.CanExecute(type, InstallStrategy.PortableArchive));
+        Assert.False(PackageCapabilities.CanInstallManaged(type, InstallStrategy.PortableArchive));
+    }
+
+    [Theory]
+    [InlineData(PackageType.Zip, InstallStrategy.PortableArchive)]
+    [InlineData(PackageType.TarGz, InstallStrategy.PortableArchive)]
+    [InlineData(PackageType.WindowsExecutable, InstallStrategy.StandaloneExecutable)]
+    public void Supported_managed_package_and_strategy_pairs_remain_actionable(
+        PackageType type, InstallStrategy strategy)
+    {
+        Assert.True(PackageCapabilities.CanExecute(type, strategy));
+        Assert.True(PackageCapabilities.CanInstallManaged(type, strategy));
+    }
 }

@@ -36,6 +36,14 @@ public class InstallabilityTests
         ReleaseTag = "v2.1",
         Platform = OsPlatform.Windows,
         Architecture = CpuArchitecture.X64,
+        PackageType = strategy switch
+        {
+            InstallStrategy.WindowsInstaller => PackageType.WindowsInstaller,
+            InstallStrategy.LinuxPackage => PackageType.DebianPackage,
+            InstallStrategy.StandaloneExecutable => PackageType.WindowsExecutable,
+            InstallStrategy.LinuxAppImage => PackageType.AppImage,
+            _ => PackageType.Zip
+        },
         Strategy = strategy,
         RequiresElevation = elevation,
         Confidence = Confidence.Likely

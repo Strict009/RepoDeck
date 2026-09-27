@@ -345,10 +345,14 @@ public sealed class InstallationFailureTests : IDisposable
     public async Task An_unsupported_archive_format_installs_nothing()
     {
         var plan = Plan("tool.7z", PackageType.SevenZip);
-        var result = await ServiceFor(MakeZip("tool.7z", ("tool.exe", "x"))).InstallAsync(plan);
+        var downloads = new FakeDownloadService(
+            MakeZip("tool.7z", ("tool.exe", "x")), _paths.Downloads);
+        var result = await Service(downloads).InstallAsync(plan);
 
         Assert.False(result.Succeeded);
-        Assert.Contains("cannot unpack", result.ErrorMessage);
+        Assert.Contains("no usable installation plan", result.ErrorMessage,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, downloads.CallCount);
         AssertNothingInstalled(plan);
     }
 
