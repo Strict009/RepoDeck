@@ -65,6 +65,23 @@ public class PackageCapabilityTests
         Assert.Equal(InstallStrategy.WindowsInstaller, setup.Strategy);
     }
 
+    [Theory]
+    [InlineData(PackageType.SourceArchive, InstallStrategy.SourceBuild)]
+    [InlineData(PackageType.Metadata, InstallStrategy.Unsupported)]
+    public void Non_application_files_are_recognised_without_becoming_installable(
+        PackageType type, InstallStrategy strategy)
+    {
+        var capability = PackageCapabilities.For(type);
+
+        Assert.True(capability.IsRecognized);
+        Assert.False(capability.IsSoftware);
+        Assert.False(capability.CanInspectContents);
+        Assert.False(capability.CanExtract);
+        Assert.False(capability.CanInstallDirectly);
+        Assert.False(capability.CanExecutePlan);
+        Assert.Equal(strategy, capability.Strategy);
+    }
+
     [Fact]
     public void Every_portable_archive_strategy_is_backed_by_an_extractor()
     {

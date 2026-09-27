@@ -87,7 +87,6 @@ public static class PackageCapabilities
             Type = type,
             IsRecognized = true,
             CanDownload = true,
-            CanInspectContents = true,
             Strategy = InstallStrategy.Unsupported
         },
         _ => new PackageCapability { Type = type }
