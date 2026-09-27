@@ -92,7 +92,7 @@ public sealed record Installability
         InstallabilityState.ReadyToInstall =>
             "RepoDeck can download and install this for you.",
         InstallabilityState.NeedsSetup =>
-            "RepoDeck can fetch this, but you will have to finish setting it up yourself.",
+            "RepoDeck cannot finish this installation automatically.",
         InstallabilityState.DeveloperFocused =>
             "This is a building block for software rather than a program to install.",
         InstallabilityState.NotCompatible =>

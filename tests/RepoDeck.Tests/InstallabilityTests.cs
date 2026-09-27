@@ -157,6 +157,43 @@ public class InstallabilityTests
     }
 
     [Fact]
+    public void An_unsupported_archive_is_RepoDecks_limitation_not_a_project_verdict()
+    {
+        var plan = InstallPlan.NotPossible(
+            "someone", "tool", "https://github.com/someone/tool",
+            InstallStrategy.Unsupported,
+            "The publisher provides a 7-Zip archive, but this version of RepoDeck cannot extract it automatically.")
+            with { PackageType = PackageType.SevenZip };
+
+        var verdict = InstallabilityEvaluator.FromPlan(
+            plan, Analysis(), ReleaseAnalysis.None(""), Windows);
+
+        Assert.Equal(InstallabilityState.NeedsSetup, verdict.State);
+        Assert.Equal(StatusTone.Caution, verdict.Tone);
+        Assert.False(verdict.AllowsDirectInstall);
+        Assert.DoesNotContain(verdict.Reasons,
+            reason => reason.Contains("incompatible", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(verdict.Reasons,
+            reason => reason.Contains("RepoDeck cannot extract", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void An_unrecognised_package_remains_unknown()
+    {
+        var plan = InstallPlan.NotPossible(
+            "someone", "tool", "https://github.com/someone/tool",
+            InstallStrategy.Unsupported,
+            "Automatic installation is not available for this unrecognised file.");
+
+        var verdict = InstallabilityEvaluator.FromPlan(
+            plan, Analysis(), ReleaseAnalysis.None(""), Windows);
+
+        Assert.Equal(InstallabilityState.Unknown, verdict.State);
+        Assert.Equal(StatusTone.Neutral, verdict.Tone);
+        Assert.False(verdict.AllowsDirectInstall);
+    }
+
+    [Fact]
     public void A_release_with_downloads_but_none_for_this_machine_is_not_compatible()
     {
         // The distinction that matters: there is something here, just not for you.

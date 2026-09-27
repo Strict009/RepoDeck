@@ -132,7 +132,12 @@ public sealed partial class RepositoryDetailsViewModel
             return;
         }
 
-        CanInstallHeadline = "No - RepoDeck cannot install this one.";
+        var capability = PackageCapabilities.For(plan.PackageType);
+        CanInstallHeadline = plan.Strategy == InstallStrategy.Unsupported
+                             && capability.IsRecognized
+                             && capability.IsSoftware
+            ? "Automatic installation isn't available for this download."
+            : "No - RepoDeck cannot install this one.";
 
         CanInstallDetail = plan.BlockingIssues.Count > 0
             ? string.Join(" ", plan.BlockingIssues)

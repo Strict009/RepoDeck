@@ -102,6 +102,7 @@ public enum PackageType
     SevenZip,
     TarGz,
     TarXz,
+    TarBz2,
     WindowsExecutable,
     WindowsInstaller,
     AppImage,
@@ -159,6 +160,7 @@ public static class AnalysisVocabularyText
         PackageType.SevenZip => "7-Zip archive",
         PackageType.TarGz => "tar.gz archive",
         PackageType.TarXz => "tar.xz archive",
+        PackageType.TarBz2 => "tar.bz2 archive",
         PackageType.WindowsExecutable => "Windows executable",
         PackageType.WindowsInstaller => "Windows installer",
         PackageType.AppImage => "Linux AppImage",
@@ -172,12 +174,9 @@ public static class AnalysisVocabularyText
     };
 
     /// <summary>True for package types that contain a runnable program rather than source or notes.</summary>
-    public static bool IsRunnableSoftware(this PackageType value) => value is
-        PackageType.Zip or PackageType.SevenZip or PackageType.TarGz or PackageType.TarXz or
-        PackageType.WindowsExecutable or PackageType.WindowsInstaller or PackageType.AppImage or
-        PackageType.DebianPackage or PackageType.RpmPackage or PackageType.MacDiskImage or
-        PackageType.MacInstallerPackage;
+    public static bool IsRunnableSoftware(this PackageType value) =>
+        PackageCapabilities.For(value).IsSoftware;
 
-    public static bool RequiresExtraction(this PackageType value) => value is
-        PackageType.Zip or PackageType.SevenZip or PackageType.TarGz or PackageType.TarXz;
+    public static bool RequiresExtraction(this PackageType value) =>
+        PackageCapabilities.For(value).IsArchive;
 }

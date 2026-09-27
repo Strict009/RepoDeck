@@ -245,8 +245,21 @@ public sealed class UpdateChecker : IUpdateChecker
         reasons.Add($"{newest.Version} was published "
                     + Humanize.RelativeTime(newest.Release.PublishedAt ?? newest.Release.CreatedAt) + ".");
 
-        if (analysis.Recommended is null)
+        var capability = analysis.Recommended is null
+            ? null
+            : PackageCapabilityResolver.For(analysis.Recommended);
+
+        if (analysis.Recommended is null || capability?.CanExecutePlan != true)
         {
+            var limitation = analysis.Recommended is { } unsupported
+                ? capability?.IsArchive == true && capability.CanExtract == false
+                    ? $"The new version is a {unsupported.PackageType.ToDisplayString()}, which "
+                      + "this RepoDeck version cannot extract automatically."
+                    : $"The new version uses a {unsupported.PackageType.ToDisplayString()} that "
+                      + "RepoDeck cannot install automatically."
+                : analysis.NoRecommendationReason
+                  ?? $"Nothing in release {newest.Release.TagName} suits {machine.Description}.";
+
             return new UpdateCheck
             {
                 State = UpdateState.ManualUpdateRequired,
@@ -258,9 +271,8 @@ public sealed class UpdateChecker : IUpdateChecker
                 Explanation = $"{newest.Version} is available, but RepoDeck cannot install it for you.",
                 Reasons =
                 [
+                    limitation,
                     .. reasons,
-                    analysis.NoRecommendationReason
-                        ?? $"Nothing in release {newest.Release.TagName} suits {machine.Description}.",
                     "You can get it from the project's releases page yourself."
                 ]
             };

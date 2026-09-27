@@ -102,6 +102,14 @@ public static class ReleaseAnalyzer
                           + $"{machine.Description}.{built}");
         }
 
-        return (usable[0], null);
+        // A recognised format is not necessarily one RepoDeck can process. Prefer an
+        // executable plan when the release also contains a usable unsupported archive;
+        // keep the unsupported asset only when it is the sole match so the planner can
+        // explain RepoDeck's limitation without calling the application incompatible.
+        var executable = usable
+            .Where(a => PackageCapabilityResolver.For(a).CanExecutePlan)
+            .ToList();
+
+        return (executable.FirstOrDefault() ?? usable[0], null);
     }
 }

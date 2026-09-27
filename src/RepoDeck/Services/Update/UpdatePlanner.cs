@@ -75,7 +75,8 @@ public static class UpdatePlanner
                 ?? $"Nothing in release {release.TagName} suits {machine.Description}.");
         }
 
-        var installStrategy = ResolveInstallStrategy(asset);
+        var capability = PackageCapabilityResolver.For(asset);
+        var installStrategy = capability.Strategy;
 
         var warnings = new List<string>(asset.Warnings);
         var blockers = new List<string>();
@@ -106,8 +107,13 @@ public static class UpdatePlanner
 
         if (installStrategy is InstallStrategy.SourceBuild or InstallStrategy.Unsupported)
         {
+            var reason = capability.IsArchive && !capability.CanExtract
+                ? $"The publisher provides a {asset.PackageType.ToDisplayString()}, but this "
+                  + "version of RepoDeck cannot extract that format automatically."
+                : $"RepoDeck does not know how to install a {asset.PackageType.ToDisplayString()}.";
+
             return UpdatePlan.NotPossible(current, UpdateStrategy.NotSupported,
-                $"RepoDeck does not know how to install a {asset.PackageType.ToDisplayString()}.");
+                reason);
         }
 
         // Changing what kind of thing the installation is halfway through its life is not
@@ -200,23 +206,6 @@ public static class UpdatePlanner
 
         return names.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
-
-    private static InstallStrategy ResolveInstallStrategy(AssetAnalysis asset) => asset.PackageType switch
-    {
-        PackageType.Zip or PackageType.SevenZip or PackageType.TarGz or PackageType.TarXz =>
-            InstallStrategy.PortableArchive,
-
-        PackageType.WindowsExecutable =>
-            AssetNameParser.LooksLikeInstaller(asset.Name)
-                ? InstallStrategy.WindowsInstaller
-                : InstallStrategy.StandaloneExecutable,
-
-        PackageType.WindowsInstaller => InstallStrategy.WindowsInstaller,
-        PackageType.AppImage => InstallStrategy.LinuxAppImage,
-        PackageType.DebianPackage or PackageType.RpmPackage => InstallStrategy.LinuxPackage,
-        PackageType.SourceArchive => InstallStrategy.SourceBuild,
-        _ => InstallStrategy.Unsupported
-    };
 
     private static Confidence ResolveConfidence(AssetAnalysis asset) => asset.Compatibility switch
     {

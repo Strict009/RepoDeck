@@ -5,24 +5,6 @@ namespace RepoDeck.Services.Install;
 
 public sealed partial class InstallPlanner
 {
-    private static InstallStrategy ResolveStrategy(AssetAnalysis asset) => asset.PackageType switch
-    {
-        PackageType.Zip or PackageType.SevenZip or PackageType.TarGz or PackageType.TarXz =>
-            InstallStrategy.PortableArchive,
-
-        // A .exe called "setup" installs itself; one that is not is the program.
-        PackageType.WindowsExecutable =>
-            AssetNameParser.LooksLikeInstaller(asset.Name)
-                ? InstallStrategy.WindowsInstaller
-                : InstallStrategy.StandaloneExecutable,
-
-        PackageType.WindowsInstaller => InstallStrategy.WindowsInstaller,
-        PackageType.AppImage => InstallStrategy.LinuxAppImage,
-        PackageType.DebianPackage or PackageType.RpmPackage => InstallStrategy.LinuxPackage,
-        PackageType.SourceArchive => InstallStrategy.SourceBuild,
-        _ => InstallStrategy.Unsupported
-    };
-
     private static LaunchStrategy ResolveLaunchStrategy(InstallStrategy strategy) => strategy switch
     {
         InstallStrategy.PortableArchive or InstallStrategy.StandaloneExecutable => LaunchStrategy.ExecutableFile,

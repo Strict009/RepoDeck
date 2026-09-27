@@ -174,6 +174,20 @@ public class UpdatePlannerTests : IDisposable
         Assert.False(plan.CanProceed);
     }
 
+    [Theory]
+    [InlineData("tool-2.0.0-win-x64.7z")]
+    [InlineData("tool-2.0.0-win-x64.tar.xz")]
+    [InlineData("tool-2.0.0-win-x64.tar.bz2")]
+    public void An_archive_without_a_decoder_never_replaces_a_working_installation(string asset)
+    {
+        var plan = PlanFor(Installed(), Release("v2.0.0", asset));
+
+        Assert.False(plan.CanProceed);
+        Assert.Equal(UpdateStrategy.NotSupported, plan.Strategy);
+        Assert.Contains(plan.BlockingIssues,
+            issue => issue.Contains("cannot extract", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public void A_system_installer_never_replaces_a_working_managed_installation()
     {

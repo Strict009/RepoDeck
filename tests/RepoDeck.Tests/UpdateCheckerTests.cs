@@ -297,6 +297,25 @@ public class UpdateCheckerTests
         Assert.Contains(check.Reasons, r => r.Contains("releases page", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("tool-win-x64.7z", "7-Zip")]
+    [InlineData("tool-win-x64.tar.xz", "tar.xz")]
+    [InlineData("tool-win-x64.tar.bz2", "tar.bz2")]
+    public void A_newer_release_in_an_unsupported_archive_requires_manual_handling(
+        string asset, string format)
+    {
+        var check = Check(
+            Installed("v1.0.0"),
+            Release("v2.0.0", assets: [asset]),
+            Release("v1.0.0"));
+
+        Assert.Equal(UpdateState.ManualUpdateRequired, check.State);
+        Assert.Contains(check.Reasons,
+            reason => reason.Contains(format, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(check.Reasons,
+            reason => reason.Contains("cannot extract", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public void A_newer_release_containing_only_source_is_a_manual_update()
     {

@@ -135,6 +135,28 @@ public class ReleaseAnalyzerTests
     }
 
     [Fact]
+    public void A_supported_archive_beats_a_smaller_unsupported_archive_for_the_same_machine()
+    {
+        var release = TestRepositories.Release("v1.0.0", false,
+            "Tool-win-x64.7z", "Tool-win-x64.zip");
+
+        // Fixture sizes are deterministic and equal; reverse alphabetical/input accidents
+        // must never let the unsupported format displace an executable plan.
+        var analysis = ReleaseAnalyzer.Analyze([release], WindowsX64);
+
+        Assert.Equal("Tool-win-x64.zip", analysis.Recommended?.Name);
+    }
+
+    [Fact]
+    public void An_unsupported_archive_remains_recommendable_as_evidence_when_it_is_the_only_match()
+    {
+        var analysis = ReleaseAnalyzer.Analyze([Release("Tool-win-x64.7z")], WindowsX64);
+
+        Assert.Equal("Tool-win-x64.7z", analysis.Recommended?.Name);
+        Assert.False(PackageCapabilityResolver.For(analysis.Recommended!).CanExecutePlan);
+    }
+
+    [Fact]
     public void Draft_releases_are_ignored()
     {
         var draft = TestRepositories.DraftRelease("v2.0.0", "Tool-win-x64.zip");

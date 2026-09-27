@@ -20,6 +20,17 @@ public class InstallPlanStrategyTests
     }
 
     [Fact]
+    public void A_Windows_tar_gzip_remains_an_actionable_portable_archive_plan()
+    {
+        var plan = Plan(WindowsX64, "Tool-win-x64.tar.gz");
+
+        Assert.Equal(PackageType.TarGz, plan.PackageType);
+        Assert.Equal(InstallStrategy.PortableArchive, plan.Strategy);
+        Assert.True(plan.RequiresExtraction);
+        Assert.True(plan.CanProceed);
+    }
+
+    [Fact]
     public void An_msi_becomes_a_Windows_installer_plan_that_warns_about_elevation()
     {
         var plan = Plan(WindowsX64, "Tool-1.4.2-x64.msi");
@@ -39,6 +50,22 @@ public class InstallPlanStrategyTests
         Assert.Equal(InstallStrategy.StandaloneExecutable, plan.Strategy);
         Assert.False(plan.RequiresExtraction);
         Assert.Contains("Tool-win-x64.exe", plan.ExecutableCandidates);
+    }
+
+    [Theory]
+    [InlineData("Tool-win-x64.7z", PackageType.SevenZip)]
+    [InlineData("Tool-win-x64.tar.xz", PackageType.TarXz)]
+    [InlineData("Tool-win-x64.tar.bz2", PackageType.TarBz2)]
+    public void A_recognised_archive_without_a_decoder_is_not_actionable(
+        string assetName, PackageType packageType)
+    {
+        var plan = Plan(WindowsX64, assetName);
+
+        Assert.Equal(packageType, plan.PackageType);
+        Assert.Equal(InstallStrategy.Unsupported, plan.Strategy);
+        Assert.False(plan.CanProceed);
+        Assert.Contains(plan.BlockingIssues,
+            issue => issue.Contains("cannot extract", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

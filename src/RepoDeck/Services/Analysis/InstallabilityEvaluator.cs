@@ -89,13 +89,12 @@ public static class InstallabilityEvaluator
     {
         var reasons = new List<string>();
 
-        // Deliberately unsupported comes first: a source-build project is developer
-        // focused whatever its release list happens to contain.
-        if (plan.IsDeliberatelyUnsupported)
+        // Source-only really is developer-focused. A recognised application archive that
+        // this RepoDeck version cannot decode is different: that is RepoDeck's limitation,
+        // not a verdict about the project or the user's computer.
+        if (plan.Strategy == InstallStrategy.SourceBuild)
         {
-            reasons.Add(plan.Strategy == InstallStrategy.SourceBuild
-                ? "This would have to be compiled from source, which RepoDeck does not do."
-                : "RepoDeck does not know how to install what this project publishes.");
+            reasons.Add("This would have to be compiled from source, which RepoDeck does not do.");
 
             reasons.AddRange(plan.BlockingIssues);
 
@@ -103,6 +102,43 @@ public static class InstallabilityEvaluator
             {
                 State = InstallabilityState.DeveloperFocused,
                 Confidence = Confidence.Confirmed,
+                Reasons = Trim(reasons)
+            };
+        }
+
+        // A completed release inspection can positively rule out every published binary
+        // for this machine even when there is no recommended asset to carry into a plan.
+        var ruledOut = releases.HasAnyBinary
+                       && releases.Recommended is null
+                       && releases.SoftwareAssets.All(a => !a.IsUsable);
+
+        if (ruledOut)
+        {
+            reasons.Add($"This release has {releases.SoftwareAssets.Count} download"
+                        + (releases.SoftwareAssets.Count == 1 ? "" : "s")
+                        + $", none of them for {machine.Description}.");
+
+            if (releases.NoRecommendationReason is { Length: > 0 } why) reasons.Add(why);
+
+            return new Installability
+            {
+                State = InstallabilityState.NotCompatible,
+                Confidence = Confidence.Confirmed,
+                Reasons = Trim(reasons)
+            };
+        }
+
+        if (plan.Strategy == InstallStrategy.Unsupported)
+        {
+            reasons.AddRange(plan.BlockingIssues);
+
+            var capability = PackageCapabilities.For(plan.PackageType);
+            return new Installability
+            {
+                State = capability.IsRecognized && capability.IsSoftware
+                    ? InstallabilityState.NeedsSetup
+                    : InstallabilityState.Unknown,
+                Confidence = capability.IsRecognized ? Confidence.Confirmed : Confidence.Unknown,
                 Reasons = Trim(reasons)
             };
         }
@@ -139,28 +175,6 @@ public static class InstallabilityEvaluator
             {
                 State = InstallabilityState.ReadyToInstall,
                 Confidence = plan.Confidence == Confidence.Unknown ? Confidence.Likely : plan.Confidence,
-                Reasons = Trim(reasons)
-            };
-        }
-
-        // No usable plan. The distinction that matters to the user is between "there is
-        // nothing for your computer" and "there is nothing here at all".
-        var ruledOut = releases.HasAnyBinary
-                       && releases.Recommended is null
-                       && releases.SoftwareAssets.All(a => !a.IsUsable);
-
-        if (ruledOut)
-        {
-            reasons.Add($"This release has {releases.SoftwareAssets.Count} download"
-                        + (releases.SoftwareAssets.Count == 1 ? "" : "s")
-                        + $", none of them for {machine.Description}.");
-
-            if (releases.NoRecommendationReason is { Length: > 0 } why) reasons.Add(why);
-
-            return new Installability
-            {
-                State = InstallabilityState.NotCompatible,
-                Confidence = Confidence.Confirmed,
                 Reasons = Trim(reasons)
             };
         }

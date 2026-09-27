@@ -18,6 +18,13 @@ public class AssetNameParserTests
     [InlineData("Tool.7z", PackageType.SevenZip)]
     [InlineData("Tool-linux-x64.tar.gz", PackageType.TarGz)]
     [InlineData("Tool-linux-x64.tar.xz", PackageType.TarXz)]
+    [InlineData("Tool-linux-x64.txz", PackageType.TarXz)]
+    [InlineData("Tool-linux-x64.tar.bz2", PackageType.TarBz2)]
+    [InlineData("Tool-linux-x64.tbz", PackageType.TarBz2)]
+    [InlineData("Tool-linux-x64.tbz2", PackageType.TarBz2)]
+    [InlineData("TOOL-WIN-X64.TAR.BZ2", PackageType.TarBz2)]
+    [InlineData("TOOL-WIN-X64.TXZ", PackageType.TarXz)]
+    [InlineData("TOOL-WIN-X64.7Z", PackageType.SevenZip)]
     [InlineData("Tool.tgz", PackageType.TarGz)]
     [InlineData("Tool.exe", PackageType.WindowsExecutable)]
     [InlineData("Tool.msi", PackageType.WindowsInstaller)]
@@ -29,6 +36,13 @@ public class AssetNameParserTests
     public void Package_types_come_from_the_extension(string name, PackageType expected)
     {
         Assert.Equal(expected, Parse(name).PackageType);
+    }
+
+    [Fact]
+    public void Tar_bzip2_never_collapses_to_tar_gzip()
+    {
+        Assert.Equal(PackageType.TarBz2, Parse("Tool-win-x64.tar.bz2").PackageType);
+        Assert.NotEqual(PackageType.TarGz, Parse("Tool-win-x64.tar.bz2").PackageType);
     }
 
     [Theory]

@@ -18,9 +18,9 @@ namespace RepoDeck.Services.Install;
 public sealed partial class ExtractionService : IExtractionService
 {
     /// <summary>Guards against a small archive that expands to fill the disk.</summary>
-    private const long MaxTotalBytes = 4L * 1024 * 1024 * 1024;
+    internal const long MaxTotalBytes = 4L * 1024 * 1024 * 1024;
 
-    private const int MaxEntries = 200_000;
+    internal const int MaxEntries = 200_000;
 
     private readonly IAppLog _log;
 
@@ -41,20 +41,28 @@ public sealed partial class ExtractionService : IExtractionService
             throw new ExtractionException("The downloaded file is missing, so nothing was installed.");
         }
 
+        var capability = PackageCapabilities.For(packageType);
+        if (!capability.CanExtract)
+        {
+            throw new ExtractionException(
+                $"RepoDeck cannot unpack a {packageType.ToDisplayString()} automatically.");
+        }
+
         Directory.CreateDirectory(destinationDirectory);
         var root = Path.GetFullPath(destinationDirectory);
 
         try
         {
-            return packageType switch
+            return capability.Extraction switch
             {
-                PackageType.Zip => await ExtractZipAsync(archivePath, root, progress, cancellationToken)
+                ArchiveExtractionKind.Zip =>
+                    await ExtractZipAsync(archivePath, root, progress, cancellationToken)
                     .ConfigureAwait(false),
-                PackageType.TarGz or PackageType.TarXz =>
-                    await ExtractTarGzAsync(archivePath, root, progress, cancellationToken)
+                ArchiveExtractionKind.TarGZip =>
+                    await ExtractTarGZipAsync(archivePath, root, progress, cancellationToken)
                         .ConfigureAwait(false),
                 _ => throw new ExtractionException(
-                    $"RepoDeck cannot unpack a {packageType.ToDisplayString()}.")
+                    $"RepoDeck cannot unpack a {packageType.ToDisplayString()} automatically.")
             };
         }
         catch (ExtractionException)

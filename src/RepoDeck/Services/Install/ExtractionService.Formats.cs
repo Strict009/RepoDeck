@@ -15,12 +15,7 @@ public sealed partial class ExtractionService
         var files = 0;
         long bytes = 0;
 
-        if (archive.Entries.Count > MaxEntries)
-        {
-            throw new ExtractionException(
-                "That archive contains an unreasonable number of files, so RepoDeck refused it.",
-                $"{archive.Entries.Count} entries.");
-        }
+        GuardEntryCount(archive.Entries.Count);
 
         foreach (var entry in archive.Entries)
         {
@@ -56,7 +51,7 @@ public sealed partial class ExtractionService
         return Finish(root, files, bytes, refused);
     }
 
-    private async Task<ExtractionResult> ExtractTarGzAsync(
+    private async Task<ExtractionResult> ExtractTarGZipAsync(
         string archivePath, string root, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         await using var file = File.OpenRead(archivePath);
@@ -64,6 +59,7 @@ public sealed partial class ExtractionService
         await using var tar = new TarReader(decompressed);
 
         var refused = new List<string>();
+        var entries = 0;
         var files = 0;
         long bytes = 0;
 
@@ -72,11 +68,8 @@ public sealed partial class ExtractionService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (files > MaxEntries)
-            {
-                throw new ExtractionException(
-                    "That archive contains an unreasonable number of files, so RepoDeck refused it.");
-            }
+            entries++;
+            GuardEntryCount(entries);
 
             // Links are another way out of the destination folder, so they are refused.
             if (entry.EntryType is TarEntryType.SymbolicLink or TarEntryType.HardLink)
@@ -139,13 +132,22 @@ public sealed partial class ExtractionService
         }
     }
 
-    private static void GuardTotalSize(long bytes)
+    internal static void GuardTotalSize(long bytes)
     {
         if (bytes <= MaxTotalBytes) return;
 
         throw new ExtractionException(
             "That archive unpacks to more than RepoDeck is prepared to write, so it was refused.",
             $"Exceeded {MaxTotalBytes} bytes.");
+    }
+
+    internal static void GuardEntryCount(int entries)
+    {
+        if (entries <= MaxEntries) return;
+
+        throw new ExtractionException(
+            "That archive contains an unreasonable number of files, so RepoDeck refused it.",
+            $"{entries} entries.");
     }
 
     private ExtractionResult Finish(string root, int files, long bytes, List<string> refused)

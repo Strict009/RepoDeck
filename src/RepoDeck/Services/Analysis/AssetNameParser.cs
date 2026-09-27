@@ -94,9 +94,11 @@ public static class AssetNameParser
             return IsSourceArchiveName(lowerName, tokens) ? PackageType.SourceArchive : PackageType.TarXz;
         }
 
-        if (lowerName.EndsWith(".tar.bz2", StringComparison.Ordinal))
+        if (lowerName.EndsWith(".tar.bz2", StringComparison.Ordinal)
+            || lowerName.EndsWith(".tbz2", StringComparison.Ordinal)
+            || lowerName.EndsWith(".tbz", StringComparison.Ordinal))
         {
-            return IsSourceArchiveName(lowerName, tokens) ? PackageType.SourceArchive : PackageType.TarGz;
+            return IsSourceArchiveName(lowerName, tokens) ? PackageType.SourceArchive : PackageType.TarBz2;
         }
 
         if (IsMetadataName(lowerName)) return PackageType.Metadata;

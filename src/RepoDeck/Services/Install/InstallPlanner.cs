@@ -54,7 +54,8 @@ public sealed partial class InstallPlanner
 
         var asset = releases.Recommended;
         var release = releases.Release!;
-        var installStrategy = ResolveStrategy(asset);
+        var capability = PackageCapabilityResolver.For(asset);
+        var installStrategy = capability.Strategy;
 
         var warnings = new List<string>(asset.Warnings);
         var blockers = new List<string>();
@@ -67,7 +68,7 @@ public sealed partial class InstallPlanner
 
         if (installStrategy == InstallStrategy.Unsupported)
         {
-            blockers.Add($"RepoDeck does not know how to install a {asset.PackageType.ToDisplayString()}.");
+            blockers.Add(UnsupportedPackageMessage(asset, capability));
         }
 
         if (release.Prerelease)
@@ -110,5 +111,18 @@ public sealed partial class InstallPlanner
             Warnings = warnings,
             BlockingIssues = blockers
         };
+    }
+
+    private static string UnsupportedPackageMessage(
+        AssetAnalysis asset, PackageCapability capability)
+    {
+        if (capability.IsArchive && !capability.CanExtract)
+        {
+            return $"The publisher provides a {asset.PackageType.ToDisplayString()}, but this "
+                   + "version of RepoDeck cannot extract that format automatically.";
+        }
+
+        return $"Automatic installation is not available for this "
+               + $"{asset.PackageType.ToDisplayString()}.";
     }
 }
